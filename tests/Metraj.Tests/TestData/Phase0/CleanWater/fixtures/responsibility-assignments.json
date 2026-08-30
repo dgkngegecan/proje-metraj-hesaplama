@@ -1,0 +1,31 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "projectRevisionId": "PRJ-CW-SYN-REV-001",
+  "dimensions": [
+    { "id": "DIM-SUPPLY", "name": "Temin", "systemRole": "ProcurementOwner" },
+    { "id": "DIM-INSTALL", "name": "Montaj", "systemRole": null },
+    { "id": "DIM-INSULATION", "name": "İzolasyon", "systemRole": null },
+    { "id": "DIM-TEST", "name": "Test ve Devreye Alma", "systemRole": null }
+  ],
+  "parties": [
+    { "id": "PARTY-BIZ", "name": "Biz" },
+    { "id": "PARTY-EMP", "name": "İşveren" },
+    { "id": "PARTY-SUB", "name": "Sentetik Taşeron" }
+  ],
+  "projectDefaults": [
+    { "dimensionId": "DIM-SUPPLY", "partyId": "PARTY-BIZ", "assignmentStatus": "Included" },
+    { "dimensionId": "DIM-INSTALL", "partyId": "PARTY-BIZ", "assignmentStatus": "Included" },
+    { "dimensionId": "DIM-INSULATION", "partyId": null, "assignmentStatus": "Optional" },
+    { "dimensionId": "DIM-TEST", "partyId": "PARTY-BIZ", "assignmentStatus": "Included" }
+  ],
+  "placementAssignments": [
+    { "placementId": "PL-SCOPE-EMP", "dimensionId": "DIM-SUPPLY", "partyId": "PARTY-EMP", "assignmentStatus": "Included" },
+    { "placementId": "PL-SCOPE-EMP", "dimensionId": "DIM-INSTALL", "partyId": "PARTY-BIZ", "assignmentStatus": "Included" },
+    { "placementId": "PL-PPR50-A", "dimensionId": "DIM-INSULATION", "partyId": "PARTY-SUB", "assignmentStatus": "Included" },
+    { "placementId": "PL-VAL50-A", "dimensionId": "DIM-TEST", "partyId": null, "assignmentStatus": "Excluded" }
+  ],
+  "measurementOverrides": [
+    { "measurementId": "CW-SYN-019", "dimensionId": "DIM-INSTALL", "partyId": "PARTY-SUB", "assignmentStatus": "Included", "reason": "Pompa odası montajı sentetik taşeron kapsamındadır." }
+  ],
+  "resolutionPrecedence": ["MeasurementOverride", "NearestPlacementAncestor", "ProjectDefault", "Unassigned"]
+}

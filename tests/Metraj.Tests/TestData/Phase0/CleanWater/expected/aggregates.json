@@ -1,0 +1,40 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "projectRevisionId": "PRJ-CW-SYN-REV-001",
+  "byPhysicalUnit": {
+    "m": {
+      "manualNet": "275.600000",
+      "authoritativeWithWaste": "290.270000",
+      "purchasedPhysical": "298.000000",
+      "excess": "7.730000"
+    },
+    "adet": {
+      "manualNet": "65.000000",
+      "approvedOrOverriddenDerivedNet": "33.000000",
+      "definiteNet": "98.000000",
+      "purchasedPhysical": "135.000000",
+      "excess": "37.000000",
+      "pendingProposedExcluded": "25.000000",
+      "rejectedProposedExcluded": "13.000000",
+      "supersededUsedExcluded": "14.000000"
+    }
+  },
+  "bySupplyResponsibility": [
+    { "partyId": "PARTY-BIZ", "unit": "m", "net": "195.600000", "withWaste": "204.770000", "purchasedPhysical": "208.000000", "excess": "3.230000" },
+    { "partyId": "PARTY-EMP", "unit": "m", "net": "80.000000", "withWaste": "85.500000", "purchasedPhysical": "90.000000", "excess": "4.500000" },
+    { "partyId": "PARTY-BIZ", "unit": "adet", "definiteNet": "85.000000", "purchasedPhysical": "120.000000", "excess": "35.000000" },
+    { "partyId": "PARTY-EMP", "unit": "adet", "definiteNet": "13.000000", "purchasedPhysical": "15.000000", "excess": "2.000000" }
+  ],
+  "byCardVersion": [
+    { "cardVersionId": "CW-PPR25-v1", "unit": "m", "net": "105.600000", "withWaste": "110.880000", "purchasedPhysical": "116.000000", "excess": "5.120000" },
+    { "cardVersionId": "CW-PPR32-v1", "unit": "m", "net": "79.500000", "withWaste": "83.475000", "purchasedPhysical": "84.000000", "excess": "0.525000" },
+    { "cardVersionId": "CW-PPR50-v1", "unit": "m", "net": "60.000000", "withWaste": "64.500000", "purchasedPhysical": "66.000000", "excess": "1.500000" },
+    { "cardVersionId": "CW-PPR20-v1", "unit": "m", "net": "30.500000", "withWaste": "31.415000", "purchasedPhysical": "32.000000", "excess": "0.585000" }
+  ],
+  "invariants": [
+    "purchasedPhysical - authoritativeWithWaste = excess",
+    "pending/rejected/stale/superseded results do not contribute",
+    "totals are grouped by unit and are never summed across m/adet",
+    "reference membership does not change any aggregate"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "projectRevisionId": "PRJ-CW-SYN-REV-001",
+  "authority": "ExpectedWithWaste is authoritative only at calculation-group level.",
+  "groups": [
+    { "id": "CG-PPR25-A", "placementId": "PL-PPR25-A", "memberMeasurementIds": ["CW-SYN-001", "CW-SYN-002", "CW-SYN-003", "CW-SYN-004"], "unit": "m", "wastePolicyVersion": "WASTE-5-v1", "wasteRatePct": "5.000000", "expectedNet": "45.250000", "expectedWithWaste": "47.512500" },
+    { "id": "CG-PPR25-B", "placementId": "PL-PPR25-B", "memberMeasurementIds": ["CW-SYN-005", "CW-SYN-006", "CW-SYN-007", "CW-SYN-008"], "unit": "m", "wastePolicyVersion": "WASTE-5-v1", "wasteRatePct": "5.000000", "expectedNet": "40.350000", "expectedWithWaste": "42.367500" },
+    { "id": "CG-PPR25-C", "placementId": "PL-PPR25-C", "memberMeasurementIds": ["CW-SYN-009", "CW-SYN-010", "CW-SYN-011"], "unit": "m", "wastePolicyVersion": "WASTE-5-v1", "wasteRatePct": "5.000000", "expectedNet": "20.000000", "expectedWithWaste": "21.000000" },
+    { "id": "CG-PPR32-A", "placementId": "PL-PPR32-A", "memberMeasurementIds": ["CW-SYN-012", "CW-SYN-013", "CW-SYN-014"], "unit": "m", "wastePolicyVersion": "WASTE-5-v1", "wasteRatePct": "5.000000", "expectedNet": "44.750000", "expectedWithWaste": "46.987500" },
+    { "id": "CG-PPR32-B", "placementId": "PL-PPR32-B", "memberMeasurementIds": ["CW-SYN-015", "CW-SYN-016", "CW-SYN-017"], "unit": "m", "wastePolicyVersion": "WASTE-5-v1", "wasteRatePct": "5.000000", "expectedNet": "34.750000", "expectedWithWaste": "36.487500" },
+    { "id": "CG-PPR50-A", "placementId": "PL-PPR50-A", "memberMeasurementIds": ["CW-SYN-018", "CW-SYN-019", "CW-SYN-020"], "unit": "m", "wastePolicyVersion": "WASTE-7_5-v1", "wasteRatePct": "7.500000", "expectedNet": "60.000000", "expectedWithWaste": "64.500000" },
+    { "id": "CG-PPR20-A", "placementId": "PL-PPR20-A", "memberMeasurementIds": ["CW-SYN-021", "CW-SYN-022", "CW-SYN-023", "CW-SYN-024"], "unit": "m", "wastePolicyVersion": "WASTE-3-v1", "wasteRatePct": "3.000000", "expectedNet": "30.500000", "expectedWithWaste": "31.415000" },
+    { "id": "CG-ELB25-A", "placementId": "PL-ELB25-A", "memberMeasurementIds": ["CW-SYN-025", "CW-SYN-026", "CW-SYN-027"], "unit": "adet", "wastePolicyVersion": "WASTE-0-v1", "wasteRatePct": "0.000000", "expectedNet": "24.000000", "expectedWithWaste": "24.000000" },
+    { "id": "CG-TEE25-A", "placementId": "PL-TEE25-A", "memberMeasurementIds": ["CW-SYN-028", "CW-SYN-029", "CW-SYN-030"], "unit": "adet", "wastePolicyVersion": "WASTE-0-v1", "wasteRatePct": "0.000000", "expectedNet": "12.000000", "expectedWithWaste": "12.000000" },
+    { "id": "CG-VAL25-A", "placementId": "PL-VAL25-A", "memberMeasurementIds": ["CW-SYN-031", "CW-SYN-032"], "unit": "adet", "wastePolicyVersion": "WASTE-0-v1", "wasteRatePct": "0.000000", "expectedNet": "10.000000", "expectedWithWaste": "10.000000" },
+    { "id": "CG-ELB32-A", "placementId": "PL-ELB32-A", "memberMeasurementIds": ["CW-SYN-033", "CW-SYN-034"], "unit": "adet", "wastePolicyVersion": "WASTE-0-v1", "wasteRatePct": "0.000000", "expectedNet": "11.000000", "expectedWithWaste": "11.000000" },
+    { "id": "CG-VAL50-A", "placementId": "PL-VAL50-A", "memberMeasurementIds": ["CW-SYN-035"], "unit": "adet", "wastePolicyVersion": "WASTE-0-v1", "wasteRatePct": "0.000000", "expectedNet": "5.000000", "expectedWithWaste": "5.000000" },
+    { "id": "CG-TEE32-A", "placementId": "PL-TEE32-A", "memberMeasurementIds": ["CW-SYN-036"], "unit": "adet", "wastePolicyVersion": "WASTE-0-v1", "wasteRatePct": "0.000000", "expectedNet": "3.000000", "expectedWithWaste": "3.000000" }
+  ]
+}

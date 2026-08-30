@@ -1,0 +1,11 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "rules": [
+    { "id": "RULE-CLAMP-EVERY-2_5M-v1", "version": 1, "sourceQuantityKind": "Net", "sourceUnit": "m", "targetUnit": "adet", "operation": "CeilingRatio", "divisor": "2.500000", "contextGrouping": ["ProjectRevisionId", "SourcePlacementId"], "allowDerivedSource": false },
+    { "id": "RULE-CLAMP-EVERY-3M-v1", "version": 1, "sourceQuantityKind": "Net", "sourceUnit": "m", "targetUnit": "adet", "operation": "CeilingRatio", "divisor": "3.000000", "contextGrouping": ["ProjectRevisionId", "SourcePlacementId"], "allowDerivedSource": false },
+    { "id": "RULE-CLAMP-EVERY-4M-v1", "version": 1, "sourceQuantityKind": "Net", "sourceUnit": "m", "targetUnit": "adet", "operation": "CeilingRatio", "divisor": "4.000000", "contextGrouping": ["ProjectRevisionId", "SourcePlacementId"], "allowDerivedSource": false },
+    { "id": "RULE-CLAMP-EVERY-6M-v1", "version": 1, "sourceQuantityKind": "Net", "sourceUnit": "m", "targetUnit": "adet", "operation": "CeilingRatio", "divisor": "6.000000", "contextGrouping": ["ProjectRevisionId", "SourcePlacementId"], "allowDerivedSource": false }
+  ],
+  "engineVersion": "SYN-CALC-ENGINE-CONTRACT-v1",
+  "unitPolicyVersion": "SYN-UNIT-POLICY-v1"
+}

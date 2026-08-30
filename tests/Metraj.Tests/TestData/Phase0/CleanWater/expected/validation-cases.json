@@ -1,0 +1,27 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "cases": [
+    { "id": "VAL-ZERO-001", "inputQuantity": "0.000000", "containerParameter": "6.000000", "expectedContainers": "0", "expectedPurchasedPhysical": "0.000000", "expectedExcess": "0.000000" },
+    { "id": "VAL-NEGATIVE-001", "inputQuantity": "-0.000001", "expectedError": "MEASUREMENT_NEGATIVE" },
+    { "id": "VAL-NULL-001", "inputQuantity": null, "expectedError": "MEASUREMENT_REQUIRED", "mustNotCoerceToZero": true },
+    { "id": "VAL-SCALE-001", "inputQuantity": "1.0000001", "expectedError": "QTY_SCALE_EXCEEDED" },
+    { "id": "VAL-MAX-001", "inputQuantity": "9223372036854.775807", "expectedCanonical": "9223372036854.775807" },
+    { "id": "VAL-OVERFLOW-001", "inputQuantity": "9223372036854.775808", "expectedError": "QTY_OUT_OF_RANGE" },
+    { "id": "VAL-CONTAINER-ZERO-001", "inputQuantity": "10.000000", "containerParameter": "0.000000", "expectedError": "CONTAINER_MUST_BE_POSITIVE" },
+    { "id": "VAL-CONTAINER-NEGATIVE-001", "inputQuantity": "10.000000", "containerParameter": "-6.000000", "expectedError": "CONTAINER_MUST_BE_POSITIVE" },
+    { "id": "VAL-LENGTH-EXACT-001", "inputQuantity": "54.000000", "containerParameter": "6.000000", "expectedContainers": "9" },
+    { "id": "VAL-LENGTH-EPSILON-001", "inputQuantity": "54.000001", "containerParameter": "6.000000", "expectedContainers": "10" },
+    { "id": "VAL-PACK-EXACT-001", "inputQuantity": "25.000000", "containerParameter": "25.000000", "expectedContainers": "1" },
+    { "id": "VAL-PACK-EPSILON-001", "inputQuantity": "25.000001", "containerParameter": "25.000000", "expectedContainers": "2" },
+    { "id": "VAL-TR-DECIMAL-001", "uiCulture": "tr-TR", "inputText": "52,4", "expectedCanonical": "52.400000" },
+    { "id": "VAL-INVARIANT-DECIMAL-001", "uiCulture": "invariant", "inputText": "52.4", "expectedCanonical": "52.400000" },
+    { "id": "VAL-AMBIGUOUS-TR-001", "uiCulture": "tr-TR", "inputText": "1.234", "expectedError": "AMBIGUOUS_NUMBER_FORMAT" },
+    { "id": "VAL-AMBIGUOUS-INV-001", "uiCulture": "invariant", "inputText": "1,234", "expectedError": "AMBIGUOUS_NUMBER_FORMAT" },
+    { "id": "VAL-UNIT-MISMATCH-001", "leftUnit": "m", "rightUnit": "adet", "expectedError": "UNIT_FAMILY_MISMATCH" },
+    { "id": "VAL-GROUP-SPLIT-001", "rows": ["3.100000", "2.900000"], "containerParameter": "6.000000", "expectedGroupNet": "6.000000", "expectedContainers": "1", "rowLevelCeilingForbidden": true },
+    { "id": "VAL-FIRE-PROJECTION-001", "rows": ["0.000001", "0.000001"], "wasteRatePct": "50.000000", "informationalRoundedRowProjections": ["0.000002", "0.000002"], "expectedAuthoritativeGroupWithWaste": "0.000003", "rowProjectionSumForbidden": true },
+    { "id": "VAL-ORDER-INVARIANCE-001", "rowsA": ["12.400000", "18.600000", "9.000000", "5.250000"], "rowsB": ["5.250000", "9.000000", "12.400000", "18.600000"], "expectedSameNet": "45.250000", "expectedSameWithWaste": "47.512500" },
+    { "id": "VAL-PURCHASE-CROSS-REV-001", "leftRevisionId": "PRJ-CW-SYN-REV-001", "rightRevisionId": "PRJ-CW-SYN-REV-002", "expectedError": "PURCHASE_GROUP_CROSS_REVISION" },
+    { "id": "VAL-PURCHASE-NOPOOL-001", "leftPlacementId": "PL-PPR25-C", "rightPlacementId": "PL-PPR25-A", "sameCardVersion": true, "expectedCanPool": false, "reason": "NoPool and different supply responsibility" }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "projectRevisionId": "PRJ-CW-SYN-REV-001",
+  "validReferences": [
+    {
+      "id": "REF-ANA-DAGITIM-001",
+      "sourcePlacementId": "PL-PPR25-A",
+      "aliasPlacementId": "PL-REF-ANA-DAGITIM",
+      "relation": "reference",
+      "contributionKeys": [
+        "Measurement:CW-SYN-001",
+        "Measurement:CW-SYN-002",
+        "Measurement:CW-SYN-003",
+        "Measurement:CW-SYN-004"
+      ],
+      "aliasVisibleNet": "45.250000",
+      "globalLengthNetBeforeAlias": "275.600000",
+      "globalLengthNetAfterAlias": "275.600000",
+      "duplicateContributionAllowed": false
+    }
+  ],
+  "invalidReferences": [
+    { "caseId": "REF-SELF-001", "sourcePlacementId": "PL-PPR25-A", "aliasPlacementId": "PL-PPR25-A", "expectedError": "REFERENCE_SELF_NOT_ALLOWED" },
+    { "caseId": "REF-CYCLE-001", "sourcePlacementId": "PL-REF-ANA-DAGITIM", "aliasPlacementId": "PL-PPR25-A", "existingReferenceId": "REF-ANA-DAGITIM-001", "expectedError": "REFERENCE_CYCLE" },
+    { "caseId": "REF-CROSS-REV-001", "sourcePlacementId": "PL-PPR25-A", "sourceRevisionId": "PRJ-CW-SYN-REV-001", "aliasPlacementId": "PL-REV2-ALIAS", "aliasRevisionId": "PRJ-CW-SYN-REV-002", "expectedError": "REFERENCE_CROSS_REVISION" }
+  ],
+  "v1Limitation": "reference aliases the complete source placement. Selecting only some measurements is unsupported."
+}

@@ -1,0 +1,12 @@
+# Scratch / non-project working files
+tmp/
+
+# .NET build output (Faz 1+)
+bin/
+obj/
+*.user
+
+# Local SQLite project data (not fixtures)
+*.db
+*.db-shm
+*.db-wal

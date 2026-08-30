@@ -1,0 +1,38 @@
+{
+  "sourceKind": "SYNTHETIC",
+  "projectId": "PRJ-CW-SYN",
+  "projectRevisionId": "PRJ-CW-SYN-REV-001",
+  "revisionStatus": "Draft",
+  "placements": [
+    { "id": "PL-ROOT", "parentId": null, "cardVersionId": null, "name": "Sentetik Temiz Su Referans Projesi", "order": 0 },
+    { "id": "PL-MECH", "parentId": "PL-ROOT", "cardVersionId": "CW-CATEGORY-v1", "name": "Mekanik Tesisat", "order": 10 },
+    { "id": "PL-SCOPE-BIZ", "parentId": "PL-MECH", "cardVersionId": "CW-SCOPE-BIZ-v1", "name": "Bizim Kapsamımız", "order": 20 },
+    { "id": "PL-SCOPE-EMP", "parentId": "PL-MECH", "cardVersionId": "CW-SCOPE-EMP-v1", "name": "İşveren Kapsamı", "order": 30 },
+    { "id": "PL-SYS-CW-BIZ", "parentId": "PL-SCOPE-BIZ", "cardVersionId": "CW-SYSTEM-v1", "name": "Temiz Su", "order": 40 },
+    { "id": "PL-SYS-CW-EMP", "parentId": "PL-SCOPE-EMP", "cardVersionId": "CW-SYSTEM-v1", "name": "Temiz Su", "order": 50 },
+
+    { "id": "PL-PPR25-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-PPR25-v1", "name": "PPRC Boru DN25 — A Blok", "procurementScope": "POOL-PPR25-BIZ", "noPool": false, "supplyParty": "PARTY-BIZ", "order": 100 },
+    { "id": "PL-PPR25-B", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-PPR25-v1", "name": "PPRC Boru DN25 — B Blok", "procurementScope": "POOL-PPR25-BIZ", "noPool": false, "supplyParty": "PARTY-BIZ", "order": 110 },
+    { "id": "PL-PPR25-C", "parentId": "PL-SYS-CW-EMP", "cardVersionId": "CW-PPR25-v1", "name": "PPRC Boru DN25 — Çatı", "procurementScope": "NOPOOL-PPR25-EMP", "noPool": true, "supplyParty": "PARTY-EMP", "order": 120 },
+    { "id": "PL-PPR32-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-PPR32-v1", "name": "PPRC Boru DN32 — A Blok", "procurementScope": "POOL-PPR32-BIZ", "noPool": false, "supplyParty": "PARTY-BIZ", "order": 130 },
+    { "id": "PL-PPR32-B", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-PPR32-v1", "name": "PPRC Boru DN32 — B Blok", "procurementScope": "POOL-PPR32-BIZ", "noPool": false, "supplyParty": "PARTY-BIZ", "order": 140 },
+    { "id": "PL-PPR50-A", "parentId": "PL-SYS-CW-EMP", "cardVersionId": "CW-PPR50-v1", "name": "PPRC Boru DN50 — Bodrum Ana Hat", "procurementScope": "NOPOOL-PPR50-EMP", "noPool": true, "supplyParty": "PARTY-EMP", "order": 150 },
+    { "id": "PL-PPR20-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-PPR20-v1", "name": "PPRC Boru DN20 — Daire Dağıtımı", "procurementScope": "NOPOOL-PPR20-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 160 },
+
+    { "id": "PL-ELB25-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-ELB25-v1", "name": "PPRC Dirsek DN25", "procurementScope": "NOPOOL-ELB25-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 200 },
+    { "id": "PL-TEE25-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-TEE25-v1", "name": "PPRC Te DN25", "procurementScope": "NOPOOL-TEE25-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 210 },
+    { "id": "PL-VAL25-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-VAL25-v1", "name": "Küresel Vana DN25", "procurementScope": "NOPOOL-VAL25-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 220 },
+    { "id": "PL-ELB32-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-ELB32-v1", "name": "PPRC Dirsek DN32", "procurementScope": "NOPOOL-ELB32-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 230 },
+    { "id": "PL-VAL50-A", "parentId": "PL-SYS-CW-EMP", "cardVersionId": "CW-VAL50-v1", "name": "Kelebek Vana DN50", "procurementScope": "NOPOOL-VAL50-EMP", "noPool": true, "supplyParty": "PARTY-EMP", "order": 240 },
+    { "id": "PL-TEE32-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-TEE32-v1", "name": "PPRC Te DN32", "procurementScope": "NOPOOL-TEE32-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 250 },
+
+    { "id": "PL-CLAMP20-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-CLAMP20-v1", "name": "Kelepçe DN20 — Türetilmiş", "procurementScope": "NOPOOL-CLAMP20-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 300 },
+    { "id": "PL-CLAMP25-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-CLAMP25-v1", "name": "Kelepçe DN25 — A Blok", "procurementScope": "NOPOOL-CLAMP25-A-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 310 },
+    { "id": "PL-CLAMP25-B", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-CLAMP25-v1", "name": "Kelepçe DN25 — B Blok", "procurementScope": "NOPOOL-CLAMP25-B-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 320 },
+    { "id": "PL-CLAMP32-A", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-CLAMP32-v1", "name": "Kelepçe DN32 — A Blok", "procurementScope": "NOPOOL-CLAMP32-A-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 330 },
+    { "id": "PL-CLAMP32-B", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-CLAMP32-v1", "name": "Kelepçe DN32 — B Blok", "procurementScope": "NOPOOL-CLAMP32-B-BIZ", "noPool": true, "supplyParty": "PARTY-BIZ", "order": 340 },
+    { "id": "PL-CLAMP50-A", "parentId": "PL-SYS-CW-EMP", "cardVersionId": "CW-CLAMP50-v1", "name": "Kelepçe DN50 — Bodrum", "procurementScope": "NOPOOL-CLAMP50-EMP", "noPool": true, "supplyParty": "PARTY-EMP", "order": 350 },
+
+    { "id": "PL-REF-ANA-DAGITIM", "parentId": "PL-SYS-CW-BIZ", "cardVersionId": "CW-REPORT-ALIAS-v1", "name": "Ana Dağıtım Hattı — Rapor Alias", "order": 400 }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "1.0.0",
+  "packageId": "CW-SYNTHETIC-REFERENCE-v1",
+  "status": "PHASE0_COMPLETE",
+  "sourceKind": "SYNTHETIC",
+  "notRepresentativeOfAnyCustomerProject": true,
+  "realDataValidated": false,
+  "officialLabel": "SYNTHETIC-VALIDATED / REAL-DATA-NOT-VALIDATED",
+  "createdAt": "2026-08-30",
+  "createdBy": ["OPENAI-LUNA56", "OPENAI-SOL56"],
+  "independentReviewer": "CLAUDE-OPUS5",
+  "openAIValidation": {
+    "status": "PASSED",
+    "packageFilesValidated": 12,
+    "jsonFilesParsed": 11,
+    "csvFilesParsed": 1,
+    "measurementRows": 36,
+    "calculationGroups": 13,
+    "purchaseGroups": 14,
+    "arithmeticMismatches": 0,
+    "validatedAt": "2026-08-30"
+  },
+  "claudeValidation": {
+    "status": "PASSED",
+    "reviewer": "CLAUDE-OPUS5",
+    "filesHashMatched": 12,
+    "calculationGroupsMatched": 13,
+    "purchaseGroupsMatched": 14,
+    "arithmeticMismatches": 0,
+    "report": "docs/faz0-sentetik-paket-inceleme-claude-opus5.md",
+    "validatedAt": "2026-08-30"
+  },
+  "phaseClosure": {
+    "status": "USER_APPROVED",
+    "approvedAt": "2026-08-30",
+    "openAIReport": "docs/faz0-bitis-raporu-openai-sol56.md",
+    "claudeReport": "docs/faz0-kapanis-raporu.md"
+  },
+  "projectId": "PRJ-CW-SYN",
+  "projectRevisionId": "PRJ-CW-SYN-REV-001",
+  "canonicalDecimal": {
+    "jsonFormat": "invariant-dot-string",
+    "scale": 6,
+    "roundingAtResultBoundary": "AwayFromZero"
+  },
+  "benchmarkProfiles": {
+    "smoke": "SYN-SMOKE-36",
+    "entry": "SYN-ENTRY-500",
+    "stress": "SYN-STRESS-1500"
+  },
+  "assumptionVersion": "CW-SYN-ASSUMPTIONS-v1",
+  "purchaseGroupingAssumption": "Different placements never pool unless they share the same explicit ProcurementScope and all version/unit/conversion/supply keys match.",
+  "files": [
+    { "path": "fixtures/catalog-card-versions.json", "sha256": "17980c3e4fb7b379bbfbb7bdf4fca465ce9b892f22f377d41083a891e2edb6d8" },
+    { "path": "fixtures/project-placements.json", "sha256": "3bbd0c1c0a47e79522f1858eced91ea0373331be86259244748a99999a244b23" },
+    { "path": "fixtures/measurements.csv", "sha256": "41c0ae5e6f16e67a08e03a02597774023477c4a697747b1139cbf02630f10038" },
+    { "path": "fixtures/calculation-rule-versions.json", "sha256": "c1d32c5dacf4497921bfc18c4e5316267944e6286e3718bca3505a516378b769" },
+    { "path": "fixtures/responsibility-assignments.json", "sha256": "d75218405f0a2f0d26bd3f1737d37dd6a216e100c15689b8a8a1182d72bcc154" },
+    { "path": "expected/line-results.json", "sha256": "9d8d7a306c9750d00529a83721536c1126d6d8ae4bab74b54b7a3281f2c0f888" },
+    { "path": "expected/calculation-groups.json", "sha256": "9280429847caa8cd408eef25c6e88f0d41cb89c405d60801cbcc00a3c4e889b7" },
+    { "path": "expected/purchase-groups.json", "sha256": "f3f8de1e6b9cb74bc1f48e026fdd37af487fb9f8587caec8ca92751e5dae4d43" },
+    { "path": "expected/aggregates.json", "sha256": "47036c7789f3add72c54bbf35100247a388199db55eca07604aa4ec85ca05fbb" },
+    { "path": "expected/report-membership.json", "sha256": "fe35224abf5fb018b56664cfa83f74cf81f4ad877b3c082da10e9354c0358756" },
+    { "path": "expected/state-transitions.json", "sha256": "0d0c5d6464a805c86a003353e532f0696007e6880592fdbd6d2fb5c108cc58aa" },
+    { "path": "expected/validation-cases.json", "sha256": "d84298c033fb66a6d11e5764d319ce87b334bd1bf90cabed956efe9aa0761f54" }
+  ]
+}
