@@ -174,6 +174,13 @@ public sealed class ProjectRevision
     public ProjectRevisionStatus Status { get; set; } = ProjectRevisionStatus.Draft;
     public string EngineVersion { get; set; } = "SYN-CALC-ENGINE-CONTRACT-v1";
     public string UnitPolicyVersion { get; set; } = "SYN-UNIT-POLICY-v1";
+    /// <summary>
+    /// Onay anında dondurulan, projeye dışarıdan etki eden politika. Kart sürümleri
+    /// ve varyant boyları zaten değişmez olduğu için burada yalnızca merkezi
+    /// malzeme fire oranları saklanır. Taslak revizyonlarda null'dır: düzenlenebilir
+    /// bir revizyon güncel ayarları izler.
+    /// </summary>
+    public string? EffectivePolicyJson { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? ApprovedAtUtc { get; set; }
     public Project? Project { get; set; }

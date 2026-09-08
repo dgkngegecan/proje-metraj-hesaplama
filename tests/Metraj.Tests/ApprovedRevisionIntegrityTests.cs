@@ -41,6 +41,68 @@ public sealed class ApprovedRevisionIntegrityTests
     }
 
     [Fact]
+    public async Task ApprovedQuantitiesDoNotChangeWhenGlobalWastePolicyChangesLater()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync();
+        var projects = new ProjectWorkspaceService(database.ContextFactory);
+        var cards = new CatalogWorkspaceService(database.ContextFactory);
+        var tree = new ProjectTreeWorkspaceService(database.ContextFactory);
+        var measurements = new MeasurementWorkspaceService(database.ContextFactory);
+        var waste = new MaterialTypeWasteWorkspaceService(database.ContextFactory);
+
+        ProjectListItem project = await projects.CreateProjectAsync("P-FREEZE", "Dondurma testi");
+        CatalogCardListItem card = await cards.CreateCardAsync(new CatalogCardDraft(
+            "MAT-FREEZE", "Çelik boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "m", 0m, MaterialType: "Steel"));
+        PlacementListItem placement = await tree.AddPlacementAsync(
+            new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
+        await measurements.CreateMeasurementAsync(
+            new MeasurementDraft(project.LatestRevisionId, placement.Id, 100m, "m"));
+
+        await waste.UpsertAsync("Steel", 5m);
+        MeasurementSummaryItem beforeApproval = Assert.Single(
+            await measurements.ListSummariesAsync(project.LatestRevisionId));
+        Assert.Equal(105m, beforeApproval.WithWasteQuantity);
+
+        await projects.ApproveRevisionAsync(project.LatestRevisionId);
+
+        // Onaydan SONRA merkezi politika değişiyor.
+        await waste.UpsertAsync("Steel", 25m);
+
+        MeasurementSummaryItem afterPolicyChange = Assert.Single(
+            await measurements.ListSummariesAsync(project.LatestRevisionId));
+        Assert.Equal(5m, afterPolicyChange.AppliedWasteRatePct);
+        Assert.Equal(105m, afterPolicyChange.WithWasteQuantity);
+    }
+
+    [Fact]
+    public async Task DraftRevisionsStillFollowTheCurrentGlobalWastePolicy()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync();
+        var projects = new ProjectWorkspaceService(database.ContextFactory);
+        var cards = new CatalogWorkspaceService(database.ContextFactory);
+        var tree = new ProjectTreeWorkspaceService(database.ContextFactory);
+        var measurements = new MeasurementWorkspaceService(database.ContextFactory);
+        var waste = new MaterialTypeWasteWorkspaceService(database.ContextFactory);
+
+        ProjectListItem project = await projects.CreateProjectAsync("P-LIVE", "Canlı politika");
+        CatalogCardListItem card = await cards.CreateCardAsync(new CatalogCardDraft(
+            "MAT-LIVE", "Çelik boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "m", 0m, MaterialType: "Steel"));
+        PlacementListItem placement = await tree.AddPlacementAsync(
+            new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
+        await measurements.CreateMeasurementAsync(
+            new MeasurementDraft(project.LatestRevisionId, placement.Id, 100m, "m"));
+
+        await waste.UpsertAsync("Steel", 5m);
+        Assert.Equal(105m, Assert.Single(await measurements.ListSummariesAsync(project.LatestRevisionId)).WithWasteQuantity);
+
+        // Taslak revizyon düzenlenebilir olduğu için güncel politikayı izlemeli.
+        await waste.UpsertAsync("Steel", 25m);
+        Assert.Equal(125m, Assert.Single(await measurements.ListSummariesAsync(project.LatestRevisionId)).WithWasteQuantity);
+    }
+
+    [Fact]
     public async Task DuplicatingAMeasurementStillWorksOnADraftRevision()
     {
         await using TestDatabase database = await TestDatabase.CreateAsync();

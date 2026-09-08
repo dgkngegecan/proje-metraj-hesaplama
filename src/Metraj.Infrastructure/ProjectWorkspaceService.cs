@@ -254,6 +254,11 @@ public sealed class ProjectWorkspaceService : IProjectWorkspace
             throw new DomainRuleViolationException("revision.pending-calculations", "Review or reject every pending calculation proposal before approving the revision.");
         }
 
+        // Onay anında, projeye dışarıdan etki eden tek değişken politikayı dondur.
+        // Bu olmadan onaylı bir revizyonun fireli miktarları, aylar sonra yapılan
+        // ilgisiz bir ayar değişikliğiyle birlikte değişiyordu ve "onaylanan sürüm
+        // korunur" vaadi tutmuyordu.
+        revision.EffectivePolicyJson = await RevisionWastePolicy.CaptureAsync(context, cancellationToken);
         revision.Status = ProjectRevisionStatus.Approved;
         revision.ApprovedAtUtc = DateTime.UtcNow;
         context.AuditEntries.Add(new AuditEntry

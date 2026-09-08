@@ -16,6 +16,7 @@ public static class ApplicationSchemaMigrator
     private const string ConfigurableCatalogTypesVersion = "20260901-configurable-catalog-types";
     private const string CatalogVariantProfilesVersion = "20260901-catalog-variant-profiles";
     private const string MaterialWasteCaseInsensitiveVersion = "20260908-material-waste-nocase";
+    private const string RevisionEffectivePolicyVersion = "20260908-revision-effective-policy";
 
     /// <summary>
     /// Bu uygulama sürümünün tanıdığı şema adımları. Geri yükleme doğrulaması da
@@ -31,7 +32,8 @@ public static class ApplicationSchemaMigrator
         VariantAndMaterialPolicyVersion,
         ConfigurableCatalogTypesVersion,
         CatalogVariantProfilesVersion,
-        MaterialWasteCaseInsensitiveVersion
+        MaterialWasteCaseInsensitiveVersion,
+        RevisionEffectivePolicyVersion
     ];
 
     /// <summary>Bir Metraj veritabanında bulunması zorunlu çekirdek tablolar.</summary>
@@ -62,6 +64,7 @@ public static class ApplicationSchemaMigrator
         await EnsureCatalogVariantProfilesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureConfigurableCatalogTypesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureMaterialWasteCaseInsensitiveAsync(context, transaction, cancellationToken).ConfigureAwait(false);
+        await EnsureRevisionEffectivePolicyAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "__AppSchemaVersions" (
@@ -206,6 +209,22 @@ public static class ApplicationSchemaMigrator
             command.CommandText = statement;
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Onay anında dondurulan etkin politika alanını ekler. Bu alan olmadan
+    /// onaylanmış bir revizyonun fireli miktarları, sonradan değiştirilen merkezi
+    /// ayarlarla birlikte değişiyordu.
+    /// </summary>
+    private static async Task EnsureRevisionEffectivePolicyAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await EnsureColumnAsync(connection, transaction, "ProjectRevisions", "EffectivePolicyJson", "TEXT NULL", cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(DbConnection connection, IDbContextTransaction transaction, string table, string column, string definition, CancellationToken cancellationToken)

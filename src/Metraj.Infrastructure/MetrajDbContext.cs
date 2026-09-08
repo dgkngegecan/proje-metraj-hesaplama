@@ -94,6 +94,7 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
         revisions.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
         revisions.Property(x => x.EngineVersion).HasMaxLength(64).IsRequired();
         revisions.Property(x => x.UnitPolicyVersion).HasMaxLength(64).IsRequired();
+        revisions.Property(x => x.EffectivePolicyJson).HasMaxLength(65_536);
         revisions.HasIndex(x => new { x.ProjectId, x.RevisionNumber }).IsUnique();
         revisions.HasOne(x => x.Project).WithMany(x => x.Revisions)
             .HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.Cascade);
