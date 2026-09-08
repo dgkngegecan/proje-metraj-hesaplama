@@ -1,4 +1,5 @@
-using System.Text.Json;
+﻿using System.Text.Json;
+using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -44,6 +45,50 @@ public static class RevisionWastePolicy
         return JsonSerializer.Serialize(
             current.OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase).ToDictionary(pair => pair.Key, pair => pair.Value),
             SerializerOptions);
+    }
+
+    /// <summary>
+    /// Bir kartın, bu revizyonda gerçekten uygulanacak hâlini üretir: merkezi
+    /// malzeme fire oranı ve (varsa) seçilen varyantın ticari boyu.
+    /// </summary>
+    /// <remarks>
+    /// Metraj özeti bu çözümlemeyi yapıyordu ama hesap önerileri motoru HAM
+    /// katalog kartıyla çağırıyordu. Aynı veri için özet ekranı ile hesap
+    /// önerisi farklı sayı üretebiliyordu. İki yol da artık buradan geçer.
+    /// </remarks>
+    public static CatalogCardVersion ResolveEffectiveCard(
+        CatalogCardVersion card,
+        IReadOnlyDictionary<string, decimal> materialWaste,
+        string? variant = null)
+    {
+        ArgumentNullException.ThrowIfNull(card);
+        ArgumentNullException.ThrowIfNull(materialWaste);
+
+        decimal effectiveWaste = card.MaterialType is string materialType && materialWaste.TryGetValue(materialType, out decimal configured)
+            ? configured
+            : card.WasteRatePct;
+
+        var effective = new CatalogCardVersion
+        {
+            WasteRatePct = effectiveWaste,
+            SalesConversion = card.SalesConversion,
+            ContainerParameter = card.ContainerParameter
+        };
+
+        // Boru kartları her nominal çap için farklı bir ticari boy tanımlayabilir.
+        // Ölçümün varyantı, o politikayı seçen değişmez anahtardır.
+        if (card.SalesConversion == SalesConversion.StandardLength && !string.IsNullOrWhiteSpace(variant))
+        {
+            CatalogCardVariant? profile = CatalogVariantCatalog.Parse(card.VariantDefinitionsJson)
+                .FirstOrDefault(item => item.Code.Equals(variant, StringComparison.OrdinalIgnoreCase) ||
+                    item.Label.Equals(variant, StringComparison.OrdinalIgnoreCase));
+            if (profile?.StandardLength is decimal standardLength && standardLength > 0m)
+            {
+                effective.ContainerParameter = standardLength;
+            }
+        }
+
+        return effective;
     }
 
     private static async Task<IReadOnlyDictionary<string, decimal>> ReadCurrentAsync(MetrajDbContext context, CancellationToken cancellationToken)

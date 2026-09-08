@@ -1,4 +1,4 @@
-using Metraj.Application;
+﻿using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -64,26 +64,10 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
             ProjectPlacement placement = placements[group.PlacementId];
             CatalogCardVersion card = placement.CatalogCardVersion
                 ?? throw new DomainRuleViolationException("measurement.card", "Placement catalog card version was not found.");
-            decimal effectiveWaste = card.MaterialType is string materialType && materialWaste.TryGetValue(materialType, out decimal configured)
-                ? configured : card.WasteRatePct;
-            var effectiveCard = new CatalogCardVersion
-            {
-                WasteRatePct = effectiveWaste,
-                SalesConversion = card.SalesConversion,
-                ContainerParameter = card.ContainerParameter
-            };
-            // Pipe cards can define a different stock length for every nominal diameter.
-            // The measurement variant is the immutable key that selects that policy.
-            if (card.SalesConversion == SalesConversion.StandardLength && !string.IsNullOrWhiteSpace(group.Variant))
-            {
-                CatalogCardVariant? profile = CatalogVariantCatalog.Parse(card.VariantDefinitionsJson)
-                    .FirstOrDefault(item => item.Code.Equals(group.Variant, StringComparison.OrdinalIgnoreCase) ||
-                        item.Label.Equals(group.Variant, StringComparison.OrdinalIgnoreCase));
-                if (profile?.StandardLength is decimal standardLength && standardLength > 0m)
-                {
-                    effectiveCard.ContainerParameter = standardLength;
-                }
-            }
+            // Etkin kart çözümlemesi hesap önerileriyle ORTAK; iki yol aynı
+            // politikayı uygulamazsa aynı veri için farklı sayı üretilir.
+            CatalogCardVersion effectiveCard = RevisionWastePolicy.ResolveEffectiveCard(card, materialWaste, group.Variant);
+            decimal effectiveWaste = effectiveCard.WasteRatePct;
             CalculationOutput calculated = CalculationEngine.Calculate(effectiveCard, group.Net);
             string name = placement.DisplayNameOverride ?? card.Name;
             string code = card.CatalogCardDefinition?.Code ?? "?";

@@ -141,6 +141,50 @@ public sealed class CalculationFreshnessTests
     }
 
     [Fact]
+    public async Task SummaryAndProposalApplyTheSameEffectiveWastePolicy()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync();
+        var projects = new ProjectWorkspaceService(database.ContextFactory);
+        var cards = new CatalogWorkspaceService(database.ContextFactory);
+        var tree = new ProjectTreeWorkspaceService(database.ContextFactory);
+        var measurements = new MeasurementWorkspaceService(database.ContextFactory);
+        var calculations = new CalculationWorkspaceService(database.ContextFactory);
+        var waste = new MaterialTypeWasteWorkspaceService(database.ContextFactory);
+
+        ProjectListItem project = await projects.CreateProjectAsync("P-POLICY", "Ortak politika");
+        // Kartın kendi fire oranı %0; merkezi aile kuralı %10 olacak.
+        CatalogCardListItem pipeCard = await cards.CreateCardAsync(new CatalogCardDraft(
+            "MAT-POLICY-PIPE", "Çelik boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "m", 0m, MaterialType: "Steel"));
+        CatalogCardListItem fittingCard = await cards.CreateCardAsync(new CatalogCardDraft(
+            "ACC-POLICY-FIT", "Dirsek", CardType.Accessory, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "m"));
+
+        PlacementListItem pipe = await tree.AddPlacementAsync(
+            new PlacementDraft(project.LatestRevisionId, pipeCard.LatestVersionId));
+        PlacementListItem fitting = await tree.AddPlacementAsync(
+            new PlacementDraft(project.LatestRevisionId, fittingCard.LatestVersionId));
+        await tree.AddLinkAsync(pipe.Id, fitting.Id, SemanticLinkType.CalculatedFrom);
+        await measurements.CreateMeasurementAsync(
+            new MeasurementDraft(project.LatestRevisionId, pipe.Id, 100m, "m"));
+        await waste.UpsertAsync("Steel", 10m);
+
+        MeasurementSummaryItem summary = Assert.Single(
+            await measurements.ListSummariesAsync(project.LatestRevisionId));
+        Assert.Equal(10m, summary.AppliedWasteRatePct);
+        Assert.Equal(110m, summary.WithWasteQuantity);
+
+        // WithWaste kaynaklı bir kural, özetle AYNI fireli miktarı görmelidir.
+        CalculationRuleListItem rule = await calculations.CreateRuleVersionAsync(
+            project.LatestRevisionId,
+            new CalculationRuleDraft("FIRELI", "Fireli kaynaktan", CalculationRuleMode.FixedMultiplier, 1m, SourceQuantityKind.WithWaste));
+        CalculationResultListItem result = await calculations.CalculateAsync(
+            project.LatestRevisionId, fitting.Id, rule.Id);
+
+        Assert.Equal(summary.WithWasteQuantity, result.ProposedQuantity);
+    }
+
+    [Fact]
     public async Task UnrelatedMeasurementChangesDoNotInvalidateAResult()
     {
         await using TestDatabase database = await TestDatabase.CreateAsync();

@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -118,10 +118,16 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
         }
 
         ParsedRule parsedRule = ParseRule(rule);
-        SourceSnapshot source = await BuildSourceSnapshotAsync(context, revisionId, target, parsedRule, cancellationToken);
+        // Metraj özetiyle AYNI etkin politika kullanılır. Önceden motor ham
+        // katalog kartıyla çağrılıyordu; merkezi malzeme fire oranı tanımlıysa
+        // özet ekranı ile hesap önerisi aynı veri için farklı sayı üretiyordu.
+        IReadOnlyDictionary<string, decimal> materialWaste =
+            await RevisionWastePolicy.ResolveAsync(context, revision, cancellationToken);
+        SourceSnapshot source = await BuildSourceSnapshotAsync(context, revisionId, target, parsedRule, materialWaste, cancellationToken);
         decimal proposedQuantity = decimal.Round(source.Quantity * parsedRule.Multiplier, QuantityRules.DecimalScale, MidpointRounding.ToEven);
         QuantityRules.EnsureValid(proposedQuantity, "proposed quantity");
-        CalculationOutput output = CalculationEngine.Calculate(targetCard, proposedQuantity);
+        CalculationOutput output = CalculationEngine.Calculate(
+            RevisionWastePolicy.ResolveEffectiveCard(targetCard, materialWaste), proposedQuantity);
         string inputSummary = JsonSerializer.Serialize(new CalculationInputSummary(
             SnapshotContractVersion,
             parsedRule.Mode,
@@ -222,6 +228,7 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
         Guid revisionId,
         ProjectPlacement target,
         ParsedRule rule,
+        IReadOnlyDictionary<string, decimal> materialWaste,
         CancellationToken cancellationToken)
     {
         Guid[] sourcePlacementIds;
@@ -265,7 +272,8 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
             decimal net = group.Sum(x => x.InputQuantity);
             decimal sourceQuantity = rule.SourceQuantityKind == SourceQuantityKind.Net
                 ? net
-                : CalculationEngine.Calculate(sourceCard, net).WithWasteQuantity;
+                : CalculationEngine.Calculate(
+                    RevisionWastePolicy.ResolveEffectiveCard(sourceCard, materialWaste), net).WithWasteQuantity;
             sourceRows.Add(new CalculationSourceRow(sourcePlacement.Id, sourceCard.Unit, group.Count(), sourceQuantity));
         }
 
