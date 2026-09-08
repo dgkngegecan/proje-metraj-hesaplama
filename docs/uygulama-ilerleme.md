@@ -19,7 +19,7 @@ oturum tam olarak nerede kalındığını görebilir.
 |---|---|---|
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
-| T1 — Şaşırtıcı/engelleyici (21 madde) | 🔄 9/21 tamam | aşağıda |
+| T1 — Şaşırtıcı/engelleyici (21 madde) | 🔄 18/21 tamam | aşağıda |
 | T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 Kısmen (T2-5 ad, T2-17 tipler) | — |
 | T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
@@ -141,7 +141,7 @@ ebeveyn→çocuk haritası + bir kez hesaplanan derinlik; çevrim koruması var.
 ## Sürmekte olan bölüm
 
 ### T1 — Şaşırtıcı, engelleyici veya kafa karıştırıcı
-**Durum:** 🔄 9/21 tamam
+**Durum:** 🔄 18/21 tamam
 
 Öncelikli sıra (etki/maliyet oranına göre):
 
@@ -155,18 +155,18 @@ ebeveyn→çocuk haritası + bir kez hesaplanan derinlik; çevrim koruması var.
 | T1-6 | Ekran ile indirilen dosya farklı | ✅ `fbc3218` | |
 | T1-11 | Proje değişince eski seçimler kalıyor | ✅ `fbc3218` | + loadAdvanced yarış koruması |
 | T1-12 | Geri yükleme sonrası geçersiz seçim | ✅ `fbc3218` | |
-| T1-5 | Harita düzeni geri alınıyor | ⬜ | |
-| T1-7 | Rapordaki satın alma birimi yanlış | 🔄 **Sıradaki** | T1-8/9/10 ile birlikte |
-| T1-9 | PDF/Excel'de çap-çeşit sütunu yok | ⬜ | |
-| T1-8 | Ondalık hassasiyeti tutarsız | ⬜ | |
-| T1-10 | Excel'de uzun not kesiliyor | ⬜ | |
-| T1-3 | Taslaklar her açılışta sıfırlanıyor | ⬜ | Mimari karar gerekir |
-| T1-14 | Açılış ilerleme göstermiyor | ⬜ | |
-| T1-13 | window.prompt/confirm | 🔄 Kısmen | Geçmiş satırlarında yerleşik onay yapıldı |
-| T1-16 | Klavye/ekran okuyucu | ⬜ | |
-| T1-18 | Kart adı editörü değiştiriyor | ⬜ | |
-| T1-19 | Kartlar kod önekiyle gizleniyor | ⬜ | |
-| T1-21 | README ekranla uyuşmuyor | ⬜ | |
+| T1-5 | Harita düzeni geri alınıyor | ✅ `309beac` | Konum hafızası + silme koruması |
+| T1-7 | Rapordaki satın alma birimi yanlış | ✅ `e2b643e` | Üç formatta ayrı sütun |
+| T1-9 | PDF/Excel'de çap-çeşit sütunu yok | ✅ `e2b643e` | Excel de eksikmiş |
+| T1-8 | Ondalık hassasiyeti tutarsız | ✅ `e2b643e` | Her yüzey 6 ondalık |
+| T1-10 | Excel'de uzun not kesiliyor | ✅ `e2b643e` | Satır yüksekliği 42→120 |
+| T1-3 | Taslaklar her açılışta sıfırlanıyor | 🔄 **Sıradaki** | Sunucu tarafı UI durumu |
+| T1-14 | Açılış ilerleme göstermiyor | ✅ `309beac` | Pencere önce, adımlar yazılıyor |
+| T1-13 | window.prompt/confirm | ✅ `8c5f806` | 7 çağrı yeri AskDialog'a taşındı |
+| T1-16 | Klavye/ekran okuyucu | ✅ `8c5f806` | Odak tuzağı, Escape, aria-live |
+| T1-18 | Kart adı editörü değiştiriyor | ⬜ Sıradaki | |
+| T1-19 | Kartlar kod önekiyle gizleniyor | ⬜ Sıradaki | |
+| T1-21 | README ekranla uyuşmuyor | ✅ `309beac` | |
 | T1-4 | Varyantlı kartta toplam yanlış | ✅ `4df4856` | |
 
 ---
@@ -210,16 +210,24 @@ Backend maddelerinin hepsinde önce kırmızı test yazıldı, sonra düzeltildi
 
 ## T1 ara notu (bu oturum)
 
-**Tamamlananlar:** T1-1, T1-2, T1-4, T1-6, T1-11, T1-12, T1-15, T1-17, T1-20
-(9/21). Commit'ler: `e5cf2d7`, `4bca53b`, `fbc3218` (+ T1-4 `4df4856` içinde).
+**Tamamlananlar (18/21):** T1-1, T1-2, T1-4, T1-5, T1-6, T1-7, T1-8, T1-9,
+T1-10, T1-11, T1-12, T1-13, T1-14, T1-15, T1-16, T1-17, T1-20, T1-21.
+Commit'ler: `e5cf2d7`, `4bca53b`, `fbc3218`, `e2b643e`, `309beac`, `8c5f806`.
 
-**Yeni altyapı:**
+**Kalan (3):** T1-3 (taslaklar her açılışta sıfırlanıyor), T1-18 (kart adı
+düzenleyiciyi değiştiriyor), T1-19 (kartlar kod önekiyle gizleniyor).
+
+**Bu bölümde ortaya çıkan yeni altyapı:**
 - `src/Metraj.Application/DomainMessageCatalog.cs` — 106 kural kodunun Türkçe
-  karşılığı. Yeni bir kural eklenirse buraya da bir satır eklenmeli; eksikse
-  alan grubuna göre genel mesaj + kural kodu döner (asla boş kalmaz).
-- `ApiError` artık `{ message, rule }` döndürüyor. Frontend `ApiError` sınıfı
-  `rule` ve `isServerFault` taşıyor.
+  karşılığı. **Yeni bir kural eklenirse buraya da bir satır eklenmeli.**
+- `src/Metraj.Web/src/AskDialog.tsx` — söz tabanlı, erişilebilir soru/onay
+  penceresi (`useAsk` + `AskDialog`). Yeni bir onay gerektiğinde bunu kullan;
+  `window.confirm`/`window.prompt` artık kod tabanında yok.
+- `ApplicationSchemaMigrator.IsUpToDateAsync` — açılışta gereksiz yedek/göç
+  yapmamak için.
 - `notifySuccess` — yalnızca işlem boyunca hiç hata olmadıysa mesaj gösterir.
+- `nodePositions` ref'i — harita konumlarını yerleşim kimliğine göre hatırlar.
 
-**Sıradaki blok:** T1-7, T1-8, T1-9, T1-10 — dördü de rapor çıktısı sadakati
-(`ProjectReportWorkspaceService`), tek commit'te yapılacak.
+**Dikkat:** Frontend değişikliklerinden sonra `npm run build` çalıştırılmalı;
+`src/Metraj.Web/dist` gömülü kaynak olduğu için build edilmezse değişiklik
+uygulamaya ulaşmaz. (Bu, T4-1'de MSBuild'e bağlanacak.)
