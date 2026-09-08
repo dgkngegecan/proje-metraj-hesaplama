@@ -94,6 +94,8 @@ export interface Placement extends Record<string, unknown> {
   notes?: string | null;
   variantMode?: CatalogVariantMode;
   variants?: CatalogCardVariant[] | null;
+  /** Kartın malzeme ailesi; giriş paneli seçimi buna bakar (ada değil). */
+  materialType?: string | null;
 }
 
 export interface Measurement {

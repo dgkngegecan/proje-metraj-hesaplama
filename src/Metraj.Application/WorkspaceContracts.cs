@@ -1,4 +1,4 @@
-using Metraj.Domain;
+﻿using Metraj.Domain;
 
 namespace Metraj.Application;
 
@@ -40,7 +40,11 @@ public sealed record PlacementListItem(
     string? ProcurementScope,
     string? Notes,
     CatalogVariantMode VariantMode = CatalogVariantMode.None,
-    IReadOnlyList<CatalogCardVariant>? Variants = null);
+    IReadOnlyList<CatalogCardVariant>? Variants = null,
+    // MaterialType: kartın malzeme ailesi. Arayüz, giriş panelini seçerken
+    // kullanıcının serbestçe değiştirebildiği görünen ad yerine bu açık
+    // özelliği kullanır.
+    string? MaterialType = null);
 
 public sealed record PlacementDraft(Guid RevisionId, Guid CardVersionId, Guid? ParentPlacementId = null, string? DisplayNameOverride = null, string? ProcurementScope = null);
 

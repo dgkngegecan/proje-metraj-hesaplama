@@ -1,4 +1,4 @@
-using Metraj.Application;
+﻿using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -77,7 +77,7 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
         return new PlacementListItem(placement.Id, revision.Id, placement.ParentPlacementId, card.Id,
             definition.Code, card.Name, card.Unit, card.InputBehavior, card.CardType, card.PositionNumber, card.ReportBehavior == ReportBehavior.Measurable, displayName,
             placement.DisplayNameOverride, placement.ProcurementScope, placement.Notes,
-            card.VariantMode, CatalogVariantCatalog.Parse(card.VariantDefinitionsJson));
+            card.VariantMode, CatalogVariantCatalog.Parse(card.VariantDefinitionsJson), card.MaterialType);
     }
 
     public async Task UpdatePlacementAsync(Guid placementId, PlacementUpdateDraft draft, CancellationToken cancellationToken = default)
@@ -259,6 +259,7 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
             placement.ProcurementScope,
             placement.Notes,
             card.VariantMode,
-            CatalogVariantCatalog.Parse(card.VariantDefinitionsJson));
+            CatalogVariantCatalog.Parse(card.VariantDefinitionsJson),
+            card.MaterialType);
     }
 }

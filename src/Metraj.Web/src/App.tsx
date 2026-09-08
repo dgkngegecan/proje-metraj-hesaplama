@@ -233,6 +233,20 @@ function makeCardCode(name: string) {
   return `${stem || 'KART'}-${Date.now().toString(36).toUpperCase()}`;
 }
 
+/**
+ * Radyatör girişinin açılıp açılmayacağını belirler.
+ *
+ * Öncelik sırası: kartın malzeme ailesi -> katalog kodu -> (son çare) görünen ad.
+ * Ad, kullanıcının serbestçe değiştirebildiği bir alandır; tek ölçüt olarak
+ * kullanılması yeniden adlandırmayı davranış değişikliğine dönüştürüyordu.
+ */
+function isRadiatorPlacement(placement: Placement) {
+  const family = placement.materialType ?? '';
+  if (/radiator|radyat[öo]r/i.test(family)) return true;
+  if (/(^|-)(RAD|RADYATOR)(-|$)/i.test(placement.cardCode)) return true;
+  return /radyat[öo]r/i.test(placement.displayName);
+}
+
 function measurementLabel(notes?: string | null) {
   const radiator = notes?.match(/Radyatör:\s*([^·]+)\s*·\s*Yükseklik:\s*([^·]+)\s*·\s*Genişlik:\s*(.+)$/i);
   if (radiator) return `${radiator[1].trim()} · H${radiator[2].trim()} · W${radiator[3].trim()}`;
@@ -1082,18 +1096,62 @@ function variantName(card: CatalogCardVariant) {
   return card.label || card.code;
 }
 
+/**
+ * Çok çaplı aile kartı kütüphanedeyken gizlenen, standart pakete ait tekil
+ * kartlar. Liste KESİN kodlardan oluşur.
+ *
+ * Önceki sürüm kod öneki + ad regex'i ile eşleştiriyordu ve kullanıcının kendi
+ * kartını sessizce yok edebiliyordu: `makeCardCode` adı büyük harfe çevirip
+ * kod ürettiği için "Std Steel Boru" adlı bir kart `STD-STEEL-BORU-...` kodunu
+ * alıyor, adında "TE"/"VANA" geçiyorsa kütüphaneden kayboluyordu. Bulunamayan
+ * kart hata da vermiyordu; sadece yoktu.
+ *
+ * Not: Bu bir iş kuralıdır ve asıl yeri backend'dir (karta bir `supersededBy`
+ * alanı ya da bu kartların hiç seed edilmemesi). Sunucu tarafına taşınana
+ * kadar burada açık ve denetlenebilir bir liste olarak duruyor.
+ */
+const SUPERSEDED_BY_FAMILY: Array<{ family: string; codes: string[]; generatedPrefixes: string[] }> = [
+  {
+    family: 'STD-PIPE-PPRC',
+    codes: ['STD-PPRC-DN20', 'STD-PPRC-DN25', 'STD-PPRC-DN32', 'STD-PPRC-DN40', 'STD-PPRC-DN50'],
+    generatedPrefixes: ['SYN-CW-PPR'],
+  },
+  {
+    family: 'STD-PIPE-STEEL',
+    codes: ['STD-STEEL-DN25', 'STD-STEEL-DN32', 'STD-STEEL-DN40', 'STD-STEEL-DN50', 'STD-STEEL-DN65'],
+    generatedPrefixes: [],
+  },
+  {
+    family: 'STD-FIT-PPRC',
+    codes: [
+      'STD-PPRC-ELBOW-20', 'STD-PPRC-ELBOW-25', 'STD-PPRC-ELBOW-32',
+      'STD-PPRC-TEE-25', 'STD-PPRC-TEE-32', 'STD-PPRC-RED-25-20',
+      'STD-PPRC-UNION-25', 'STD-PPRC-VALVE-25', 'STD-PPRC-VALVE-32',
+    ],
+    generatedPrefixes: ['SYN-CW-ELB', 'SYN-CW-TEE', 'SYN-CW-VAL'],
+  },
+  {
+    family: 'STD-FIT-STEEL',
+    codes: ['STD-STEEL-ELBOW-25', 'STD-STEEL-TEE-25', 'STD-STEEL-FLANGE-50', 'STD-STEEL-VALVE-50'],
+    generatedPrefixes: [],
+  },
+];
+
 function visibleCatalogCards(cards: CatalogCard[]) {
   const active = cards.filter((card) => card.isActive);
   const hasFamily = (code: string) => active.some((card) => card.variantMode !== 'None' && card.code === code);
-  return active.filter((card) => {
-    const code = card.code.toUpperCase();
-    const legacyPprcPipe = (code.startsWith('STD-PPRC-DN') || code.startsWith('SYN-CW-PPR')) && hasFamily('STD-PIPE-PPRC');
-    const legacySteelPipe = code.startsWith('STD-STEEL-DN') && hasFamily('STD-PIPE-STEEL');
-    const legacyPprcFitting = ((code.startsWith('STD-PPRC-') && /ELBOW|TEE|RED-|UNION|VALVE/.test(code)) ||
-      code.startsWith('SYN-CW-ELB') || code.startsWith('SYN-CW-TEE') || code.startsWith('SYN-CW-VAL')) && hasFamily('STD-FIT-PPRC');
-    const legacySteelFitting = code.startsWith('STD-STEEL-') && /ELBOW|TEE|FLANGE|VALVE|DIRSEK|TE|VANA/.test(`${code} ${card.name.toUpperCase()}`) && hasFamily('STD-FIT-STEEL');
-    return !(legacyPprcPipe || legacySteelPipe || legacyPprcFitting || legacySteelFitting);
-  });
+  const hidden = new Set<string>();
+  for (const group of SUPERSEDED_BY_FAMILY) {
+    if (!hasFamily(group.family)) continue;
+    for (const code of group.codes) hidden.add(code);
+    for (const card of active) {
+      // SYN- ad alanı yalnızca sentetik içe aktarma tarafından üretilir;
+      // kullanıcı bu önekle kart oluşturmaz.
+      const code = card.code.toUpperCase();
+      if (group.generatedPrefixes.some((prefix) => code.startsWith(prefix))) hidden.add(card.code);
+    }
+  }
+  return active.filter((card) => !hidden.has(card.code) && !hidden.has(card.code.toUpperCase()));
 }
 
 function CatalogPage(props: {
@@ -1372,10 +1430,14 @@ function Inspector({ placement, placements, summaries, measurements, allMeasurem
     const variant = (item.variant ?? '').toLowerCase();
     return variant === code.toLowerCase() || (label !== undefined && variant === label.toLowerCase());
   });
-  const isRadiator = /radyat[öo]r/i.test(placement.displayName);
   const isPipe = placement.variantMode === 'Pipe';
   const isFitting = placement.variantMode === 'Fitting';
-  const isCount = !isFitting && (placement.cardType === 'Accessory' || /adet/i.test(placement.unit));
+  // Hangi giriş panelinin açılacağı, önce kartın AÇIK özelliklerinden çıkarılır.
+  // Ad regex'i yalnızca bu ipuçlarının hiçbiri yoksa devreye giren geriye dönük
+  // bir çaredir: "Panel Radyatör" kartını "PR-600 Panel" olarak yeniden
+  // adlandırmak, tür/yükseklik/genişlik panelini sessizce kaybettiriyordu.
+  const isRadiator = !isPipe && !isFitting && isRadiatorPlacement(placement);
+  const isCount = !isFitting && !isRadiator && (placement.cardType === 'Accessory' || /adet/i.test(placement.unit));
   const knownDiameters = [...new Set(measurements.map((item) => item.variant || item.notes?.match(/(?:Çap|Boyut):\s*([^·]+)/i)?.[1]?.trim()).filter(Boolean) as string[])];
   const fallbackDiameters: CatalogCardVariant[] = knownDiameters.length ? knownDiameters.map((item) => ({ code: item, label: item })) : STEEL_DIAMETERS;
   const variantDiameters = placement.variants?.length ? placement.variants : fallbackDiameters;
