@@ -1,12 +1,30 @@
 # Scratch / non-project working files
 tmp/
+output/
 
 # .NET build output (Faz 1+)
 bin/
 obj/
 *.user
 
+# Local SDK/NuGet state used by the restricted development environment
+.dotnet/
+.nuget/
+.appdata/
+.localappdata/
+
+# React development dependencies and cache
+src/Metraj.Web/node_modules/
+src/Metraj.Web/.npm-cache/
+
 # Local SQLite project data (not fixtures)
 *.db
 *.db-shm
 *.db-wal
+
+# Publish output and release artifacts (Faz 9)
+artifacts/
+TestResults/
+
+# Review harness scratch
+tmp/review-probes/

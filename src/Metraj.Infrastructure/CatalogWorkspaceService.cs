@@ -1,0 +1,445 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Globalization;
+using Metraj.Application;
+using Metraj.Domain;
+using Microsoft.EntityFrameworkCore;
+
+namespace Metraj.Infrastructure;
+
+/// <summary>Catalog operations that preserve immutable card versions.</summary>
+public sealed class CatalogWorkspaceService : ICatalogWorkspace
+{
+    private readonly Func<MetrajDbContext> contextFactory;
+
+    public CatalogWorkspaceService(Func<MetrajDbContext> contextFactory)
+    {
+        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
+    }
+
+    public async Task<IReadOnlyList<CatalogCardListItem>> ListCardsAsync(CancellationToken cancellationToken = default)
+    {
+        await using MetrajDbContext context = contextFactory();
+        var definitions = await context.CatalogCardDefinitions
+            .AsNoTracking()
+            .Include(x => x.Versions)
+            .ThenInclude(x => x.CatalogCardTypeDefinition)
+            .ToListAsync(cancellationToken);
+        return definitions
+            .Where(x => x.Versions.Count > 0)
+            .Select(x =>
+            {
+                CatalogCardVersion latest = x.Versions.MaxBy(version => version.VersionNumber)!;
+                return ToListItem(x, latest);
+            })
+            .OrderBy(x => x.Code)
+            .ToList();
+    }
+
+    public async Task<CatalogCardListItem> CreateCardAsync(CatalogCardDraft draft, CancellationToken cancellationToken = default)
+    {
+        string code = draft.Code.Trim().ToUpperInvariant();
+        string name = draft.Name.Trim();
+        string unit = draft.Unit.Trim();
+        string? positionNumber = NormalizeOptionalText(draft.PositionNumber, 64, "position number");
+        if (code.Length is 0 or > 64 || name.Length is 0 or > 256 || unit.Length is 0 or > 32)
+        {
+            throw new DomainRuleViolationException("catalog.required", "Code, name and unit must be filled within their supported lengths.");
+        }
+
+        QuantityRules.EnsureValid(draft.WasteRatePct, "waste rate");
+        if (draft.ContainerParameter is decimal container)
+        {
+            QuantityRules.EnsureValid(container, "container parameter");
+            if (container == 0m)
+            {
+                throw new DomainRuleViolationException("catalog.container-positive", "Container parameter must be greater than zero when supplied.");
+            }
+        }
+
+        await using MetrajDbContext context = contextFactory();
+        if (await context.CatalogCardDefinitions.AnyAsync(x => x.Code == code, cancellationToken))
+        {
+            throw new DomainRuleViolationException("catalog.code-unique", $"Catalog code '{code}' already exists.");
+        }
+
+        CatalogCardTypeDefinition? customType = await ResolveCustomTypeAsync(context, draft, cancellationToken);
+        Dictionary<string, string> attributeValues = NormalizeAttributeValues(draft.AttributeValues, customType);
+        decimal wasteRate = ResolveDecimalAttribute(attributeValues, "WasteRatePct") ?? draft.WasteRatePct;
+        decimal? containerParameter = ResolveDecimalAttribute(attributeValues, "ContainerParameter") ?? draft.ContainerParameter;
+        IReadOnlyList<string> compatibleDiameters = draft.CompatibleDiameters is { Count: > 0 }
+            ? draft.CompatibleDiameters
+            : ResolveDiametersAttribute(attributeValues);
+        ItemKind itemKind = ResolveEnumAttribute<ItemKind>(attributeValues, "ItemKind") ?? draft.ItemKind;
+        InputBehavior inputBehavior = ResolveEnumAttribute<InputBehavior>(attributeValues, "InputBehavior") ?? draft.InputBehavior;
+        SalesConversion salesConversion = ResolveEnumAttribute<SalesConversion>(attributeValues, "SalesConversion") ?? draft.SalesConversion;
+        ReportBehavior reportBehavior = ResolveEnumAttribute<ReportBehavior>(attributeValues, "ReportBehavior") ?? draft.ReportBehavior;
+        IReadOnlyList<CatalogCardVariant> variants = CatalogVariantCatalog.Normalize(draft.Variants);
+        EnsureVariantProfile(draft.VariantMode, variants);
+        positionNumber = NormalizeOptionalText(ResolveTextAttribute(attributeValues, "PositionNumber") ?? draft.PositionNumber, 64, "position number");
+        QuantityRules.EnsureValid(wasteRate, "waste rate");
+        if (containerParameter is decimal resolvedContainer)
+        {
+            QuantityRules.EnsureValid(resolvedContainer, "container parameter");
+            if (resolvedContainer == 0m)
+            {
+                throw new DomainRuleViolationException("catalog.container-positive", "Container parameter must be greater than zero when supplied.");
+            }
+        }
+
+        var definition = new CatalogCardDefinition
+        {
+            Id = Guid.NewGuid(),
+            Code = code,
+            Name = name,
+            Description = NormalizeOptionalText(attributeValues.TryGetValue("Notes", out string? noteValue) ? noteValue : draft.Notes, 2_000, "notes")
+        };
+        var version = new CatalogCardVersion
+        {
+            Id = Guid.NewGuid(),
+            CatalogCardDefinitionId = definition.Id,
+            CatalogCardTypeDefinitionId = customType?.Id,
+            VersionNumber = 1,
+            Name = name,
+            CardType = draft.CardType,
+            ItemKind = itemKind,
+            InputBehavior = inputBehavior,
+            SalesConversion = salesConversion,
+            ReportBehavior = reportBehavior,
+            Unit = unit,
+            WasteRatePct = wasteRate,
+            ContainerParameter = containerParameter,
+            PositionNumber = positionNumber,
+            VariantMode = draft.VariantMode,
+            VariantDefinitionsJson = CatalogVariantCatalog.Serialize(variants),
+            MaterialType = NormalizeOptionalText(ResolveTextAttribute(attributeValues, "MaterialType") ?? draft.MaterialType, 128, "material type"),
+            CompatibleDiametersJson = SerializeDiameters(compatibleDiameters),
+            AttributeValuesJson = SerializeAttributeValues(attributeValues),
+            ContentHash = ComputeContentHash(draft, code, name, unit, attributeValues, customType?.Id, variants),
+            IsPublished = true,
+            CatalogCardTypeDefinition = customType
+        };
+        context.AddRange(definition, version);
+        await context.SaveChangesAsync(cancellationToken);
+        return ToListItem(definition, version);
+    }
+
+    public async Task<CatalogCardListItem> CreateVersionAsync(Guid definitionId, CatalogCardDraft draft, CancellationToken cancellationToken = default)
+    {
+        await using MetrajDbContext context = contextFactory();
+        CatalogCardDefinition definition = await context.CatalogCardDefinitions.Include(x => x.Versions)
+            .SingleOrDefaultAsync(x => x.Id == definitionId, cancellationToken)
+            ?? throw new DomainRuleViolationException("catalog.definition", "Catalog card definition was not found.");
+        if (!definition.IsActive)
+        {
+            throw new DomainRuleViolationException("catalog.inactive", "An inactive card cannot receive a new version.");
+        }
+
+        CatalogCardTypeDefinition? customType = await ResolveCustomTypeAsync(context, draft, cancellationToken);
+        Dictionary<string, string> attributeValues = NormalizeAttributeValues(draft.AttributeValues, customType);
+        decimal wasteRate = ResolveDecimalAttribute(attributeValues, "WasteRatePct") ?? draft.WasteRatePct;
+        decimal? containerParameter = ResolveDecimalAttribute(attributeValues, "ContainerParameter") ?? draft.ContainerParameter;
+        IReadOnlyList<string> compatibleDiameters = draft.CompatibleDiameters is { Count: > 0 }
+            ? draft.CompatibleDiameters
+            : ResolveDiametersAttribute(attributeValues);
+        ItemKind itemKind = ResolveEnumAttribute<ItemKind>(attributeValues, "ItemKind") ?? draft.ItemKind;
+        InputBehavior inputBehavior = ResolveEnumAttribute<InputBehavior>(attributeValues, "InputBehavior") ?? draft.InputBehavior;
+        SalesConversion salesConversion = ResolveEnumAttribute<SalesConversion>(attributeValues, "SalesConversion") ?? draft.SalesConversion;
+        ReportBehavior reportBehavior = ResolveEnumAttribute<ReportBehavior>(attributeValues, "ReportBehavior") ?? draft.ReportBehavior;
+        IReadOnlyList<CatalogCardVariant> variants = CatalogVariantCatalog.Normalize(draft.Variants);
+        EnsureVariantProfile(draft.VariantMode, variants);
+        QuantityRules.EnsureValid(wasteRate, "waste rate");
+        if (draft.ContainerParameter is decimal parameter)
+        {
+            QuantityRules.EnsureValid(parameter, "container parameter");
+            if (parameter == 0m)
+            {
+                throw new DomainRuleViolationException("catalog.container-positive", "Container parameter must be greater than zero when supplied.");
+            }
+        }
+
+        string name = draft.Name.Trim();
+        string unit = draft.Unit.Trim();
+        string? positionNumber = NormalizeOptionalText(ResolveTextAttribute(attributeValues, "PositionNumber") ?? draft.PositionNumber, 64, "position number");
+        if (name.Length is 0 or > 256 || unit.Length is 0 or > 32)
+        {
+            throw new DomainRuleViolationException("catalog.version-content", "Name and unit must be filled within their supported lengths.");
+        }
+
+        int versionNumber = definition.Versions.Max(x => x.VersionNumber) + 1;
+        definition.Description = NormalizeOptionalText(attributeValues.TryGetValue("Notes", out string? noteValue) ? noteValue : draft.Notes, 2_000, "notes");
+        var version = new CatalogCardVersion
+        {
+            Id = Guid.NewGuid(),
+            CatalogCardDefinitionId = definition.Id,
+            CatalogCardTypeDefinitionId = customType?.Id,
+            VersionNumber = versionNumber,
+            Name = name,
+            CardType = draft.CardType,
+            ItemKind = itemKind,
+            InputBehavior = inputBehavior,
+            SalesConversion = salesConversion,
+            ReportBehavior = reportBehavior,
+            Unit = unit,
+            WasteRatePct = wasteRate,
+            ContainerParameter = containerParameter,
+            PositionNumber = positionNumber,
+            VariantMode = draft.VariantMode,
+            VariantDefinitionsJson = CatalogVariantCatalog.Serialize(variants),
+            MaterialType = NormalizeOptionalText(ResolveTextAttribute(attributeValues, "MaterialType") ?? draft.MaterialType, 128, "material type"),
+            CompatibleDiametersJson = SerializeDiameters(compatibleDiameters),
+            AttributeValuesJson = SerializeAttributeValues(attributeValues),
+            ContentHash = ComputeContentHash(draft, definition.Code, name, unit, attributeValues, customType?.Id, variants),
+            IsPublished = true,
+            CatalogCardTypeDefinition = customType
+        };
+        context.CatalogCardVersions.Add(version);
+        await context.SaveChangesAsync(cancellationToken);
+        return ToListItem(definition, version);
+    }
+
+    public async Task DeactivateCardAsync(Guid definitionId, CancellationToken cancellationToken = default)
+    {
+        await using MetrajDbContext context = contextFactory();
+        CatalogCardDefinition definition = await context.CatalogCardDefinitions.SingleOrDefaultAsync(x => x.Id == definitionId, cancellationToken)
+            ?? throw new DomainRuleViolationException("catalog.definition", "Catalog card definition was not found.");
+        definition.IsActive = false;
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeleteCardAsync(Guid definitionId, CancellationToken cancellationToken = default)
+    {
+        await using MetrajDbContext context = contextFactory();
+        CatalogCardDefinition definition = await context.CatalogCardDefinitions.Include(x => x.Versions)
+            .SingleOrDefaultAsync(x => x.Id == definitionId, cancellationToken)
+            ?? throw new DomainRuleViolationException("catalog.definition", "Catalog card definition was not found.");
+        Guid[] versions = definition.Versions.Select(x => x.Id).ToArray();
+        if (await context.ProjectPlacements.AnyAsync(x => versions.Contains(x.CatalogCardVersionId), cancellationToken))
+        {
+            definition.IsActive = false;
+        }
+        else
+        {
+            context.CatalogCardVersions.RemoveRange(definition.Versions);
+            context.CatalogCardDefinitions.Remove(definition);
+        }
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CatalogCardListItem>> ListCompatibleFittingsAsync(Guid pipePlacementId, CancellationToken cancellationToken = default)
+    {
+        await using MetrajDbContext context = contextFactory();
+        if (!await context.ProjectPlacements.AnyAsync(x => x.Id == pipePlacementId, cancellationToken))
+        {
+            throw new DomainRuleViolationException("placement.not-found", "Pipe placement was not found.");
+        }
+        var enteredDiameters = (await context.Measurements.AsNoTracking()
+            .Where(x => x.ProjectPlacementId == pipePlacementId && x.Variant != null)
+            .Select(x => x.Variant!).Distinct().ToListAsync(cancellationToken))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyList<CatalogCardListItem> cards = await ListCardsAsync(cancellationToken);
+        return cards.Where(x => x.IsActive && x.CardType == CardType.Accessory)
+            .Where(x => enteredDiameters.Count == 0 || x.CompatibleDiameters is null || x.CompatibleDiameters.Count == 0 ||
+                x.CompatibleDiameters.Any(enteredDiameters.Contains))
+            .ToList();
+    }
+
+    private static string ComputeContentHash(CatalogCardDraft draft, string code, string name, string unit,
+        IReadOnlyDictionary<string, string> attributeValues, Guid? customTypeId, IReadOnlyList<CatalogCardVariant> variants)
+    {
+        string canonical = JsonSerializer.Serialize(new
+        {
+            code,
+            name,
+            cardType = draft.CardType.ToString(),
+            itemKind = draft.ItemKind.ToString(),
+            inputBehavior = draft.InputBehavior.ToString(),
+            salesConversion = draft.SalesConversion.ToString(),
+            reportBehavior = draft.ReportBehavior.ToString(),
+            unit,
+            wasteRatePct = draft.WasteRatePct,
+            containerParameter = draft.ContainerParameter,
+            positionNumber = draft.PositionNumber?.Trim()
+            ,notes = draft.Notes?.Trim()
+            ,materialType = draft.MaterialType?.Trim()
+            ,compatibleDiameters = NormalizeDiameters(draft.CompatibleDiameters)
+            ,customTypeId
+            ,variantMode = draft.VariantMode.ToString()
+            ,variants
+            ,attributeValues
+        });
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+    }
+
+    private static CatalogCardListItem ToListItem(CatalogCardDefinition definition, CatalogCardVersion version) => new(
+        definition.Id,
+        version.Id,
+        definition.Code,
+        version.Name,
+        version.CardType,
+        version.Unit,
+        version.InputBehavior,
+        version.SalesConversion,
+        version.ReportBehavior,
+        version.WasteRatePct,
+        version.ContainerParameter,
+        version.PositionNumber,
+        version.VersionNumber,
+        definition.IsActive,
+        definition.Description,
+        version.MaterialType,
+        DeserializeDiameters(version.CompatibleDiametersJson),
+        version.CatalogCardTypeDefinitionId,
+        version.CatalogCardTypeDefinition?.Code,
+        version.CatalogCardTypeDefinition?.Name,
+        ParseAttributeKeys(version.CatalogCardTypeDefinition?.AttributeKeysJson),
+        DeserializeAttributeValues(version.AttributeValuesJson),
+        version.VariantMode,
+        CatalogVariantCatalog.Parse(version.VariantDefinitionsJson));
+
+    private static void EnsureVariantProfile(CatalogVariantMode mode, IReadOnlyList<CatalogCardVariant> variants)
+    {
+        if (mode is CatalogVariantMode.Pipe or CatalogVariantMode.Fitting && variants.Count == 0)
+        {
+            throw new DomainRuleViolationException("catalog.variant.empty", "Pipe and fitting cards must define at least one variant.");
+        }
+
+        if (mode == CatalogVariantMode.Pipe && variants.Any(x => x.StandardLength is null or <= 0m))
+        {
+            throw new DomainRuleViolationException("catalog.variant.pipe-length", "Every pipe diameter must have a positive standard length.");
+        }
+
+        if (mode == CatalogVariantMode.None && variants.Count > 0)
+        {
+            throw new DomainRuleViolationException("catalog.variant.mode", "Variant definitions require Pipe or Fitting variant behavior.");
+        }
+    }
+
+    private static string SerializeDiameters(IReadOnlyList<string>? values) => JsonSerializer.Serialize(NormalizeDiameters(values));
+
+    private static string[] NormalizeDiameters(IReadOnlyList<string>? values) =>
+        (values ?? []).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
+
+    private static string[] DeserializeDiameters(string json)
+    {
+        try { return JsonSerializer.Deserialize<string[]>(json) ?? []; }
+        catch (JsonException) { return []; }
+    }
+
+    private static IReadOnlyList<string> ParseAttributeKeys(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return [];
+        try { return CatalogCardAttributeCatalog.NormalizeKeys(JsonSerializer.Deserialize<string[]>(json)); }
+        catch (JsonException) { return []; }
+    }
+
+    private static Dictionary<string, string> DeserializeAttributeValues(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
+                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static string SerializeAttributeValues(Dictionary<string, string> values) =>
+        JsonSerializer.Serialize(values
+            .Where(x => !string.IsNullOrWhiteSpace(x.Key) && !string.IsNullOrWhiteSpace(x.Value))
+            .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.Value.Trim(), StringComparer.OrdinalIgnoreCase));
+
+    private static async Task<CatalogCardTypeDefinition?> ResolveCustomTypeAsync(MetrajDbContext context, CatalogCardDraft draft, CancellationToken cancellationToken)
+    {
+        if (draft.CustomTypeId is not Guid typeId)
+        {
+            return null;
+        }
+
+        CatalogCardTypeDefinition type = await context.CatalogCardTypeDefinitions
+            .SingleOrDefaultAsync(x => x.Id == typeId, cancellationToken)
+            ?? throw new DomainRuleViolationException("catalog-type.not-found", "Selected custom card type was not found.");
+        if (!type.IsActive)
+        {
+            throw new DomainRuleViolationException("catalog-type.inactive", "An inactive custom card type cannot be used for a new card version.");
+        }
+        if (type.BaseCardType != draft.CardType)
+        {
+            throw new DomainRuleViolationException("catalog-type.base-type", "The card type must match the selected custom type's base type.");
+        }
+        return type;
+    }
+
+    private static Dictionary<string, string> NormalizeAttributeValues(
+        IReadOnlyDictionary<string, string>? values, CatalogCardTypeDefinition? customType)
+    {
+        if (values is null || values.Count == 0)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        HashSet<string>? allowed = customType is null
+            ? null
+            : ParseAttributeKeys(customType.AttributeKeysJson).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach ((string key, string value) in values)
+        {
+            string canonical = CatalogCardAttributeCatalog.All
+                .FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase))?.Key
+                ?? throw new DomainRuleViolationException("catalog-type.attribute-key", $"Unknown card attribute '{key}'.");
+            if (allowed is not null && !allowed.Contains(canonical))
+            {
+                throw new DomainRuleViolationException("catalog-type.attribute-not-enabled", $"Attribute '{canonical}' is not enabled for this card type.");
+            }
+            if (!string.IsNullOrWhiteSpace(value)) normalized[canonical] = value.Trim();
+        }
+        return normalized;
+    }
+
+    private static decimal? ResolveDecimalAttribute(Dictionary<string, string> values, string key)
+    {
+        if (!values.TryGetValue(key, out string? raw) || string.IsNullOrWhiteSpace(raw)) return null;
+        string normalized = raw.Trim().Replace(',', '.');
+        return decimal.TryParse(normalized, NumberStyles.Number, CultureInfo.InvariantCulture, out decimal value)
+            ? value
+            : throw new DomainRuleViolationException("catalog-type.attribute-number", $"Attribute '{key}' must be a valid number.");
+    }
+
+    private static string? ResolveTextAttribute(Dictionary<string, string> values, string key) =>
+        values.TryGetValue(key, out string? value) && !string.IsNullOrWhiteSpace(value) ? value.Trim() : null;
+
+    private static TEnum? ResolveEnumAttribute<TEnum>(Dictionary<string, string> values, string key)
+        where TEnum : struct, Enum
+    {
+        string? raw = ResolveTextAttribute(values, key);
+        if (raw is null) return null;
+        return Enum.TryParse(raw, ignoreCase: true, out TEnum parsed)
+            ? parsed
+            : throw new DomainRuleViolationException("catalog-type.attribute-enum", $"Attribute '{key}' has an unsupported value.");
+    }
+
+    private static string[] ResolveDiametersAttribute(Dictionary<string, string> values)
+    {
+        string? value = ResolveTextAttribute(values, "CompatibleDiameters");
+        return string.IsNullOrWhiteSpace(value)
+            ? []
+            : value.Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
+    private static string? NormalizeOptionalText(string? value, int maximumLength, string fieldName)
+    {
+        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        if (normalized?.Length > maximumLength)
+        {
+            throw new DomainRuleViolationException("catalog.optional-text", $"{fieldName} must not exceed {maximumLength} characters.");
+        }
+
+        return normalized;
+    }
+}

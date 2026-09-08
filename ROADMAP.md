@@ -6,7 +6,7 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
 
 ## Kilitlenmiş kararlar
 
-1. C#/.NET + WPF + SQLite kullanılacak.
+1. C#/.NET + WPF masaüstü kabuğu + SQLite kullanılacak; görsel çalışma alanı React + React Flow olacaktır.
 2. Uygulama modüler monolith olarak kurulacak.
 3. Katalog kartı ile proje yerleşimi ayrılacak.
 4. Beş temel kart tipi korunacak.
@@ -17,7 +17,7 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
 9. `uses` bağlantısı kullanılmayacak.
 10. Hesaplar sınırlı, güvenli ve izlenebilir olacak.
 11. Net, fireli ve satın alma miktarları ayrı tutulacak.
-12. Canvas ilk sürümün temeli değil — yalnızca Temiz Su dikey diliminde ağaç arayüzünün çözemediği, tekrarlanan ve ölçülebilir bir sorun kanıtlanırsa mevcut build içinde değerlendirilir. Garanti edilmiş bir sonraki sürüm değildir.
+12. Kullanılabilirlik değerlendirmesinden sonra canvas, ilk sürümün ana yapılandırma yüzeyi olarak React Flow ile uygulanmıştır; veri modeli yine tek ebeveynli ağaçtır.
 13. AutoCAD/DWG/DXF/PDF'den veri okuma bu projenin kapsamı değildir. Domain katmanının WPF'ten ayrılması gelecekte bunu yapacak *farklı* bir aracın kütüphane olarak devralabilmesi içindir — bu projeye connector eklenmeyecektir.
 14. İlk hedef, tek bir gerçek tesisat türünde (Temiz Su) uçtan uca çalışan güvenilir bir dikey dilimdir; bu doğrulanmadan diğer tesisat türlerine genişlenmez.
 15. Veri topolojisi **tek uygulama SQLite veritabanıdır** — katalog, kart sürümleri ve tüm projeler aynı dosyada. Proje başına ayrı/taşınabilir dosya, içe/dışa aktarma **yok**. Gerekçe: veri hacmi küçük, gelecekte büyüme/çoklu proje paylaşımı kaygısı yok, karmaşıklığı en aza indirmek önceliklidir. Yedekleme/geri yükleme (Faz 7) tüm veritabanını kapsar, bu yeterli sayılır. (Karar: kullanıcı, 2026-08-30 — Claude/OpenAI çapraz incelemesinde ortaya çıkan tek gerçek anlaşmazlık buydu.)
@@ -27,6 +27,17 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
 ---
 
 **Faz 0 kapandı — 2026-08-30, kullanıcı yönetici onaylı.** Durum: `SYNTHETIC-VALIDATED / REAL-DATA-NOT-VALIDATED`. Kapanış raporları: `docs/faz0-bitis-raporu-openai-sol56.md` ve `docs/faz0-kapanis-raporu.md`.
+
+**Faz 1 tamamlandı — 2026-08-30.** Çözüm iskeleti, kalite ayarları, EF Core/SQLite altyapısı, WPF host, lisans kararı ve self-contained yayın doğrulandı. Faz 1 kabul kapısı build/test/publish komutlarıyla geçildi.
+**Faz 2 tamamlandı — 2026-08-30.** Domain modeli, sabit ölçekli miktar saklama, hesap motoru, ağaç/link kuralları, workspace servisleri ve gerçek WPF UI smoke doğrulaması tamamlandı. Kabul: 17/17 test, self-contained publish başarılı. Bitiş kaydı: `docs/faz2-bitis-raporu-openai-sol56.md`.
+**Faz 3 tamamlandı — 2026-08-30.** Katalog sürümleme, proje yerleşimi, genişletilebilir sorumluluklar ve WPF yapılandırma ekranı kabul edildi. Kabul: 19/19 test, gerçek Windows UI smoke ve self-contained `win-x64` publish başarılı. Bitiş kaydı: `docs/faz3-bitis-raporu-openai-sol56.md`.
+**Faz 4 tamamlandı — 2026-08-30.** Sentetik Temiz Su dikey diliminde kaynak metraj girişi, yerleşim-bazlı hesap özeti, ilk PDF/Excel raporları ve Windows UI kabulü tamamlandı. Kabul: 22/22 test, self-contained `win-x64` publish, 36 satırlık `SYNTHETIC` referansın uygulama içi rapor çıktısı. Durum: `SYNTHETIC-VALIDATED / REAL-DATA-NOT-VALIDATED`. Bitiş kaydı: `docs/faz4-bitis-raporu-openai-sol56.md`.
+**Faz 5 tamamlandı — 2026-08-30.** Sürümlü ve izlenebilir hesap önerileri, `calculated-from` bağımlılıkları, manuel onay/override, kart davranışı yapılandırması ve sorumluluk kalıtımı tamamlandı. Kabul: 30/30 test, self-contained `win-x64` publish ve gerçek Windows UI akışı. Bitiş kaydı: `docs/faz5-bitis-raporu-openai-sol56.md`.
+**Faz 6 tamamlandı — 2026-08-31.** Onaylı revizyon kilidi/kopyası, audit, ortak PDF/Excel rapor modeli, sistem-kategori ve kat-mahal raporları, sorumluluk ve hesap kontrol çıktıları tamamlandı. Kabul: 31/31 test, self-contained `win-x64` publish, gerçek Windows UI’dan üretilen 9 sayfalık PDF’nin görsel incelemesi ve Excel hücre/doğrulama kontrolü. Durum: `SYNTHETIC-VALIDATED / REAL-DATA-NOT-VALIDATED`. Bitiş kaydı: `docs/faz6-bitis-raporu-openai-sol56.md`.
+**Faz 7 tamamlandı — 2026-08-31.** Çevrimiçi SQLite tam yedek/geri yükleme, migration öncesi snapshot, bütünlük denetimi, tek-yazıcı kilidi, güvenli hata bildirimi ve büyük veri regresyonu tamamlandı. Kabul: 38/38 test, self-contained `win-x64` publish; gerçek Windows UI’da başlangıç/mekanik yedek, geri yükleme onayı ve ikinci örnek engeli doğrulandı. Bitiş kaydı: `docs/faz7-bitis-raporu-openai-sol56.md`.
+**Faz 8 tamamlandı — 2026-08-31.** Son teslim paketi Windows 11 x64 için tek dosyalı, self-contained `.exe` olarak üretildi; sentetik fixture exe içine gömüldü, kullanıcı verisi uygulamadan ayrı tutuldu ve kısa kullanım/yedekleme belgeleri eklendi. Kabul: 39/39 test, tek dosyalı paketin doğrudan gerçek Windows UI’da başlatılması ve paket içeriğinin denetimi. Bitiş kaydı: `docs/faz8-bitis-raporu-openai-sol56.md`.
+
+**Arayüz değişimi tamamlandı — 2026-08-31.** Kullanılabilirlik geri bildirimiyle WPF içerik yüzeyi React + React Flow kart akışına taşındı; WPF yalnızca yerel WebView2 kabuğu olarak kaldı. React dosyaları exe içine gömüldü, uygulama dizinine önbellek/varlık klasörü bırakmayan yeni tek dosyalı paket üretildi. Kabul: 40/40 otomatik test, yerel API + gömülü varlık entegrasyon testi, Windows UI ve yayın paketinin doğrudan açılış/kapanış doğrulaması.
 
 ## Faz 0 — Kapsamı dondurma ve referans proje
 
@@ -47,13 +58,15 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
 
 ## Faz 1 — Teknik temel ve kalite altyapısı
 
+**Durum: COMPLETE — build/test/publish kapısı geçti.**
+
 **Yapılacaklar**
 - C#/.NET çözüm yapısı kurulacak: `Metraj.Domain`, `Metraj.Application`, `Metraj.Infrastructure`, `Metraj.Desktop`, `Metraj.Tests`.
 - WPF, MVVM ve SQLite altyapısı hazırlanacak.
 - Nullable kontrolleri, statik analiz ve uyarıların hata sayılması etkinleştirilecek.
 - Veritabanı migration altyapısı kurulacak.
 - Otomatik derleme, test ve publish akışı hazırlanacak.
-- PDF ve Excel kütüphaneleri lisans, paketleme ve Türkçe desteği açısından doğrulanacak.
+- PDF/Excel paket kararı kilitlendi: PDFsharp + MigraDoc ve ClosedXML. Faz 1'de lisans/NOTICE kaydı; Faz 6'da paketleme, Türkçe çıktı ve baskı testleri yapılacak.
 - Self-contained Windows yayını erken aşamada denenecek.
 - Temel mimari ve ajan çalışma belgeleri oluşturulacak.
 
@@ -65,6 +78,8 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
 - İlk Windows publish çıktısı temiz bir test ortamında başlatılabilecek.
 
 ## Faz 2 — Domain modeli ve veritabanı
+
+**Durum: COMPLETE — domain, şema, hesap çekirdeği, workspace servisleri ve UI smoke kapısı geçti.**
 
 **Yapılacaklar**
 - Beş temel kart tipi uygulanacak: Kategori, Kapsam, Sistem, Malzeme, Ek Parça.
@@ -88,26 +103,30 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
 
 ## Faz 3 — Katalog ve proje yapılandırması
 
+**Durum: COMPLETE — katalog sürümleme, proje yerleşimi, genişletilebilir sorumluluk ataması ve WPF yapılandırma kabul kapısı geçti.**
+
 **Yapılacaklar**
-- Kart oluşturma, düzenleme, arama ve pasife alma ekranları yapılacak.
-- Kart değişikliklerinde yeni sürüm oluşturulacak.
-- Proje oluşturma, açma ve kaydetme akışları geliştirilecek.
-- Katalogdan projeye kart yerleştirme uygulanacak.
-- WPF ağaç görünümünde: sıralama, taşıma, dal çoğaltma, projeye özel değer değiştirme, hızlı kalem ekleme geliştirilecek.
-- Sorumluluk boyutu oluşturma ve atama ekranı eklenecek.
-- Geçersiz bağlantı ve eksik alanlar kullanıcıya açıklanacak.
-- Bu fazda canvas geliştirilmeyecek.
+- Kart oluşturma, arama, pasife alma ve seçili karttan immutable yeni sürüm oluşturma ekranları tamamlandı.
+- Kart sürümünün adı da sürüm içinde saklanıyor; eski proje yerleşimleri yeni sürümden etkilenmiyor.
+- Proje oluşturma/açma ve SQLite'a anlık kaydetme akışları tamamlandı.
+- Katalogdan köke veya seçili dalın altına yerleştirme, dal çoğaltma ve yeniden açıldığında kararlı sıralama tamamlandı.
+- Projeye özel görünen ad, tedarik kapsamı ve not değerleri; güvenli üst dala/köke taşıma işlemleri eklendi.
+- Sorumluluk boyutu, taraf ve yerleşim-seviyesi atama ekranı eklendi.
+- Geçersiz/eksik seçimler ve pasif kartla yeni yerleşim girişimleri açıklayıcı hata ile engelleniyor.
+- Bu fazda canvas geliştirilmedi.
 
 **Faz sonu testleri**
-- Aynı katalog kartından farklı dallarda bağımsız yerleşimler oluşturulabilecek.
-- Bir yerleşimdeki değişiklik diğer yerleşimleri etkilemeyecek.
-- Katalog kartı güncellendiğinde eski proje sessizce değişmeyecek.
-- Pasif kart eski projelerde görünmeye devam edecek, yeni yerleşime eklenemeyecek.
-- Dal taşıma ve çoğaltma sonrasında ağaç aynı biçimde yeniden açılacak.
-- Geçersiz ebeveyn ve döngü oluşturma girişimleri engellenecek.
-- Temel kullanıcı akışları WPF smoke ve manuel görev testlerinden geçecek.
+- Aynı kart sürümünün kökte/alt dallarda bağımsız yerleşimleri entegrasyon ve WPF smoke ile doğrulandı.
+- Proje-özel değişikliklerin seçili yerleşimle sınırlı olduğu test edildi.
+- Kart v2 oluşturulduğunda v1 ile yerleştirilmiş satırın adının ve sürüm kimliğinin korunduğu test edildi.
+- Pasif kartın eski proje yerleşiminde görünmeye devam ettiği, yeni yerleşime eklenemediği WPF smoke ile doğrulandı.
+- Dal taşıma/çoğaltma ve döngü engeli entegrasyon testiyle doğrulandı; ağaç uygulama yeniden açıldığında kalıcı olarak yüklendi.
+- Sorumluluk boyutu, taraf ve atama gerçek Windows oturumunda oluşturulup listede doğrulandı.
+- WPF kullanıcı akışları test edildi; test sırasında bulunan erişim, kesilen eylem alanı ve yenileme sonrası yanlış hata metni sorunları düzeltilip yeniden doğrulandı.
 
 ## Faz 4 — Temiz Su dikey dilimi
+
+**Durum: COMPLETE — sentetik referans, hızlı kaynak girişi, hesap özeti, ilk raporlar ve WPF kabulü geçti.**
 
 **Yapılacaklar**
 - Sentetik referans Temiz Su projesi uygulamada oluşturulacak.
@@ -229,7 +248,7 @@ Mimari gerekçe ve veri modeli detayı için: [Kart Sistemi Metraj Mimarisi](htt
   4. Sonuç `Kontrol bekliyor` durumunda oluşturulur.
   5. Kullanıcı sonucu kabul edebilir veya gerekçe yazarak manuel değiştirebilir.
   6. Hesap kaynağı, kural sürümü, ara değerler ve manuel değişiklik saklanır.
-- Domain katmanının ayrılması gelecek ürün taahhüdü değil, hesap mantığını WPF arayüzünden bağımsız tutan kalite kuralıdır.
+- Domain katmanının ayrılması gelecek ürün taahhüdü değil, hesap mantığını görsel arayüzden bağımsız tutan kalite kuralıdır.
 
 ## Her faz için ortak tamamlanma şartı
 

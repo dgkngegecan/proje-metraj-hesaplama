@@ -1,0 +1,51 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metraj.Domain", "src\Metraj.Domain\Metraj.Domain.csproj", "{A1D6D8AE-8C96-4E44-9DBE-1E320D2B4E01}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metraj.Application", "src\Metraj.Application\Metraj.Application.csproj", "{B2E7E9BF-9DA7-4F55-AECF-2F431E3C5F12}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metraj.Infrastructure", "src\Metraj.Infrastructure\Metraj.Infrastructure.csproj", "{C3F8F0C0-AEB8-4066-BFD0-30442F4D6013}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metraj.Desktop", "src\Metraj.Desktop\Metraj.Desktop.csproj", "{D40901D1-BFC9-4177-C0E1-4155305E7114}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metraj.Api", "src\Metraj.Api\Metraj.Api.csproj", "{F41B94F1-BB7B-4226-9F09-6C5FD94EAB18}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Metraj.Tests", "tests\Metraj.Tests\Metraj.Tests.csproj", "{E51A12E2-C0DA-4288-D1F2-5266416F8225}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1D6D8AE-8C96-4E44-9DBE-1E320D2B4E01}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A1D6D8AE-8C96-4E44-9DBE-1E320D2B4E01}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A1D6D8AE-8C96-4E44-9DBE-1E320D2B4E01}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A1D6D8AE-8C96-4E44-9DBE-1E320D2B4E01}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2E7E9BF-9DA7-4F55-AECF-2F431E3C5F12}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2E7E9BF-9DA7-4F55-AECF-2F431E3C5F12}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2E7E9BF-9DA7-4F55-AECF-2F431E3C5F12}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2E7E9BF-9DA7-4F55-AECF-2F431E3C5F12}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3F8F0C0-AEB8-4066-BFD0-30442F4D6013}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3F8F0C0-AEB8-4066-BFD0-30442F4D6013}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3F8F0C0-AEB8-4066-BFD0-30442F4D6013}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3F8F0C0-AEB8-4066-BFD0-30442F4D6013}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D40901D1-BFC9-4177-C0E1-4155305E7114}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D40901D1-BFC9-4177-C0E1-4155305E7114}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D40901D1-BFC9-4177-C0E1-4155305E7114}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D40901D1-BFC9-4177-C0E1-4155305E7114}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F41B94F1-BB7B-4226-9F09-6C5FD94EAB18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F41B94F1-BB7B-4226-9F09-6C5FD94EAB18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F41B94F1-BB7B-4226-9F09-6C5FD94EAB18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F41B94F1-BB7B-4226-9F09-6C5FD94EAB18}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E51A12E2-C0DA-4288-D1F2-5266416F8225}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E51A12E2-C0DA-4288-D1F2-5266416F8225}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E51A12E2-C0DA-4288-D1F2-5266416F8225}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E51A12E2-C0DA-4288-D1F2-5266416F8225}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

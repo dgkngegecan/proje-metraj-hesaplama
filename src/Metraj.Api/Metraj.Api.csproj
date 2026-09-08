@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Metraj.Api</AssemblyName>
+    <RootNamespace>Metraj.Api</RootNamespace>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Metraj.Application\Metraj.Application.csproj" />
+    <ProjectReference Include="..\Metraj.Infrastructure\Metraj.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\tests\Metraj.Tests\TestData\Phase0\CleanWater\fixtures\measurements.csv" LogicalName="Metraj.Api.SampleData.CleanWaterSynthetic.csv" />
+    <EmbeddedResource Include="..\Metraj.Desktop\Assets\metraj.ico" LogicalName="Metraj.Api.Web.favicon.ico" />
+    <EmbeddedResource Include="..\Metraj.Web\dist\**\*" LogicalName="Metraj.Api.Web.%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
