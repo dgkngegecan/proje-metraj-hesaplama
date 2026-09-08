@@ -15,6 +15,7 @@ public static class ApplicationSchemaMigrator
     private const string VariantAndMaterialPolicyVersion = "20260901_variant-material-policy";
     private const string ConfigurableCatalogTypesVersion = "20260901-configurable-catalog-types";
     private const string CatalogVariantProfilesVersion = "20260901-catalog-variant-profiles";
+    private const string MaterialWasteCaseInsensitiveVersion = "20260908-material-waste-nocase";
 
     /// <summary>Creates or upgrades the single application database.</summary>
     public static async Task MigrateAsync(MetrajDbContext context, CancellationToken cancellationToken = default)
@@ -31,6 +32,7 @@ public static class ApplicationSchemaMigrator
         await EnsureVariantAndMaterialPolicyAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureCatalogVariantProfilesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureConfigurableCatalogTypesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
+        await EnsureMaterialWasteCaseInsensitiveAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "__AppSchemaVersions" (
@@ -59,6 +61,9 @@ public static class ApplicationSchemaMigrator
             cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlInterpolatedAsync(
             $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({CatalogVariantProfilesVersion}, {DateTime.UtcNow:O});",
+            cancellationToken).ConfigureAwait(false);
+        await context.Database.ExecuteSqlInterpolatedAsync(
+            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({MaterialWasteCaseInsensitiveVersion}, {DateTime.UtcNow:O});",
             cancellationToken).ConfigureAwait(false);
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -120,6 +125,73 @@ public static class ApplicationSchemaMigrator
 
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "VariantMode", "TEXT NOT NULL DEFAULT 'None'", cancellationToken).ConfigureAwait(false);
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "VariantDefinitionsJson", "TEXT NOT NULL DEFAULT '[]'", cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Malzeme fire tablosunu büyük/küçük harf duyarsız hâle getirir ve eski
+    /// kurulumlardaki yazım çakışmalarını birleştirir. Çakışma, metraj özetini
+    /// çökerttiği için bu adım bir veri onarımıdır, yalnızca şema değişikliği değil.
+    /// SQLite sütun harmanlaması değiştirilemediğinden tablo yeniden kurulur.
+    /// </summary>
+    private static async Task EnsureMaterialWasteCaseInsensitiveAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using (DbCommand probe = connection.CreateCommand())
+        {
+            probe.Transaction = transaction.GetDbTransaction();
+            // Tablo tanımında harmanlama zaten varsa yeniden kurmaya gerek yok.
+            probe.CommandText =
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'MaterialTypeWasteSettings' AND sql LIKE '%NOCASE%';";
+            if (Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) == 1L)
+            {
+                return;
+            }
+        }
+
+        string[] statements =
+        [
+            """
+            CREATE TABLE "MaterialTypeWasteSettings_rebuilt" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_MaterialTypeWasteSettings" PRIMARY KEY,
+                "MaterialType" TEXT NOT NULL COLLATE NOCASE,
+                "WasteRatePct" INTEGER NOT NULL,
+                "UpdatedAtUtc" TEXT NOT NULL
+            );
+            """,
+            """
+            CREATE UNIQUE INDEX "IX_MaterialTypeWasteSettings_MaterialType_rebuilt"
+                ON "MaterialTypeWasteSettings_rebuilt" ("MaterialType");
+            """,
+            // Artan tarih sırasıyla yazıp OR REPLACE kullanınca, aynı aileyi farklı
+            // yazımla taşıyan satırlardan en güncel olan hayatta kalır.
+            """
+            INSERT OR REPLACE INTO "MaterialTypeWasteSettings_rebuilt" ("Id", "MaterialType", "WasteRatePct", "UpdatedAtUtc")
+            SELECT "Id", "MaterialType", "WasteRatePct", "UpdatedAtUtc"
+            FROM "MaterialTypeWasteSettings"
+            ORDER BY "UpdatedAtUtc" ASC, "Id" ASC;
+            """,
+            "DROP INDEX IF EXISTS \"IX_MaterialTypeWasteSettings_MaterialType\";",
+            "DROP TABLE \"MaterialTypeWasteSettings\";",
+            "ALTER TABLE \"MaterialTypeWasteSettings_rebuilt\" RENAME TO \"MaterialTypeWasteSettings\";",
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_MaterialTypeWasteSettings_MaterialType"
+                ON "MaterialTypeWasteSettings" ("MaterialType");
+            """,
+            "DROP INDEX IF EXISTS \"IX_MaterialTypeWasteSettings_MaterialType_rebuilt\";"
+        ];
+
+        foreach (string statement in statements)
+        {
+            await using DbCommand command = connection.CreateCommand();
+            command.Transaction = transaction.GetDbTransaction();
+            command.CommandText = statement;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static async Task EnsureColumnAsync(DbConnection connection, IDbContextTransaction transaction, string table, string column, string definition, CancellationToken cancellationToken)

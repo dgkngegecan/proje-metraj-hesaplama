@@ -229,7 +229,11 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
     {
         EntityTypeBuilder<MaterialTypeWasteSetting> settings = modelBuilder.Entity<MaterialTypeWasteSetting>();
         settings.HasKey(x => x.Id);
-        settings.Property(x => x.MaterialType).HasMaxLength(128).IsRequired();
+        // Metraj özeti aile adlarını büyük/küçük harf duyarsız arar. Depolama da aynı
+        // politikayı uygulamazsa "Steel" ve "steel" iki satır olur ve özet çöker.
+        // NOCASE yalnızca ASCII'yi kapsadığı için Türkçe karakterli adlarda son güvence
+        // servis tarafındaki OrdinalIgnoreCase eşleştirmesidir.
+        settings.Property(x => x.MaterialType).HasMaxLength(128).UseCollation("NOCASE").IsRequired();
         settings.Property(x => x.WasteRatePct).HasConversion(quantityConverter).HasColumnType("INTEGER");
         settings.HasIndex(x => x.MaterialType).IsUnique();
     }

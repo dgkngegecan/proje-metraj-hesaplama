@@ -49,8 +49,15 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
             .Where(x => placementIds.Contains(x.Id))
             .Include(x => x.CatalogCardVersion).ThenInclude(x => x!.CatalogCardDefinition)
             .ToDictionaryAsync(x => x.Id, cancellationToken);
-        Dictionary<string, decimal> materialWaste = await context.MaterialTypeWasteSettings.AsNoTracking()
-            .ToDictionaryAsync(x => x.MaterialType, x => x.WasteRatePct, StringComparer.OrdinalIgnoreCase, cancellationToken);
+        // Aynı malzeme ailesini farklı yazımla taşıyan (eski kurulumlardan kalan)
+        // kayıtlar, metraj özetinin üretilmesini ASLA engellememelidir. Doğrudan
+        // ToDictionary çağrısı burada çakışan anahtarda istisna atardı ve kullanıcı
+        // harita, özet ve raporların tamamını kaybederdi. En güncel kayıt kazanır.
+        var materialWaste = (await context.MaterialTypeWasteSettings.AsNoTracking()
+                .OrderBy(x => x.UpdatedAtUtc).ThenBy(x => x.Id)
+                .ToListAsync(cancellationToken))
+            .GroupBy(x => x.MaterialType, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Last().WasteRatePct, StringComparer.OrdinalIgnoreCase);
 
         var summaries = new List<MeasurementSummaryItem>(groups.Count);
         foreach (var group in groups)
