@@ -18,8 +18,8 @@ Klasörde yalnızca bu tek, self-contained `.exe` bulunur; .NET kurulumu gerekti
 2. Uygulama ilk açılışta Türkiye’de yaygın saha adlarını ve global karşılıklarını içeren standart mekanik tesisat kartlarını **global kütüphaneye** ekler. Daha önce eklenmiş kartlar ve kullanıcı kartları korunur; paket tekrar çalıştırılsa da çoğaltma yapılmaz.
 3. **Yeni proje** ile işe başlayın; **Kütüphane** sekmesindeki kartlar projelerden bağımsızdır ve bütün projelerde tekrar kullanılabilir. İhtiyaç halinde Kategori, Kapsam, Sistem, Malzeme veya Ek Parça kartı ekleyin.
 4. **Proje haritası** ekranında kartı sahneye sürükleyin veya `+ Kart ekle` ile ekleyin. Kart uçlarından sürükleyerek tek ebeveynli ilişkisini kurun.
-5. **Metraj** ekranında malzemeyi seçip yalnız miktarı yazın; gerekirse açılan alana blok, kat, mahal ve paftayı ekleyin.
-6. Gerekirse `⚙ İleri kontroller` alanında sürüm, `calculated-from` tabanlı hesap önerisi, sorumluluk ve yedekleme işlerini yürütün.
+5. Aynı ekranda sağdaki panelden malzemeyi seçip yalnız miktarı yazın; gerekirse **+ Kat / mahal / not ekle** ile blok, kat, mahal ve paftayı girin. Yanlış girilen bir satırı **Giriş geçmişi** listesinden düzeltebilir veya silebilirsiniz.
+6. Gerekirse **Ayarlar** ekranında sürüm, `calculated-from` tabanlı hesap önerisi, sorumluluk, malzeme fire payları ve yedekleme işlerini yürütün.
 7. **Metraj çıktısı** ekranından PDF, Excel veya Word çıktısını alın.
 
 Sentetik Temiz Su örneği yalnız kabul/regresyon verisidir; gerçek metraj değildir.

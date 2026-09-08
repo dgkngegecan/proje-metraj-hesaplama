@@ -1,4 +1,4 @@
-using Metraj.Application;
+﻿using Metraj.Application;
 using Metraj.Api;
 using Metraj.Infrastructure;
 using System.Windows;
@@ -20,7 +20,6 @@ public partial class App : System.Windows.Application
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         try
         {
-            string databasePath = ApplicationDatabasePaths.GetDatabasePath();
             writeLock = ApplicationWriteLock.TryAcquire("ProjeMetraj.SingleWriter.v1");
             if (!writeLock.IsAcquired)
             {
@@ -31,38 +30,82 @@ public partial class App : System.Windows.Application
                 return;
             }
 
-            if (File.Exists(databasePath))
-            {
-                var maintenance = new DatabaseMaintenanceWorkspaceService(() => databasePath);
-                maintenance.CreateBackupAsync(DatabaseBackupReason.BeforeMigration).GetAwaiter().GetResult();
-            }
-
-            using MetrajDbContext context = MetrajDbContextFactory.Create(databasePath);
-            ApplicationSchemaMigrator.MigrateAsync(context).GetAwaiter().GetResult();
-            // Katalog proje kapsamından bağımsız, bu kullanıcıdaki tek SQLite veritabanında
-            // tutulur. Uygulama ilk açılışta standart terim paketini bir kez ekler; sonraki
-            // projeler aynı kartları kullanır ve hiçbir katalog kaydı sıfırlanmaz.
-            new StarterCatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath))
-                .SeedAsync()
-                .GetAwaiter()
-                .GetResult();
-            DatabaseIntegrityCheckResult integrity = new DatabaseMaintenanceWorkspaceService(() => databasePath).CheckIntegrityAsync().GetAwaiter().GetResult();
-            if (!integrity.IsHealthy)
-            {
-                throw new InvalidDataException(integrity.Details);
-            }
-
-            localApiHost = LocalApiHost.StartAsync(databasePath).GetAwaiter().GetResult();
-            var window = new MainWindow(localApiHost.BaseUri);
+            // Pencere ÖNCE gösterilir. Hazırlık işleri arkasında yürür ve her
+            // adım yükleme ekranına yazılır; kullanıcı hiçbir zaman boş ekranla
+            // kalmaz. Önceden bütün hazırlık senkron bekleniyor, pencere ancak
+            // sonunda açılıyordu.
+            var window = new MainWindow();
             // WebView2'nin barındırdığı pencere kapanırken uygulamanın arka planda
             // kalmaması için kapanış akışını açıkça uygulama yaşam döngüsüne bağlıyoruz.
             window.Closed += (_, _) => Shutdown();
             MainWindow = window;
             window.Show();
+
+            _ = InitializeApplicationAsync(window);
         }
         catch (Exception exception)
         {
             LogStartupFailure(exception);
+            MessageBox.Show(
+                "Uygulama güvenli şekilde başlatılamadı. Ayrıntı kaydı: proje-metraj-startup-error.log",
+                "Proje Metraj başlangıç hatası",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown(1);
+        }
+    }
+
+    /// <summary>
+    /// Veritabanı hazırlığını arka planda yürütür ve her adımı yükleme ekranına
+    /// bildirir. Dispatcher bloklanmadığı için pencere baştan sona yanıt verir.
+    /// </summary>
+    private async Task InitializeApplicationAsync(MainWindow window)
+    {
+        try
+        {
+            window.ReportProgress("Veri konumu hazırlanıyor…");
+            string databasePath = await Task.Run(ApplicationDatabasePaths.GetDatabasePath);
+
+            // Yedek yalnızca şema gerçekten değişecekse alınır. Her açılışta
+            // koşulsuz yedek almak hem açılışı uzatıyor hem de kullanıcının
+            // kasıtlı yedeklerini kotadan düşürüyordu.
+            bool schemaUpToDate = await ApplicationSchemaMigrator.IsUpToDateAsync(databasePath);
+            if (File.Exists(databasePath) && !schemaUpToDate)
+            {
+                window.ReportProgress("Güncelleme öncesi yedek alınıyor…");
+                await new DatabaseMaintenanceWorkspaceService(() => databasePath)
+                    .CreateBackupAsync(DatabaseBackupReason.BeforeMigration);
+            }
+
+            if (!schemaUpToDate)
+            {
+                window.ReportProgress("Veritabanı hazırlanıyor…");
+                await using MetrajDbContext context = MetrajDbContextFactory.Create(databasePath);
+                await ApplicationSchemaMigrator.MigrateAsync(context);
+            }
+
+            // Katalog proje kapsamından bağımsız, bu kullanıcıdaki tek SQLite veritabanında
+            // tutulur. Uygulama ilk açılışta standart terim paketini bir kez ekler; sonraki
+            // projeler aynı kartları kullanır ve hiçbir katalog kaydı sıfırlanmaz.
+            window.ReportProgress("Standart kart kütüphanesi denetleniyor…");
+            await new StarterCatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)).SeedAsync();
+
+            window.ReportProgress("Veri bütünlüğü denetleniyor…");
+            DatabaseIntegrityCheckResult integrity =
+                await new DatabaseMaintenanceWorkspaceService(() => databasePath).CheckIntegrityAsync();
+            if (!integrity.IsHealthy)
+            {
+                throw new InvalidDataException(integrity.Details);
+            }
+
+            window.ReportProgress("Çalışma ekranı açılıyor…");
+            localApiHost = await LocalApiHost.StartAsync(databasePath);
+            window.NavigateWhenReady(localApiHost.BaseUri);
+        }
+        catch (Exception exception)
+        {
+            LogStartupFailure(exception);
+            window.ReportStartupFailure(exception.Message);
             MessageBox.Show(
                 "Uygulama güvenli şekilde başlatılamadı. Ayrıntı kaydı: proje-metraj-startup-error.log",
                 "Proje Metraj başlangıç hatası",

@@ -48,6 +48,43 @@ public static class ApplicationSchemaMigrator
         "CalculationResults"
     ];
 
+    /// <summary>
+    /// Şemanın zaten güncel olup olmadığını söyler. Açılışta yedek almadan önce
+    /// sorulur: her açılışta koşulsuz yedek almak, kullanıcının kasıtlı
+    /// yedeklerini kotadan düşürüyor ve açılışı gereksiz yere uzatıyordu.
+    /// </summary>
+    public static async Task<bool> IsUpToDateAsync(string databasePath, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
+        if (!File.Exists(databasePath)) return false;
+
+        await using MetrajDbContext context = MetrajDbContextFactory.Create(databasePath);
+        DbConnection connection = context.Database.GetDbConnection();
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (DbCommand probe = connection.CreateCommand())
+        {
+            probe.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '__AppSchemaVersions';";
+            if (Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) != 1L)
+            {
+                return false;
+            }
+        }
+
+        var applied = new HashSet<string>(StringComparer.Ordinal);
+        await using (DbCommand read = connection.CreateCommand())
+        {
+            read.CommandText = "SELECT \"Version\" FROM \"__AppSchemaVersions\";";
+            await using DbDataReader reader = await read.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                applied.Add(reader.GetString(0));
+            }
+        }
+
+        return KnownSchemaVersions.All(applied.Contains);
+    }
+
     /// <summary>Creates or upgrades the single application database.</summary>
     public static async Task MigrateAsync(MetrajDbContext context, CancellationToken cancellationToken = default)
     {

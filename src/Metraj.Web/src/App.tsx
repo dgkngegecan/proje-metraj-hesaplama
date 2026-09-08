@@ -13,7 +13,9 @@ import {
   applyNodeChanges,
   type Connection,
   type Edge,
+  type EdgeChange,
   type Node,
+  type NodeChange,
   type NodeProps,
   type NodeTypes,
   type ReactFlowInstance,
@@ -261,6 +263,10 @@ export default function App() {
   const [edges, setEdges] = useState<Edge[]>([]);
   const [flow, setFlow] = useState<ReactFlowInstance<PlacementNode, Edge> | null>(null);
   const viewportNudgeTimers = useRef<number[]>([]);
+  // Kullanıcının sürüklediği konumlar yerleşim kimliğine göre hatırlanır.
+  // Önceden her loadRevision buildFlow ile konumları sıfırdan üretiyordu: bir
+  // ölçüm kaydedince bütün kartlar eski yerine sıçrıyordu.
+  const nodePositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showCardShelf, setShowCardShelf] = useState(false);
   const [showTypeDialog, setShowTypeDialog] = useState(false);
@@ -342,6 +348,7 @@ export default function App() {
     setRules([]);
     setCalculationResults([]);
     setResponsibilities(null);
+    nodePositions.current = new Map();
     const emptyExpanded = new Set<string>();
     expandedPlacementIdsRef.current = emptyExpanded;
     setExpandedPlacementIds(emptyExpanded);
@@ -394,6 +401,9 @@ export default function App() {
       setSummaries(nextSummaries);
       setReport(nextReport);
       const nextFlow = buildFlow(nextPlacements);
+      // Silinmiş kartların konumlarını taşımaya gerek yok.
+      const liveIds = new Set(nextPlacements.map((item) => item.id));
+      nodePositions.current = new Map([...nodePositions.current].filter(([id]) => liveIds.has(id)));
       nextFlow.nodes = nextFlow.nodes.map((node) => {
         const itemSummary = nextSummaries.find((item) => item.placementId === node.id);
         const groups = new Map<string, FlowBreakdown>();
@@ -416,7 +426,8 @@ export default function App() {
             return (Number.isFinite(left) ? left : 0) - (Number.isFinite(right) ? right : 0) || a.id.localeCompare(b.id);
           }),
         }));
-        return { ...node, data: { ...node.data, expanded: expandedPlacementIdsRef.current.has(node.id), uiSummary: itemSummary, uiBreakdown } };
+        const remembered = nodePositions.current.get(node.id);
+        return { ...node, position: remembered ?? node.position, data: { ...node.data, expanded: expandedPlacementIdsRef.current.has(node.id), uiSummary: itemSummary, uiBreakdown } };
       });
       setNodes(nextFlow.nodes);
       setEdges(nextFlow.edges);
@@ -850,6 +861,30 @@ export default function App() {
     nudgeNodeIntoView(node.id, willExpand ? 90 : 32);
     if (willExpand) nudgeNodeIntoView(node.id, 360);
   };
+  // React Flow'un yerel değişiklikleri kalıcılaştırılmadığı için harita
+  // "gerçek" değilmiş gibi davranıyordu: klavyeyle silinen kart yenilemede geri
+  // geliyor, sürüklenen kart eski yerine sıçrıyordu.
+  const handleNodesChange = (changes: NodeChange<PlacementNode>[]) => {
+    for (const change of changes) {
+      if (change.type === 'position' && change.position) {
+        nodePositions.current.set(change.id, change.position);
+      }
+    }
+    // Silme yalnızca açık "Seçili kartı ve altını sil" işlemiyle yapılır;
+    // klavye kısayolu yanlışlıkla bütün bir dalı yok edebilirdi.
+    const removals = changes.filter((change) => change.type === 'remove');
+    if (removals.length > 0) {
+      notify('Kartı silmek için sağdaki “Seçili kartı ve altını sil” düğmesini kullanın.');
+    }
+    const applicable = changes.filter((change) => change.type !== 'remove');
+    if (applicable.length > 0) setNodes((current) => applyNodeChanges<PlacementNode>(applicable, current));
+  };
+  const handleEdgesChange = (changes: EdgeChange<Edge>[]) => {
+    // Kenarlar üst–alt ilişkisini temsil eder; bağlantı yalnızca yeni bir
+    // ebeveyne sürükleyerek değiştirilir.
+    const applicable = changes.filter((change) => change.type !== 'remove');
+    if (applicable.length > 0) setEdges((current) => applyEdgeChanges<Edge>(applicable, current));
+  };
   const onDrop = (event: React.DragEvent) => {
     event.preventDefault();
     const cardVersionId = event.dataTransfer.getData('application/metraj-card');
@@ -899,7 +934,7 @@ export default function App() {
             <div className="page-intro"><div><span className="eyebrow">1. KARTLARI KUR</span><h2>Projenin haritası</h2><p>Kartı tutup sahneye bırak. Kartların yanındaki noktalardan sürükleyerek üst–alt ilişkisini değiştir.</p></div><div className="intro-actions"><button onClick={() => flow?.fitView({ padding: 0.24, duration: 360 })}>Haritayı sığdır</button><button className="primary" disabled={!canEdit} onClick={() => setShowCardShelf(true)}>+ Kart ekle</button></div></div>
             <div className="flow-layout">
               <div className="flow-stage" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
-                <ReactFlow<PlacementNode, Edge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} onInit={setFlow} onNodeClick={selectNode} onNodeDoubleClick={expandNode} onNodesChange={(changes) => setNodes((current) => applyNodeChanges<PlacementNode>(changes, current))} onEdgesChange={(changes) => setEdges((current) => applyEdgeChanges<Edge>(changes, current))} onConnect={reparent} fitView fitViewOptions={{ padding: 0.24 }} nodesDraggable={canEdit} nodesConnectable={canEdit} elementsSelectable>
+                <ReactFlow<PlacementNode, Edge> nodes={nodes} edges={edges} nodeTypes={nodeTypes} onInit={setFlow} onNodeClick={selectNode} onNodeDoubleClick={expandNode} onNodesChange={handleNodesChange} onEdgesChange={handleEdgesChange} onConnect={reparent} fitView fitViewOptions={{ padding: 0.24 }} nodesDraggable={canEdit} nodesConnectable={canEdit} elementsSelectable>
                   <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#31415d" /><Controls showInteractive={false} /><MiniMap pannable zoomable nodeColor={(node) => TYPE_META[(node.data as Placement).cardType]?.color ?? '#9bacbf'} />
                 </ReactFlow>
                 {!placements.length && <div className="empty-flow"><span>✦</span><h3>Harita boş</h3><p>Sağdaki kartlıktan bir kartı bu alana bırak.</p></div>}
