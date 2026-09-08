@@ -19,7 +19,7 @@ oturum tam olarak nerede kalındığını görebilir.
 |---|---|---|
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
-| T1 — Şaşırtıcı/engelleyici (21 madde) | 🔄 1/21 (T1-4) · sıradaki bölüm | `4df4856` |
+| T1 — Şaşırtıcı/engelleyici (21 madde) | 🔄 9/21 tamam | aşağıda |
 | T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 Kısmen (T2-5 ad, T2-17 tipler) | — |
 | T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
@@ -27,7 +27,7 @@ oturum tam olarak nerede kalındığını görebilir.
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 86 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 90 başarılı, 0 başarısız.**
 
 ---
 
@@ -141,28 +141,28 @@ ebeveyn→çocuk haritası + bir kez hesaplanan derinlik; çevrim koruması var.
 ## Sürmekte olan bölüm
 
 ### T1 — Şaşırtıcı, engelleyici veya kafa karıştırıcı
-**Durum:** 🔄 1/21 tamam (T1-4, T0-7 ile birlikte yapıldı)
+**Durum:** 🔄 9/21 tamam
 
 Öncelikli sıra (etki/maliyet oranına göre):
 
 | # | Madde | Durum | Not |
 |---|---|---|---|
-| T1-1 | Hata mesajları İngilizce | ⬜ **Sıradaki** | `Rule` kodunu API'den geçir, UI'da Türkçeye çöz |
-| T1-2 | İç hatalar 400 dönüyor | ⬜ **Sıradaki** | T1-1 ile aynı değişiklik |
-| T1-20 | Metraj satırı düzenlenemiyor/silinemiyor | ⬜ | Backend hazır, yalnız UI işi |
-| T1-15 | Toast'lar birbirini siliyor | ⬜ | Tek satır (timer ref) |
-| T1-17 | Yükleyici hatayı yutuyor | ⬜ | |
-| T1-6 | Ekran ile indirilen dosya farklı | ⬜ | |
-| T1-11 | Proje değişince eski seçimler kalıyor | ⬜ | |
-| T1-12 | Geri yükleme sonrası geçersiz seçim | ⬜ | |
+| T1-1 | Hata mesajları İngilizce | ✅ `e5cf2d7` | 106 kural için Türkçe katalog |
+| T1-2 | İç hatalar 400 dönüyor | ✅ `e5cf2d7` | Alan kuralı 400, arıza 500 + log |
+| T1-20 | Metraj satırı düzenlenemiyor/silinemiyor | ✅ `4bca53b` | Satır içi düzelt/sil |
+| T1-15 | Toast'lar birbirini siliyor | ✅ `fbc3218` | |
+| T1-17 | Yükleyici hatayı yutuyor | ✅ `fbc3218` | notifySuccess |
+| T1-6 | Ekran ile indirilen dosya farklı | ✅ `fbc3218` | |
+| T1-11 | Proje değişince eski seçimler kalıyor | ✅ `fbc3218` | + loadAdvanced yarış koruması |
+| T1-12 | Geri yükleme sonrası geçersiz seçim | ✅ `fbc3218` | |
 | T1-5 | Harita düzeni geri alınıyor | ⬜ | |
-| T1-7 | Rapordaki satın alma birimi yanlış | ⬜ | |
+| T1-7 | Rapordaki satın alma birimi yanlış | 🔄 **Sıradaki** | T1-8/9/10 ile birlikte |
 | T1-9 | PDF/Excel'de çap-çeşit sütunu yok | ⬜ | |
 | T1-8 | Ondalık hassasiyeti tutarsız | ⬜ | |
 | T1-10 | Excel'de uzun not kesiliyor | ⬜ | |
 | T1-3 | Taslaklar her açılışta sıfırlanıyor | ⬜ | Mimari karar gerekir |
 | T1-14 | Açılış ilerleme göstermiyor | ⬜ | |
-| T1-13 | window.prompt/confirm | ⬜ | |
+| T1-13 | window.prompt/confirm | 🔄 Kısmen | Geçmiş satırlarında yerleşik onay yapıldı |
 | T1-16 | Klavye/ekran okuyucu | ⬜ | |
 | T1-18 | Kart adı editörü değiştiriyor | ⬜ | |
 | T1-19 | Kartlar kod önekiyle gizleniyor | ⬜ | |
@@ -205,3 +205,21 @@ Backend maddelerinin hepsinde önce kırmızı test yazıldı, sonra düzeltildi
 - Geri yükleme sırasında bakım sınırı (Kestrel'in duraklatılması) → T2-4.
 - Geri yüklemenin kendi kaynağını budaması → T2-5 (ad benzersizliği kısmı
   T0-2'de yapıldı, budama sırası kısmı kaldı).
+
+---
+
+## T1 ara notu (bu oturum)
+
+**Tamamlananlar:** T1-1, T1-2, T1-4, T1-6, T1-11, T1-12, T1-15, T1-17, T1-20
+(9/21). Commit'ler: `e5cf2d7`, `4bca53b`, `fbc3218` (+ T1-4 `4df4856` içinde).
+
+**Yeni altyapı:**
+- `src/Metraj.Application/DomainMessageCatalog.cs` — 106 kural kodunun Türkçe
+  karşılığı. Yeni bir kural eklenirse buraya da bir satır eklenmeli; eksikse
+  alan grubuna göre genel mesaj + kural kodu döner (asla boş kalmaz).
+- `ApiError` artık `{ message, rule }` döndürüyor. Frontend `ApiError` sınıfı
+  `rule` ve `isServerFault` taşıyor.
+- `notifySuccess` — yalnızca işlem boyunca hiç hata olmadıysa mesaj gösterir.
+
+**Sıradaki blok:** T1-7, T1-8, T1-9, T1-10 — dördü de rapor çıktısı sadakati
+(`ProjectReportWorkspaceService`), tek commit'te yapılacak.
