@@ -1,5 +1,6 @@
 using System.Data;
 using Metraj.Application;
+using Metraj.Domain;
 using Microsoft.Data.Sqlite;
 
 namespace Metraj.Infrastructure;
@@ -79,6 +80,9 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
     {
         string trustedBackupPath = ValidateBackupPath(backupPath);
         await VerifyDatabaseAsync(trustedBackupPath, cancellationToken);
+        // Kimlik doğrulaması, güvenlik yedeği alınmadan ÖNCE yapılır: yanlış bir
+        // dosya seçildiğinde kullanıcının yedek klasörü boş yere kalabalıklaşmasın.
+        await EnsureRestorableMetrajDatabaseAsync(trustedBackupPath, cancellationToken);
         string databasePath = GetDatabasePath();
         if (File.Exists(databasePath))
         {
@@ -90,6 +94,9 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
         {
             await CopyDatabaseAsync(trustedBackupPath, restoreTemporaryPath, cancellationToken);
             await VerifyDatabaseAsync(restoreTemporaryPath, cancellationToken);
+            // Aşama kopyası da doğrulanır: kopyalama sırasında bozulan bir dosya
+            // asıl veritabanının yerine geçmemeli.
+            await EnsureRestorableMetrajDatabaseAsync(restoreTemporaryPath, cancellationToken);
             SqliteConnection.ClearAllPools();
             File.Move(restoreTemporaryPath, databasePath, overwrite: true);
             DeleteIfExists($"{databasePath}-wal");
@@ -132,6 +139,76 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
         await source.OpenAsync(cancellationToken);
         await destination.OpenAsync(cancellationToken);
         source.BackupDatabase(destination);
+    }
+
+    /// <summary>
+    /// Dosyanın gerçekten bu uygulamaya ait, geri yüklenebilir bir veritabanı
+    /// olduğunu doğrular. PRAGMA quick_check yalnızca SQLite'ın kendi dosya
+    /// yapısını denetler; uygulama kimliğini, şema uyumluluğunu ve ilişkileri
+    /// denetlemez. Bu kontrol olmadan yabancı bir .db dosyası "Yedek geri
+    /// yüklendi." mesajıyla kullanıcının bütün projelerinin yerine geçebiliyordu.
+    /// </summary>
+    private static async Task EnsureRestorableMetrajDatabaseAsync(string databasePath, CancellationToken cancellationToken)
+    {
+        SqliteConnectionStringBuilder builder = new() { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, ForeignKeys = true };
+        await using var connection = new SqliteConnection(builder.ToString());
+        await connection.OpenAsync(cancellationToken);
+
+        var tables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table';";
+            await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                tables.Add(reader.GetString(0));
+            }
+        }
+
+        string[] missing = ApplicationSchemaMigrator.RequiredTables.Where(table => !tables.Contains(table)).ToArray();
+        if (missing.Length > 0)
+        {
+            throw new DomainRuleViolationException(
+                "backup.not-metraj",
+                $"Seçilen dosya bir Proje Metraj yedeği değil. Eksik tablolar: {string.Join(", ", missing)}.");
+        }
+
+        // Daha yeni bir uygulama sürümüyle üretilmiş yedek, sessizce açılmamalı;
+        // bu sürümün tanımadığı şema adımları veri kaybına yol açabilir.
+        if (tables.Contains("__AppSchemaVersions"))
+        {
+            var unknown = new List<string>();
+            await using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT \"Version\" FROM \"__AppSchemaVersions\";";
+            await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                string version = reader.GetString(0);
+                if (!ApplicationSchemaMigrator.KnownSchemaVersions.Contains(version, StringComparer.Ordinal))
+                {
+                    unknown.Add(version);
+                }
+            }
+
+            if (unknown.Count > 0)
+            {
+                throw new DomainRuleViolationException(
+                    "backup.newer-schema",
+                    $"Bu yedek daha yeni bir Proje Metraj sürümüyle alınmış ({string.Join(", ", unknown)}). Güncel sürümle geri yükleyin.");
+            }
+        }
+
+        await using (SqliteCommand command = connection.CreateCommand())
+        {
+            command.CommandText = "PRAGMA foreign_key_check;";
+            await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                throw new DomainRuleViolationException(
+                    "backup.broken-relations",
+                    "Yedekteki kayıtlar arasındaki ilişkiler tutarsız; bu dosya güvenle geri yüklenemez.");
+            }
+        }
     }
 
     private static async Task VerifyDatabaseAsync(string databasePath, CancellationToken cancellationToken)

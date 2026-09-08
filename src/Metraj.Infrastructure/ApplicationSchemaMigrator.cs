@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -16,6 +16,35 @@ public static class ApplicationSchemaMigrator
     private const string ConfigurableCatalogTypesVersion = "20260901-configurable-catalog-types";
     private const string CatalogVariantProfilesVersion = "20260901-catalog-variant-profiles";
     private const string MaterialWasteCaseInsensitiveVersion = "20260908-material-waste-nocase";
+
+    /// <summary>
+    /// Bu uygulama sürümünün tanıdığı şema adımları. Geri yükleme doğrulaması da
+    /// bu listeyi kullanır: tanınmayan bir sürüm, gelecekten gelen (daha yeni bir
+    /// uygulamayla üretilmiş) bir yedeğin sessizce yüklenmesini engeller.
+    /// </summary>
+    public static IReadOnlyList<string> KnownSchemaVersions { get; } =
+    [
+        InitialSchemaVersion,
+        CalculationQuantitiesVersion,
+        CardVersionNamesVersion,
+        CalculationResultSnapshotIndexVersion,
+        VariantAndMaterialPolicyVersion,
+        ConfigurableCatalogTypesVersion,
+        CatalogVariantProfilesVersion,
+        MaterialWasteCaseInsensitiveVersion
+    ];
+
+    /// <summary>Bir Metraj veritabanında bulunması zorunlu çekirdek tablolar.</summary>
+    public static IReadOnlyList<string> RequiredTables { get; } =
+    [
+        "Projects",
+        "ProjectRevisions",
+        "ProjectPlacements",
+        "Measurements",
+        "CatalogCardDefinitions",
+        "CatalogCardVersions",
+        "CalculationResults"
+    ];
 
     /// <summary>Creates or upgrades the single application database.</summary>
     public static async Task MigrateAsync(MetrajDbContext context, CancellationToken cancellationToken = default)
@@ -41,30 +70,15 @@ public static class ApplicationSchemaMigrator
             );
             """, cancellationToken).ConfigureAwait(false);
 
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({InitialSchemaVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({CalculationQuantitiesVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({CardVersionNamesVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({CalculationResultSnapshotIndexVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({VariantAndMaterialPolicyVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({ConfigurableCatalogTypesVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({CatalogVariantProfilesVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
-        await context.Database.ExecuteSqlInterpolatedAsync(
-            $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({MaterialWasteCaseInsensitiveVersion}, {DateTime.UtcNow:O});",
-            cancellationToken).ConfigureAwait(false);
+        // Uygulanan adımlar tek listeden yazılır; yeni bir şema sürümü eklemek
+        // artık KnownSchemaVersions'a bir satır eklemekten ibarettir.
+        DateTime appliedAtUtc = DateTime.UtcNow;
+        foreach (string version in KnownSchemaVersions)
+        {
+            await context.Database.ExecuteSqlInterpolatedAsync(
+                $"INSERT OR IGNORE INTO \"__AppSchemaVersions\" (\"Version\", \"AppliedAtUtc\") VALUES ({version}, {appliedAtUtc:O});",
+                cancellationToken).ConfigureAwait(false);
+        }
 
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
     }
