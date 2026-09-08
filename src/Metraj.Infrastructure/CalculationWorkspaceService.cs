@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -61,7 +62,13 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
             VersionNumber = (priorVersions.Count == 0 ? 0 : priorVersions.Max(x => x.VersionNumber)) + 1,
             SourceQuantityKind = normalized.SourceQuantityKind,
             ParametersJson = SerializeParameters(normalized),
-            ContentHash = ComputeHash($"{SnapshotContractVersion}|RULE|{normalized.Code}|{normalized.Name}|{normalized.Mode}|{normalized.Multiplier:F6}|{normalized.SourceQuantityKind}"),
+            // Parmak izi kalıcı olarak saklanır ve izlenebilirlik iddiasının
+            // temelidir; işletim sistemi diline göre değişmemelidir. Düz string
+            // interpolation CurrentCulture kullanıyordu: aynı kural Türkçe
+            // Windows'ta "1,000000", İngilizce'de "1.000000" üretip FARKLI
+            // hash'leniyordu.
+            ContentHash = ComputeHash(string.Create(CultureInfo.InvariantCulture,
+                $"{SnapshotContractVersion}|RULE|{normalized.Code}|{normalized.Name}|{normalized.Mode}|{normalized.Multiplier:F6}|{normalized.SourceQuantityKind}")),
             IsActive = true
         };
         context.CalculationRuleVersions.Add(rule);
