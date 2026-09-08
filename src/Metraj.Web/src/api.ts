@@ -1,13 +1,32 @@
-export class ApiError extends Error {}
+export class ApiError extends Error {
+  /** Kararlı kural kodu (örn. "measurement.unit"). Arayüz gerekirse buna göre dallanabilir. */
+  readonly rule: string;
+  /** Sunucu arızası mı, kullanıcının düzeltebileceği bir durum mu? */
+  readonly isServerFault: boolean;
+
+  constructor(message: string, rule = '', isServerFault = false) {
+    super(message);
+    this.rule = rule;
+    this.isServerFault = isServerFault;
+  }
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
-    headers: init?.body ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
+    // init önce yayılır: bir çağıran kendi başlıklarını verirse, aşağıdaki
+    // birleştirilmiş nesne onu ezmek yerine içerir.
     ...init,
+    headers: init?.body
+      ? { 'Content-Type': 'application/json', ...init.headers }
+      : init?.headers,
   });
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ message: 'İşlem tamamlanamadı.' }));
-    throw new ApiError(body.message ?? 'İşlem tamamlanamadı.');
+    const body = await response.json().catch(() => ({}));
+    throw new ApiError(
+      body.message ?? 'İşlem tamamlanamadı.',
+      body.rule ?? '',
+      response.status >= 500,
+    );
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

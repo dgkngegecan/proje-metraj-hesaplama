@@ -210,7 +210,9 @@ public sealed class OverallFunctionalAcceptanceTests
                 inputUnit = "m"
             });
             Assert.Equal(HttpStatusCode.BadRequest, forbiddenWrite.StatusCode);
-            Assert.Contains("draft", await forbiddenWrite.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase);
+            // Sözleşme, çevrilebilir mesaj metnine değil kararlı kural koduna dayanır.
+            using var forbiddenBody = JsonDocument.Parse(await forbiddenWrite.Content.ReadAsStringAsync());
+            Assert.Equal("revision.read-only", forbiddenBody.RootElement.GetProperty("rule").GetString());
         }
         finally
         {

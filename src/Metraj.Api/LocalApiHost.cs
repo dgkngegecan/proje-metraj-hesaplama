@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json.Serialization;
 using Metraj.Application;
 using Metraj.Domain;
@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.StaticFiles;
 namespace Metraj.Api;
 
 /// <summary>Loopback-only HTTP boundary that lets the React desktop surface use the existing application services.</summary>
-public sealed class LocalApiHost : IAsyncDisposable
+public sealed partial class LocalApiHost : IAsyncDisposable
 {
     private readonly WebApplication application;
 
@@ -49,15 +49,32 @@ public sealed class LocalApiHost : IAsyncDisposable
             {
                 await next(context);
             }
-            catch (DomainRuleViolationException exception)
+            catch (DomainRuleViolationException exception) when (!context.Response.HasStarted)
             {
+                // Kullanıcının düzeltebileceği bir durum. Kural kodu kararlı makine
+                // kimliğidir; gösterilen metin Türkçe katalogdan çözülür. Önceden
+                // istisnanın kendi İngilizce mesajı doğrudan kullanıcıya gidiyordu.
+                Log.DomainRuleRejected(app.Logger, exception.Rule);
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new ApiError(exception.Message), cancellationToken: context.RequestAborted);
+                await context.Response.WriteAsJsonAsync(
+                    new ApiError(DomainMessageCatalog.Resolve(exception.Rule), exception.Rule),
+                    cancellationToken: context.RequestAborted);
             }
-            catch (InvalidOperationException exception)
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
             {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsJsonAsync(new ApiError(exception.Message), cancellationToken: context.RequestAborted);
+                // Kullanıcı sayfadan ayrıldı veya isteği iptal etti; hata değildir.
+            }
+            catch (Exception exception) when (!context.Response.HasStarted)
+            {
+                // Sunucu arızası kullanıcının kendi hatasıymış gibi sunulmamalı ve
+                // iç ayrıntı sızmamalı. Önceden her InvalidOperationException 400
+                // dönüyordu; eksik yazı tipi veya gömülü kaynak gibi gerçek
+                // arızalar "hatalı istek" gibi görünüyordu.
+                Log.UnexpectedFault(app.Logger, context.Request.Path, exception);
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(
+                    new ApiError("Beklenmeyen bir hata oluştu. Sorun sürerse uygulamayı yeniden başlatın.", "server.error"),
+                    cancellationToken: context.RequestAborted);
             }
         });
 
@@ -379,7 +396,20 @@ public sealed class LocalApiHost : IAsyncDisposable
         finally { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
     }
 
-    private sealed record ApiError(string Message);
+    /// <summary>Kaynak üreteçli günlük iletileri (analizörler çalışma zamanı biçimlendirmesini yasaklıyor).</summary>
+    private static partial class Log
+    {
+        [LoggerMessage(EventId = 1000, Level = LogLevel.Information,
+            Message = "Alan kuralı reddi: {Rule}")]
+        public static partial void DomainRuleRejected(ILogger logger, string rule);
+
+        [LoggerMessage(EventId = 1001, Level = LogLevel.Error,
+            Message = "Beklenmeyen sunucu hatası: {Path}")]
+        public static partial void UnexpectedFault(ILogger logger, string path, Exception exception);
+    }
+
+    /// <summary>Kullanıcıya gösterilecek metin ve dallanma için kararlı kural kodu.</summary>
+    private sealed record ApiError(string Message, string Rule);
     private sealed record CreateProjectRequest(string Code, string Name, string? Description);
     private sealed record CreateCardRequest(string Code, string Name, CardType CardType, string Unit, InputBehavior InputBehavior,
         SalesConversion SalesConversion, ReportBehavior ReportBehavior, decimal WasteRatePct, decimal? ContainerParameter, string? PositionNumber,
