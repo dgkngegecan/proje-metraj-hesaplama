@@ -155,14 +155,35 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
         ProjectRevision revision = await context.ProjectRevisions.SingleAsync(x => x.Id == root.ProjectRevisionId, cancellationToken);
         ProjectRevisionRules.EnsureDraft(revision);
         var all = await context.ProjectPlacements.Where(x => x.ProjectRevisionId == revision.Id).ToListAsync(cancellationToken);
+
+        // Alt ağacı ebeveyn->çocuk haritası üzerinden tek geçişte topla.
+        var childrenByParent = all
+            .Where(x => x.ParentPlacementId is not null)
+            .GroupBy(x => x.ParentPlacementId!.Value)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.Id).ToArray());
         var subtree = new HashSet<Guid> { root.Id };
-        bool changed;
-        do
+        var pending = new Stack<Guid>();
+        pending.Push(root.Id);
+        while (pending.TryPop(out Guid current))
         {
-            changed = false;
-            foreach (ProjectPlacement item in all.Where(x => x.ParentPlacementId is Guid parent && subtree.Contains(parent)))
-                changed |= subtree.Add(item.Id);
-        } while (changed);
+            if (!childrenByParent.TryGetValue(current, out Guid[]? children)) continue;
+            foreach (Guid child in children)
+            {
+                if (subtree.Add(child)) pending.Push(child);
+            }
+        }
+
+        // Tüm silme adımları TEK işlemde yürür. Önceden her ExecuteDelete kendi
+        // başına ve anında çalışıyordu; ortada bir hata olduğunda kullanıcıya
+        // "silindi" deniyor ama haritada ölçümleri yok edilmiş boş bir kart
+        // kalıyordu ve geri alma yoktu.
+        await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+            await context.Database.BeginTransactionAsync(cancellationToken);
+
+        // Silinen dala dayanan ama dalın DIŞINDA kalan hesap önerileri, artık var
+        // olmayan ölçümlere dayanır: bağlantılar silinmeden önce bayat işaretlenir.
+        await CalculationFreshness.MarkStaleForPlacementsAsync(context, revision.Id, subtree, cancellationToken);
+        await context.SaveChangesAsync(cancellationToken);
 
         Guid[] measurementIds = await context.Measurements.Where(x => subtree.Contains(x.ProjectPlacementId)).Select(x => x.Id).ToArrayAsync(cancellationToken);
         await context.ResponsibilityAssignments.Where(x => (x.ProjectPlacementId != null && subtree.Contains(x.ProjectPlacementId.Value)) ||
@@ -170,15 +191,33 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
         await context.CalculationResults.Where(x => subtree.Contains(x.TargetPlacementId)).ExecuteDeleteAsync(cancellationToken);
         await context.PlacementLinks.Where(x => subtree.Contains(x.SourcePlacementId) || subtree.Contains(x.TargetPlacementId)).ExecuteDeleteAsync(cancellationToken);
         await context.Measurements.Where(x => subtree.Contains(x.ProjectPlacementId)).ExecuteDeleteAsync(cancellationToken);
-        int maxDepth = all.Count;
-        for (int depth = maxDepth; depth >= 0; depth--)
+
+        // Ebeveyn ilişkisi Restrict olduğu için yapraktan köke doğru silinir.
+        // Derinlik bir kez hesaplanır; önceki sürüm her turda bütün ağacı tarıyordu.
+        var parentById = all.ToDictionary(x => x.Id, x => x.ParentPlacementId);
+        foreach (IGrouping<int, Guid> level in subtree
+                     .GroupBy(id => DepthOf(id, parentById))
+                     .OrderByDescending(group => group.Key))
         {
-            Guid[] leafIds = all.Where(x => subtree.Contains(x.Id) && !all.Any(child => subtree.Contains(child.Id) && child.ParentPlacementId == x.Id))
-                .Select(x => x.Id).ToArray();
-            if (leafIds.Length == 0) break;
-            await context.ProjectPlacements.Where(x => leafIds.Contains(x.Id)).ExecuteDeleteAsync(cancellationToken);
-            all.RemoveAll(x => leafIds.Contains(x.Id));
+            Guid[] levelIds = level.ToArray();
+            await context.ProjectPlacements.Where(x => levelIds.Contains(x.Id)).ExecuteDeleteAsync(cancellationToken);
         }
+
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static int DepthOf(Guid placementId, Dictionary<Guid, Guid?> parentById)
+    {
+        int depth = 0;
+        Guid? cursor = parentById.GetValueOrDefault(placementId);
+        var visited = new HashSet<Guid> { placementId };
+        while (cursor is Guid parentId && visited.Add(parentId))
+        {
+            depth++;
+            cursor = parentById.GetValueOrDefault(parentId);
+        }
+
+        return depth;
     }
 
     private static string? NormalizeOptional(string? value, int maxLength, string rule)
