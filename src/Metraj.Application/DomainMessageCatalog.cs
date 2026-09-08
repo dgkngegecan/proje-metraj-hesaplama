@@ -1,4 +1,4 @@
-using Metraj.Domain;
+﻿using Metraj.Domain;
 
 namespace Metraj.Application;
 
@@ -152,6 +152,10 @@ public static class DomainMessageCatalog
         // Fire politikası
         ["waste.material-type"] = "Malzeme ailesi 1 ile 128 karakter arasında olmalıdır.",
         ["waste.not-found"] = "Fire kuralı bulunamadı.",
+
+        // Arayüz durumu (yarım kalmış girişler ve tercihler)
+        ["ui-state.key"] = "Arayüz durumu anahtarı geçersiz.",
+        ["ui-state.value"] = "Saklanacak arayüz durumu çok büyük.",
 
         // Rapor
         ["report.root"] = "Raporlanacak kart bu projede bulunamadı."

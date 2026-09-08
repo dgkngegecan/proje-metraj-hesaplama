@@ -23,6 +23,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { api, ApiError } from './api';
 import { AskDialog, useAsk } from './AskDialog';
+import { clearUiState, loadUiState, readUiState, writeUiState, type UiStateMap } from './uiState';
 import type {
   CalculationResult,
   CalculationRule,
@@ -255,7 +256,7 @@ function measurementLabel(notes?: string | null) {
 
 export default function App() {
   const [view, setView] = useState<View>('flow');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => window.localStorage.getItem('metraj.sidebar-collapsed') === '1');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [cards, setCards] = useState<CatalogCard[]>([]);
@@ -294,6 +295,9 @@ export default function App() {
   const [addNewCardToFlow, setAddNewCardToFlow] = useState(false);
   const [busy, setBusy] = useState(false);
   const { pending: askRequest, ask, close: closeAsk } = useAsk();
+  // Kalıcı arayüz durumu sunucuda tutulur; loopback portu değişse de kaybolmaz.
+  const uiState = useRef<UiStateMap>({});
+  const [uiStateReady, setUiStateReady] = useState(false);
   const [toast, setToast] = useState('');
   const [projectDraft, setProjectDraft] = useState({ code: '', name: '' });
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -474,6 +478,18 @@ export default function App() {
 
   useEffect(() => { void loadProjects(); void loadCards(); void loadCatalogTypeSettings(); }, [loadCards, loadCatalogTypeSettings, loadProjects]);
   useEffect(() => {
+    let cancelled = false;
+    void loadUiState()
+      .then((map) => {
+        if (cancelled) return;
+        uiState.current = map;
+        setSidebarCollapsed(readUiState(map, 'sidebar-collapsed') === '1');
+      })
+      .catch(() => undefined)
+      .finally(() => { if (!cancelled) setUiStateReady(true); });
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
     if (!selectedProjectId) { clearProjectView(); return; }
     let cancelled = false;
     void api.get<Revision[]>(`/projects/${selectedProjectId}/revisions`).then((next) => {
@@ -485,7 +501,10 @@ export default function App() {
   }, [clearProjectView, selectedProjectId]);
   useEffect(() => { void loadRevision(selectedRevisionId); }, [loadRevision, selectedRevisionId]);
   useEffect(() => { if (view === 'settings') void loadAdvanced(); }, [loadAdvanced, view]);
-  useEffect(() => { window.localStorage.setItem('metraj.sidebar-collapsed', sidebarCollapsed ? '1' : '0'); }, [sidebarCollapsed]);
+  useEffect(() => {
+    if (!uiStateReady) return;
+    writeUiState(uiState.current, 'sidebar-collapsed', sidebarCollapsed ? '1' : '0');
+  }, [sidebarCollapsed, uiStateReady]);
   useEffect(() => { setPlacementNotesDraft(selectedPlacement?.notes ?? ''); }, [selectedPlacementId, selectedPlacement?.notes]);
 
   const reload = async () => { await Promise.all([loadProjects(), loadCards(), loadCatalogTypeSettings(), loadRevision(selectedRevisionId)]); };
@@ -994,7 +1013,7 @@ export default function App() {
                 </ReactFlow>
                 {!placements.length && <div className="empty-flow"><span>✦</span><h3>Harita boş</h3><p>Sağdaki kartlıktan bir kartı bu alana bırak.</p></div>}
               </div>
-              <Inspector key={selectedPlacement?.id ?? 'empty-inspector'} placement={selectedPlacement} placements={placements} summaries={activeSummaries} measurements={measurements.filter((item) => item.placementId === selectedPlacementId)} allMeasurements={measurements} canEdit={Boolean(canEdit)} busy={busy} draft={measurementDraft} onDraft={setMeasurementDraft} onSubmit={addMeasurement} onSubmitRows={addMeasurementRows} onToggleContext={() => setShowContext(!showContext)} showContext={showContext} placementNotes={placementNotesDraft} onPlacementNotes={setPlacementNotesDraft} onSavePlacementNotes={savePlacementNotes} onUpdateMeasurement={updateMeasurementQuantity} onDeleteMeasurement={deleteMeasurement} onAdd={() => setShowCardShelf(true)} onDelete={deletePlacement} onScope={() => { if (selectedPlacementId) { setReportScopeId(selectedPlacementId); setView('control'); } }} />
+              <Inspector key={selectedPlacement?.id ?? 'empty-inspector'} placement={selectedPlacement} placements={placements} summaries={activeSummaries} measurements={measurements.filter((item) => item.placementId === selectedPlacementId)} allMeasurements={measurements} canEdit={Boolean(canEdit)} busy={busy} draft={measurementDraft} onDraft={setMeasurementDraft} onSubmit={addMeasurement} onSubmitRows={addMeasurementRows} onToggleContext={() => setShowContext(!showContext)} showContext={showContext} placementNotes={placementNotesDraft} onPlacementNotes={setPlacementNotesDraft} onSavePlacementNotes={savePlacementNotes} onUpdateMeasurement={updateMeasurementQuantity} onDeleteMeasurement={deleteMeasurement} uiState={uiState.current} uiStateReady={uiStateReady} onAdd={() => setShowCardShelf(true)} onDelete={deletePlacement} onScope={() => { if (selectedPlacementId) { setReportScopeId(selectedPlacementId); setView('control'); } }} />
             </div>
           </section>}
 
@@ -1290,13 +1309,15 @@ function Welcome({ onCreate, onExample }: { onCreate: () => void; onExample: () 
 
 type MeasurementDraft = { quantity: string; block: string; floor: string; room: string; sheet: string; notes: string };
 
-function Inspector({ placement, placements, summaries, measurements, allMeasurements, canEdit, busy, draft, onDraft, onSubmit, onSubmitRows, onToggleContext, showContext, placementNotes, onPlacementNotes, onSavePlacementNotes, onUpdateMeasurement, onDeleteMeasurement, onAdd, onDelete, onScope }: {
+function Inspector({ placement, placements, summaries, measurements, allMeasurements, canEdit, busy, draft, onDraft, onSubmit, onSubmitRows, onToggleContext, showContext, placementNotes, onPlacementNotes, onSavePlacementNotes, onUpdateMeasurement, onDeleteMeasurement, uiState, uiStateReady, onAdd, onDelete, onScope }: {
   placement: Placement | null; placements: Placement[]; summaries: MeasurementSummary[]; measurements: Measurement[]; allMeasurements: Measurement[]; canEdit: boolean; busy: boolean;
   draft: MeasurementDraft; onDraft: (value: MeasurementDraft) => void; onSubmit: () => void;
   onSubmitRows: (rows: Array<{ quantity: number; notes?: string | null; variant?: string | null; secondaryVariant?: string | null }>) => Promise<boolean>;
   onToggleContext: () => void; showContext: boolean; placementNotes: string; onPlacementNotes: (value: string) => void; onSavePlacementNotes: () => void;
   onUpdateMeasurement: (measurement: Measurement, inputQuantity: number) => Promise<void>;
   onDeleteMeasurement: (measurement: Measurement) => Promise<void>;
+  uiState: UiStateMap;
+  uiStateReady: boolean;
   onAdd: () => void; onDelete: () => void; onScope: () => void;
 }) {
   type PipeBox = { id: string; diameter: string; pending: string };
@@ -1323,16 +1344,18 @@ function Inspector({ placement, placements, summaries, measurements, allMeasurem
   // yerleşim kimliği altında kalıcılaştırılır.
   useEffect(() => {
     if (!placement || placement.variantMode !== 'Pipe' || pipeHydratedPlacementId.current !== placement.id || !pipeBoxes.length) return;
-    window.localStorage.setItem(`metraj.pipe-boxes.v1.${placement.id}`, JSON.stringify(pipeBoxes.map(({ id, diameter }) => ({ id, diameter }))));
+    writeUiState(uiState, `pipe-boxes.v1.${placement.id}`, JSON.stringify(pipeBoxes.map(({ id, diameter }) => ({ id, diameter }))));
   }, [placement?.id, placement?.variantMode, pipeBoxes]);
 
   useEffect(() => {
     if (!placement || placement.variantMode !== 'Fitting' || fittingHydratedPlacementId.current !== placement.id || !fittingBoxes.length) return;
-    window.localStorage.setItem(`metraj.fitting-draft.v1.${placement.id}`, JSON.stringify(fittingBoxes));
+    writeUiState(uiState, `fitting-draft.v1.${placement.id}`, JSON.stringify(fittingBoxes));
   }, [placement?.id, placement?.variantMode, fittingBoxes]);
 
   useEffect(() => {
-    if (!placement) return;
+    // Sunucudan gelen kalıcı durum hazır olmadan hidrasyon yapılmaz; aksi hâlde
+    // boş haritadan okunur ve kullanıcının bekleyen adetleri yok sayılırdı.
+    if (!placement || !uiStateReady) return;
     let ancestor = placements.find((item) => item.id === placement.parentPlacementId);
     let guard = 0;
     while (ancestor && guard++ < 24 && ancestor.variantMode !== 'Pipe') ancestor = placements.find((item) => item.id === ancestor?.parentPlacementId);
@@ -1348,7 +1371,7 @@ function Inspector({ placement, placements, summaries, measurements, allMeasurem
     let savedFittingBoxes: Array<{ id?: string; diameter?: string; counts?: unknown; countsByDiameter?: unknown }> = [];
     if (placement.variantMode === 'Pipe') {
       try {
-        const raw = window.localStorage.getItem(`metraj.pipe-boxes.v1.${placement.id}`);
+        const raw = readUiState(uiState, `pipe-boxes.v1.${placement.id}`);
         const parsed: unknown = raw ? JSON.parse(raw) : [];
         if (Array.isArray(parsed)) {
           savedPipeBoxes = parsed.filter((item): item is { id?: string; diameter?: string } => Boolean(item && typeof item === 'object' && typeof (item as { diameter?: unknown }).diameter === 'string'));
@@ -1359,7 +1382,7 @@ function Inspector({ placement, placements, summaries, measurements, allMeasurem
     }
     if (placement.variantMode === 'Fitting') {
       try {
-        const raw = window.localStorage.getItem(`metraj.fitting-draft.v1.${placement.id}`);
+        const raw = readUiState(uiState, `fitting-draft.v1.${placement.id}`);
         const parsed: unknown = raw ? JSON.parse(raw) : [];
         if (Array.isArray(parsed)) {
           savedFittingBoxes = parsed.filter((item): item is { id?: string; diameter?: string; counts?: unknown; countsByDiameter?: unknown } => Boolean(item && typeof item === 'object'));
@@ -1406,7 +1429,7 @@ function Inspector({ placement, placements, summaries, measurements, allMeasurem
     setFittingBoxes(placement.variantMode === 'Fitting' ? normalizedFittingBoxes : [{ id: `${placement.id}-fit-0`, diameter: first, countsByDiameter: {} }]);
     setDiameter(first);
     setFittingCounts({ Dirsek: 0, Muşon: 0, Te: 0, Vana: 0 });
-  }, [placement?.id, placement?.variantMode, placement?.parentPlacementId, placement?.variants]);
+  }, [placement?.id, placement?.variantMode, placement?.parentPlacementId, placement?.variants, uiStateReady]);
   useEffect(() => {
     setShowHistory(false);
     setEditingMeasurementId(null);
@@ -1505,7 +1528,7 @@ function Inspector({ placement, placements, summaries, measurements, allMeasurem
     const saved = await onSubmitRows(rows);
     if (saved) {
       setFittingBoxes((current) => current.map((box) => ({ ...box, countsByDiameter: {} })));
-      window.localStorage.removeItem(`metraj.fitting-draft.v1.${placement.id}`);
+      clearUiState(uiState, `fitting-draft.v1.${placement.id}`);
     }
   };
   const updateFittingCount = (boxId: string, diameterCode: string, code: string, delta: number) => setFittingBoxes((current) => current.map((box) => {

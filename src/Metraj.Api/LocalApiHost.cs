@@ -108,6 +108,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         services.AddSingleton<ICalculationWorkspace>(_ => new CalculationWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<IProjectReportWorkspace>(_ => new ProjectReportWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<IMaterialTypeWasteWorkspace>(_ => new MaterialTypeWasteWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
+        services.AddSingleton<IUiStateWorkspace>(_ => new UiStateWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<IDatabaseMaintenanceWorkspace>(_ => new DatabaseMaintenanceWorkspaceService(() => databasePath));
         services.AddSingleton<ISyntheticCleanWaterWorkspace>(_ => new SyntheticCleanWaterWorkspaceService(
             () => MetrajDbContextFactory.Create(databasePath), OpenSyntheticCleanWaterFixture));
@@ -288,6 +289,18 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await CreateSubtreeDownloadAsync(revisionId, rootPlacementId, ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", workspace.ExportSubtreeWordAsync, token));
         api.MapPost("/synthetic-clean-water", async (ISyntheticCleanWaterWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ImportAsync(token)));
+        // Arayüzün kalıcı taslakları ve tercihleri. localStorage kullanılamaz:
+        // loopback portu her açılışta değiştiği için origin, dolayısıyla
+        // localStorage da sıfırlanıyor.
+        api.MapGet("/ui-state", async (IUiStateWorkspace workspace, CancellationToken token) =>
+            Results.Ok(await workspace.ListAsync(token)));
+        api.MapPut("/ui-state", async (UiStateRequest request, IUiStateWorkspace workspace, CancellationToken token) =>
+            Results.Ok(await workspace.SetAsync(request.Key, request.ValueJson, token)));
+        api.MapDelete("/ui-state", async (string key, IUiStateWorkspace workspace, CancellationToken token) =>
+        {
+            await workspace.DeleteAsync(key, token);
+            return Results.NoContent();
+        });
         api.MapGet("/database/backups", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListBackupsAsync(token)));
         api.MapPost("/database/backups", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
@@ -435,6 +448,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
     private sealed record CreateNamedRequest(string Code, string Name);
     private sealed record AssignResponsibilityRequest(Guid DimensionId, Guid PlacementId, Guid? PartyId, ResponsibilityAssignmentState State, string? Notes);
     private sealed record RestoreBackupRequest(string FullPath);
+    private sealed record UiStateRequest(string Key, string ValueJson);
     private sealed record ResponsibilityView(IReadOnlyList<ResponsibilityDimensionListItem> Dimensions,
         IReadOnlyList<ResponsibilityPartyListItem> Parties, IReadOnlyList<ResponsibilityAssignmentListItem> Assignments);
 }

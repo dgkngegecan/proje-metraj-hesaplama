@@ -17,6 +17,7 @@ public static class ApplicationSchemaMigrator
     private const string CatalogVariantProfilesVersion = "20260901-catalog-variant-profiles";
     private const string MaterialWasteCaseInsensitiveVersion = "20260908-material-waste-nocase";
     private const string RevisionEffectivePolicyVersion = "20260908-revision-effective-policy";
+    private const string UiStateVersion = "20260909-ui-state";
 
     /// <summary>
     /// Bu uygulama sürümünün tanıdığı şema adımları. Geri yükleme doğrulaması da
@@ -33,7 +34,8 @@ public static class ApplicationSchemaMigrator
         ConfigurableCatalogTypesVersion,
         CatalogVariantProfilesVersion,
         MaterialWasteCaseInsensitiveVersion,
-        RevisionEffectivePolicyVersion
+        RevisionEffectivePolicyVersion,
+        UiStateVersion
     ];
 
     /// <summary>Bir Metraj veritabanında bulunması zorunlu çekirdek tablolar.</summary>
@@ -102,6 +104,7 @@ public static class ApplicationSchemaMigrator
         await EnsureConfigurableCatalogTypesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureMaterialWasteCaseInsensitiveAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureRevisionEffectivePolicyAsync(context, transaction, cancellationToken).ConfigureAwait(false);
+        await EnsureUiStateAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "__AppSchemaVersions" (
@@ -262,6 +265,22 @@ public static class ApplicationSchemaMigrator
         }
 
         await EnsureColumnAsync(connection, transaction, "ProjectRevisions", "EffectivePolicyJson", "TEXT NULL", cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Arayüzün kalıcı taslak ve tercih tablosunu oluşturur.</summary>
+    private static async Task EnsureUiStateAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        await using DbCommand create = connection.CreateCommand();
+        create.Transaction = transaction.GetDbTransaction();
+        create.CommandText =
+            "CREATE TABLE IF NOT EXISTS \"UiStates\" (\"Key\" TEXT NOT NULL CONSTRAINT \"PK_UiStates\" PRIMARY KEY, \"ValueJson\" TEXT NOT NULL, \"UpdatedAtUtc\" TEXT NOT NULL);";
+        await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task EnsureColumnAsync(DbConnection connection, IDbContextTransaction transaction, string table, string column, string definition, CancellationToken cancellationToken)

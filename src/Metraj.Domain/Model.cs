@@ -1,4 +1,4 @@
-namespace Metraj.Domain;
+﻿namespace Metraj.Domain;
 
 public enum CardType
 {
@@ -332,6 +332,23 @@ public sealed class CalculationResult
     public ProjectPlacement? TargetPlacement { get; set; }
     public CalculationRuleVersion? CalculationRuleVersion { get; set; }
     public CatalogCardVersion? CardVersion { get; set; }
+}
+
+/// <summary>
+/// Arayüzün kalıcı olması gereken küçük durumu (yarım kalmış fitting sayımları,
+/// açık çap kutuları, kenar çubuğu tercihi).
+/// </summary>
+/// <remarks>
+/// Bu veri localStorage'da tutulamaz: yerel API her açılışta işletim sisteminin
+/// seçtiği bir loopback portu dinler, port değişince WebView için origin değişir
+/// ve localStorage boş gelir. Arayüz kullanıcıya "Bekleyen adetler bu kart,
+/// diğer kartlar ve ekranlar arasında saklanır" dediği için bu söz tutulmalı.
+/// </remarks>
+public sealed class UiState
+{
+    public string Key { get; set; } = string.Empty;
+    public string ValueJson { get; set; } = "{}";
+    public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }
 
 public sealed class AuditEntry

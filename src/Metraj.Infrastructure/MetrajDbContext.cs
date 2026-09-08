@@ -1,4 +1,4 @@
-using Metraj.Domain;
+﻿using Metraj.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -23,6 +23,7 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
     public DbSet<CalculationResult> CalculationResults => Set<CalculationResult>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<MaterialTypeWasteSetting> MaterialTypeWasteSettings => Set<MaterialTypeWasteSetting>();
+    public DbSet<UiState> UiStates => Set<UiState>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +37,7 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
         ConfigureCalculationModel(modelBuilder, quantityConverter, nullableQuantityConverter);
         ConfigureAuditModel(modelBuilder);
         ConfigureMaterialTypeWasteModel(modelBuilder, quantityConverter);
+        ConfigureUiStateModel(modelBuilder);
     }
 
     private static void ConfigureCardModel(ModelBuilder modelBuilder, ValueConverter<decimal, long> quantityConverter, ValueConverter<decimal?, long?> nullableQuantityConverter)
@@ -224,6 +226,14 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
         audit.Property(x => x.EventType).HasMaxLength(128).IsRequired();
         audit.Property(x => x.DetailsJson).HasMaxLength(16_384).IsRequired();
         audit.HasIndex(x => new { x.ProjectRevisionId, x.OccurredAtUtc });
+    }
+
+    private static void ConfigureUiStateModel(ModelBuilder modelBuilder)
+    {
+        EntityTypeBuilder<UiState> states = modelBuilder.Entity<UiState>();
+        states.HasKey(x => x.Key);
+        states.Property(x => x.Key).HasMaxLength(256);
+        states.Property(x => x.ValueJson).HasMaxLength(65_536).IsRequired();
     }
 
     private static void ConfigureMaterialTypeWasteModel(ModelBuilder modelBuilder, ValueConverter<decimal, long> quantityConverter)
