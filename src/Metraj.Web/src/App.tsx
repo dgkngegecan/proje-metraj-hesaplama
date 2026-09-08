@@ -283,6 +283,7 @@ export default function App() {
   const [assignmentDraft, setAssignmentDraft] = useState({ dimensionId: '', partyId: '', placementId: '', state: 'Assigned' });
   const [wasteDraft, setWasteDraft] = useState({ materialType: '', wasteRatePct: '0' });
   const revisionLoadSequence = useRef(0);
+  const advancedLoadSequence = useRef(0);
 
   const selectedProject = projects.find((item) => item.id === selectedProjectId) ?? null;
   const selectedRevision = revisions.find((item) => item.id === selectedRevisionId) ?? null;
@@ -290,14 +291,34 @@ export default function App() {
   const canEdit = selectedRevision?.status === 'Draft';
   const measurablePlacements = placements.filter((item) => item.isMeasurable && item.inputBehavior !== 'Derived');
 
-  const notify = (message: string) => {
+  // Tek bir zamanlayıcı tutulur. Önceden her çağrı yeni bir setTimeout kuruyor
+  // ve iptal etmiyordu; arka arkaya iki bildirimde ilkinin zamanlayıcısı
+  // ikincisini erken siliyordu (özellikle hata mesajlarını).
+  const toastTimer = useRef<number | null>(null);
+  const notify = useCallback((message: string) => {
+    if (toastTimer.current !== null) window.clearTimeout(toastTimer.current);
     setToast(message);
-    window.setTimeout(() => setToast(''), 3200);
-  };
-  const fail = (error: unknown) => notify(error instanceof ApiError ? error.message : 'Bir şey ters gitti. Tekrar deneyin.');
+    toastTimer.current = window.setTimeout(() => {
+      setToast('');
+      toastTimer.current = null;
+    }, 3200);
+  }, []);
+  useEffect(() => () => { if (toastTimer.current !== null) window.clearTimeout(toastTimer.current); }, []);
+
+  // Yükleyiciler hatayı kendi içlerinde yakalayıp normal dönüyor; bu yüzden
+  // çağıran, başarısız bir yenilemeden sonra "başarılı" mesajı gösterebiliyordu.
+  // Kullanıcı arka arkaya hem hata hem başarı toast'ı görüp hangisinin geçerli
+  // olduğunu bilemiyordu.
+  const operationFailed = useRef(false);
+  const fail = useCallback((error: unknown) => {
+    operationFailed.current = true;
+    notify(error instanceof ApiError ? error.message : 'Bir şey ters gitti. Tekrar deneyin.');
+  }, [notify]);
+  const notifySuccess = (message: string) => { if (!operationFailed.current) notify(message); };
 
   const clearProjectView = useCallback(() => {
     revisionLoadSequence.current += 1;
+    advancedLoadSequence.current += 1;
     setRevisions([]);
     setSelectedRevisionId('');
     setPlacements([]);
@@ -307,6 +328,16 @@ export default function App() {
     setSelectedPlacementId(null);
     setNodes([]);
     setEdges([]);
+    // Önceki projeye ait BAĞIMLI seçimler de temizlenmeli. Bunlar kalınca
+    // "Bu daldan metraj" başlığı eski projenin kartını gösteriyor, hesap
+    // komutları eski proje kimlikleriyle gönderiliyordu.
+    setReportScopeId(null);
+    setCalculationTargetId('');
+    setCalculationSourceId('');
+    setAssignmentDraft({ dimensionId: '', partyId: '', placementId: '', state: 'Assigned' });
+    setRules([]);
+    setCalculationResults([]);
+    setResponsibilities(null);
     const emptyExpanded = new Set<string>();
     expandedPlacementIdsRef.current = emptyExpanded;
     setExpandedPlacementIds(emptyExpanded);
@@ -321,7 +352,10 @@ export default function App() {
     try {
       const next = await api.get<Project[]>('/projects');
       setProjects(next);
-      setSelectedProjectId((current) => current || next[0]?.id || '');
+      // Geri yükleme sonrası, artık var olmayan bir projede kalınmamalı.
+      // Önceki sürüm dolu bir seçimi koşulsuz koruyordu; kullanıcı silinmiş bir
+      // projenin adını üst çubukta görüp boş ekranlarla kalıyordu.
+      setSelectedProjectId((current) => next.some((project) => project.id === current) ? current : next[0]?.id ?? '');
     } catch (error) { fail(error); }
   }, []);
 
@@ -389,6 +423,9 @@ export default function App() {
 
   const loadAdvanced = useCallback(async () => {
     if (!selectedRevisionId) return;
+    // loadRevision'daki yarış koruması burada da gerekli: geç gelen bir önceki
+    // projenin yanıtı, aktif projenin kural ve sonuç listelerini ezmemeli.
+    const requestSequence = ++advancedLoadSequence.current;
     try {
       const [nextRules, nextResults, nextResponsibilities, nextBackups, nextIntegrity, nextWasteSettings] = await Promise.all([
         api.get<CalculationRule[]>(`/revisions/${selectedRevisionId}/calculations/rules`),
@@ -398,6 +435,7 @@ export default function App() {
         api.get<DatabaseIntegrity>('/database/integrity'),
         api.get<MaterialWasteSetting[]>('/settings/material-waste'),
       ]);
+      if (requestSequence !== advancedLoadSequence.current) return;
       setRules(nextRules); setCalculationResults(nextResults); setResponsibilities(nextResponsibilities);
       setBackups(nextBackups); setIntegrity(nextIntegrity); setWasteSettings(nextWasteSettings);
     } catch (error) { fail(error); }
@@ -422,6 +460,7 @@ export default function App() {
   const reload = async () => { await Promise.all([loadProjects(), loadCards(), loadCatalogTypeSettings(), loadRevision(selectedRevisionId)]); };
   const withBusy = async (work: () => Promise<void>) => {
     setBusy(true);
+    operationFailed.current = false;
     try { await work(); } catch (error) { fail(error); } finally { setBusy(false); }
   };
 
@@ -429,25 +468,25 @@ export default function App() {
     if (!selectedProjectId) throw new ApiError('Önce bir proje seçin.');
     const created = await api.post<Revision>(`/projects/${selectedProjectId}/revisions`);
     const next = await api.get<Revision[]>(`/projects/${selectedProjectId}/revisions`);
-    setRevisions(next); setSelectedRevisionId(created.id); notify(`${created.code} düzenleme kopyası hazır.`);
+    setRevisions(next); setSelectedRevisionId(created.id); notifySuccess(`${created.code} düzenleme kopyası hazır.`);
   });
   const approveRevision = () => withBusy(async () => {
     if (!selectedRevisionId) return;
     await api.post(`/revisions/${selectedRevisionId}/approve`);
     const next = await api.get<Revision[]>(`/projects/${selectedProjectId}/revisions`);
-    setRevisions(next); await loadRevision(selectedRevisionId); notify('Bu sürüm onaylandı ve kilitlendi.');
+    setRevisions(next); await loadRevision(selectedRevisionId); notifySuccess('Bu sürüm onaylandı ve kilitlendi.');
   });
   const createRule = () => withBusy(async () => {
     const multiplier = Number(ruleDraft.multiplier.replace(',', '.'));
     if (!ruleDraft.code.trim() || !ruleDraft.name.trim() || !Number.isFinite(multiplier) || multiplier < 0) throw new ApiError('Kuralın kodunu, adını ve çarpanını yazın.');
     await api.post(`/revisions/${selectedRevisionId}/calculations/rules`, { code: ruleDraft.code, name: ruleDraft.name, mode: 'FixedMultiplier', multiplier, sourceQuantityKind: 'Net' });
-    setRuleDraft({ code: '', name: '', multiplier: '1' }); await loadAdvanced(); notify('Hesap kuralı eklendi.');
+    setRuleDraft({ code: '', name: '', multiplier: '1' }); await loadAdvanced(); notifySuccess('Hesap kuralı eklendi.');
   });
   const runCalculation = (ruleId: string) => withBusy(async () => {
     const targetPlacementId = calculationTargetId || selectedPlacementId;
     if (!targetPlacementId) throw new ApiError('Önce hesaplanacak kartı seçin.');
     await api.post(`/revisions/${selectedRevisionId}/calculations/results`, { targetPlacementId, ruleVersionId: ruleId });
-    await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]); notify('Hesap önerisi kontrol listesine eklendi.');
+    await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]); notifySuccess('Hesap önerisi kontrol listesine eklendi.');
   });
   const linkCalculationSource = () => withBusy(async () => {
     const targetPlacementId = calculationTargetId || selectedPlacementId;
@@ -456,7 +495,7 @@ export default function App() {
     if (targetPlacementId === calculationSourceId) throw new ApiError('Kaynak kartı ile hesaplanacak kart aynı olamaz.');
     await api.post(`/placements/${targetPlacementId}/calculated-from`, { sourcePlacementId: calculationSourceId, notes: null });
     setCalculationSourceId('');
-    notify('Hesap kaynağı bağlandı. Artık öneri üretebilirsin.');
+    notifySuccess('Hesap kaynağı bağlandı. Artık öneri üretebilirsin.');
   });
   const reviewCalculation = (resultId: string, decision: 'approve' | 'reject') => withBusy(async () => {
     if (decision === 'approve') await api.post(`/calculations/results/${resultId}/approve`);
@@ -475,30 +514,30 @@ export default function App() {
     if (reason === null) return;
     if (!Number.isFinite(usedQuantity) || usedQuantity < 0) throw new ApiError('Kullanılacak miktarı sayı olarak yazın.');
     await api.post(`/calculations/results/${result.id}/override`, { usedQuantity, reason });
-    await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]); notify('Hesap önerisi elle güncellendi.');
+    await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]); notifySuccess('Hesap önerisi elle güncellendi.');
   });
   const createDimension = () => withBusy(async () => {
     if (!dimensionDraft.code.trim() || !dimensionDraft.name.trim()) throw new ApiError('Boyut için kod ve ad yazın.');
     await api.post(`/revisions/${selectedRevisionId}/responsibilities/dimensions`, dimensionDraft);
-    setDimensionDraft({ code: '', name: '' }); await loadAdvanced(); notify('Sorumluluk boyutu eklendi.');
+    setDimensionDraft({ code: '', name: '' }); await loadAdvanced(); notifySuccess('Sorumluluk boyutu eklendi.');
   });
   const createParty = () => withBusy(async () => {
     if (!partyDraft.code.trim() || !partyDraft.name.trim()) throw new ApiError('Taraf için kod ve ad yazın.');
     await api.post(`/revisions/${selectedRevisionId}/responsibilities/parties`, partyDraft);
-    setPartyDraft({ code: '', name: '' }); await loadAdvanced(); notify('Taraf eklendi.');
+    setPartyDraft({ code: '', name: '' }); await loadAdvanced(); notifySuccess('Taraf eklendi.');
   });
   const assignResponsibility = () => withBusy(async () => {
     const placementId = assignmentDraft.placementId || selectedPlacementId;
     if (!assignmentDraft.dimensionId || !placementId) throw new ApiError('Boyut ve kart seçin.');
     await api.post(`/revisions/${selectedRevisionId}/responsibilities/assignments`, { ...assignmentDraft, placementId, partyId: assignmentDraft.partyId || null, notes: null });
-    await loadAdvanced(); notify('Sorumluluk atandı.');
+    await loadAdvanced(); notifySuccess('Sorumluluk atandı.');
   });
-  const createBackup = () => withBusy(async () => { await api.post('/database/backups'); await loadAdvanced(); notify('Güvenli yedek alındı.'); });
+  const createBackup = () => withBusy(async () => { await api.post('/database/backups'); await loadAdvanced(); notifySuccess('Güvenli yedek alındı.'); });
   const checkIntegrity = () => withBusy(async () => { const result = await api.get<DatabaseIntegrity>('/database/integrity'); setIntegrity(result); notify(result.isHealthy ? 'Veritabanı kontrolü temiz.' : 'Veritabanı kontrolü uyarı verdi.'); });
   const restoreBackup = (backup: DatabaseBackup) => withBusy(async () => {
     if (!window.confirm(`${backup.fileName} yedeğine dönülsün mü? Önce mevcut hal ayrıca yedeklenir.`)) return;
     await api.post('/database/backups/restore', { fullPath: backup.fullPath });
-    await reload(); await loadAdvanced(); notify('Yedek geri yüklendi.');
+    await reload(); await loadAdvanced(); notifySuccess('Yedek geri yüklendi.');
   });
   const saveWasteSetting = () => withBusy(async () => {
     const materialType = wasteDraft.materialType.trim();
@@ -507,14 +546,17 @@ export default function App() {
     if (!Number.isFinite(wasteRatePct) || wasteRatePct < 0 || wasteRatePct > 1000) throw new ApiError('Fire payını 0 ile 1000 arasında yazın.');
     await api.put('/settings/material-waste', { materialType, wasteRatePct });
     setWasteDraft({ materialType: '', wasteRatePct: '0' });
-    await loadAdvanced();
-    notify(`${materialType} için %${quantity(wasteRatePct)} fire payı kaydedildi.`);
+    // Fire politikası özetleri etkiler. Yalnızca loadAdvanced çağırmak, ekrandaki
+    // tabloyu eski sayılarla bırakıyor ama indirilen dosya yeni sayılarla
+    // üretiliyordu; kullanıcı hangisinin doğru olduğunu anlayamıyordu.
+    await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]);
+    notifySuccess(`${materialType} için %${quantity(wasteRatePct)} fire payı kaydedildi.`);
   });
   const removeWasteSetting = (setting: MaterialWasteSetting) => withBusy(async () => {
     if (!window.confirm(`“${setting.materialType}” fire kuralı kaldırılsın mı?`)) return;
     await api.delete(`/settings/material-waste/${setting.id}`);
-    await loadAdvanced();
-    notify('Malzeme fire kuralı kaldırıldı.');
+    await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]);
+    notifySuccess('Malzeme fire kuralı kaldırıldı.');
   });
   const editWasteSetting = (setting: MaterialWasteSetting) => setWasteDraft({ materialType: setting.materialType, wasteRatePct: String(setting.wasteRatePct) });
 
@@ -527,14 +569,14 @@ export default function App() {
     setShowProjectDialog(false);
     setProjectDraft({ code: '', name: '' });
     void loadProjects();
-    notify('Proje hazır. Şimdi kartlarını ekleyelim.');
+    notifySuccess('Proje hazır. Şimdi kartlarını ekleyelim.');
   });
   const importExample = () => withBusy(async () => {
     await api.post('/synthetic-clean-water');
     // Örnek proje kartları da katalogya eklendiğinden, akış kartlığı anında
     // seçilebilir kartları göstermek için her iki listeyi birlikte yenile.
     await Promise.all([loadProjects(), loadCards()]);
-    notify('Örnek Temiz Su projesi hazır.');
+    notifySuccess('Örnek Temiz Su projesi hazır.');
   });
   const seedStarterCatalog = () => withBusy(async () => {
     const result = await api.post<StarterCatalogSeedResult>('/catalog/starter-pack');
@@ -551,13 +593,13 @@ export default function App() {
     setTypeDraft({ code: '', name: '', baseCardType: 'Material', description: '', parentCardIds: [], childCardIds: [], attributeKeys: [] });
     setShowTypeDialog(false);
     await loadCatalogTypeSettings();
-    notify('Yeni kart türü global kütüphaneye eklendi.');
+    notifySuccess('Yeni kart türü global kütüphaneye eklendi.');
   });
   const deleteCatalogType = (type: CatalogCardType) => withBusy(async () => {
     if (!window.confirm(`“${type.name}” türü yeni kart seçimlerinden kaldır? Mevcut kartlar korunur.`)) return;
     await api.delete(`/catalog/types/${type.id}`);
     await Promise.all([loadCatalogTypeSettings(), loadCards()]);
-    notify('Kart türü kaldırıldı.');
+    notifySuccess('Kart türü kaldırıldı.');
   });
   const createCard = () => withBusy(async () => {
     if (!cardDraft.name.trim() || !cardDraft.unit.trim()) throw new ApiError('Kart adı ve birimi gerekli.');
@@ -615,7 +657,7 @@ export default function App() {
       await loadRevision(selectedRevisionId);
       setSelectedPlacementId(placement.id);
       setView('flow');
-      notify('Kart hazır ve haritaya eklendi.');
+      notifySuccess('Kart hazır ve haritaya eklendi.');
       return;
     }
     notify(wasEditing ? 'Kart özellikleri yeni sürüm olarak kaydedildi.' : 'Kart kataloğa eklendi.');
@@ -655,14 +697,14 @@ export default function App() {
   const addCardToFlow = (cardVersionId: string) => withBusy(async () => {
     if (!selectedRevisionId) throw new ApiError('Önce bir proje seçin.');
     const placement = await api.post<Placement>(`/revisions/${selectedRevisionId}/placements`, { cardVersionId, parentPlacementId: selectedPlacementId, displayNameOverride: null, procurementScope: null });
-    setShowCardShelf(false); await loadRevision(selectedRevisionId); setSelectedPlacementId(placement.id); notify('Kart akışa eklendi.');
+    setShowCardShelf(false); await loadRevision(selectedRevisionId); setSelectedPlacementId(placement.id); notifySuccess('Kart akışa eklendi.');
   });
 
   const deactivateCard = (card: CatalogCard) => withBusy(async () => {
     if (!window.confirm(`“${card.name}” kartı kütüphaneden kaldırılsın mı? Projelerdeki mevcut kullanımları korunur.`)) return;
     await api.post(`/catalog/cards/${card.id}/deactivate`);
     await loadCards();
-    notify('Kart kütüphaneden kaldırıldı.');
+    notifySuccess('Kart kütüphaneden kaldırıldı.');
   });
   const deletePlacement = () => withBusy(async () => {
     const placement = selectedPlacement;
@@ -677,7 +719,7 @@ export default function App() {
       return next;
     });
     await loadRevision(selectedRevisionId);
-    notify('Seçili kart ve altındaki kartlar silindi.');
+    notifySuccess('Seçili kart ve altındaki kartlar silindi.');
   });
   // Backend PUT/DELETE /measurements/{id} uçlarını zaten sunuyordu ama arayüz
   // hiçbirini çağırmıyordu: 12,4 yerine 124 yazan bir kullanıcının o satırı
@@ -700,12 +742,12 @@ export default function App() {
       secondaryVariant: measurement.secondaryVariant ?? null,
     });
     await loadRevision(selectedRevisionId);
-    notify('Metraj satırı güncellendi.');
+    notifySuccess('Metraj satırı güncellendi.');
   });
   const deleteMeasurement = (measurement: Measurement) => withBusy(async () => {
     await api.delete(`/measurements/${measurement.id}`);
     await loadRevision(selectedRevisionId);
-    notify('Metraj satırı silindi.');
+    notifySuccess('Metraj satırı silindi.');
   });
   const savePlacementNotes = () => withBusy(async () => {
     if (!selectedPlacement || !selectedRevisionId) return;
@@ -715,12 +757,12 @@ export default function App() {
       notes: placementNotesDraft.trim() || null,
     });
     await loadRevision(selectedRevisionId);
-    notify('Bu karta özel not kaydedildi.');
+    notifySuccess('Bu karta özel not kaydedildi.');
   });
   const reparent = (connection: Connection) => withBusy(async () => {
     if (!canEdit || !connection.source || !connection.target || connection.source === connection.target) return;
     await api.put(`/placements/${connection.target}/parent`, { parentPlacementId: connection.source });
-    await loadRevision(selectedRevisionId); notify('Bağlantı güncellendi.');
+    await loadRevision(selectedRevisionId); notifySuccess('Bağlantı güncellendi.');
   });
   const addMeasurementRows = async (rows: Array<{ quantity: number; notes?: string | null; variant?: string | null; secondaryVariant?: string | null }>) => {
     let saved = false;
@@ -738,7 +780,7 @@ export default function App() {
       // yazdırmak hızlı giriş akışını kırıyordu.
       setMeasurementDraft((current) => ({ ...current, quantity: '' }));
       await loadRevision(selectedRevisionId);
-      notify('Metraj satırı eklendi.');
+      notifySuccess('Metraj satırı eklendi.');
       saved = true;
     });
     return saved;
