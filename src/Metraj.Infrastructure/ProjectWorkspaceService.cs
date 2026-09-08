@@ -254,6 +254,17 @@ public sealed class ProjectWorkspaceService : IProjectWorkspace
             throw new DomainRuleViolationException("revision.pending-calculations", "Review or reject every pending calculation proposal before approving the revision.");
         }
 
+        // Kaynak metrajı değiştiği için bayatlamış bir öneri, dondurulmuş bir
+        // revizyona yanlış miktarla girmemelidir. Kullanıcı ya yeniden hesaplar
+        // ya da öneriyi reddeder.
+        bool staleCalculation = await context.CalculationResults.AnyAsync(
+            x => x.ProjectRevisionId == revisionId && x.Status == CalculationResultStatus.Stale,
+            cancellationToken);
+        if (staleCalculation)
+        {
+            throw new DomainRuleViolationException("revision.stale-calculations", "Recalculate or reject every out-of-date calculation proposal before approving the revision.");
+        }
+
         // Onay anında, projeye dışarıdan etki eden tek değişken politikayı dondur.
         // Bu olmadan onaylı bir revizyonun fireli miktarları, aylar sonra yapılan
         // ilgisiz bir ayar değişikliğiyle birlikte değişiyordu ve "onaylanan sürüm

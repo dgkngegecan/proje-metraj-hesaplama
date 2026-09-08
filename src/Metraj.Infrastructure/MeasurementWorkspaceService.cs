@@ -143,6 +143,7 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
         (ProjectRevision revision, ProjectPlacement placement) = await ResolveScopeAsync(context, draft.RevisionId, draft.PlacementId, cancellationToken);
         Measurement measurement = CreateEntity(draft, revision, placement);
         context.Measurements.Add(measurement);
+        await CalculationFreshness.MarkStaleForPlacementAsync(context, revision.Id, placement.Id, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
         return ToListItem(measurement);
     }
@@ -174,6 +175,12 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
         }
 
         context.Measurements.AddRange(measurements);
+        foreach (IGrouping<Guid, Measurement> group in measurements.GroupBy(x => x.ProjectRevisionId))
+        {
+            await CalculationFreshness.MarkStaleForPlacementsAsync(
+                context, group.Key, group.Select(x => x.ProjectPlacementId).Distinct().ToArray(), cancellationToken);
+        }
+
         await context.SaveChangesAsync(cancellationToken);
         return measurements.Select(ToListItem).ToList();
     }
@@ -191,8 +198,13 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
             throw new DomainRuleViolationException("measurement.revision", "A measurement cannot be moved between project revisions.");
         }
 
+        // Satır başka bir yerleşime taşınmış olabilir: hem eski hem yeni yerleşime
+        // dayanan öneriler bayatlar.
+        Guid previousPlacementId = measurement.ProjectPlacementId;
         ApplyDraft(measurement, draft, placement, updateSourceKind: false);
         measurement.UpdatedAtUtc = DateTime.UtcNow;
+        await CalculationFreshness.MarkStaleForPlacementsAsync(
+            context, revision.Id, [previousPlacementId, placement.Id], cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -231,6 +243,8 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
             ProjectPlacement = source.ProjectPlacement
         };
         context.Measurements.Add(copy);
+        await CalculationFreshness.MarkStaleForPlacementAsync(
+            context, copy.ProjectRevisionId, copy.ProjectPlacementId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
         return ToListItem(copy);
     }
@@ -244,6 +258,8 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
         ProjectRevisionRules.EnsureDraft(revision);
         await context.ResponsibilityAssignments.Where(x => x.MeasurementId == measurementId).ExecuteDeleteAsync(cancellationToken);
         context.Measurements.Remove(measurement);
+        await CalculationFreshness.MarkStaleForPlacementAsync(
+            context, measurement.ProjectRevisionId, measurement.ProjectPlacementId, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
     }
 
