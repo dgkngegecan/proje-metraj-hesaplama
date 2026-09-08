@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using Metraj.Application;
 using Metraj.Domain;
@@ -238,11 +238,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 item.Code, item.Name, item.SourceLineCount.ToString(CultureInfo.InvariantCulture), item.Unit, FormatQuantity(item.NetQuantity)
             ]), pageBreakBefore: true);
         AddWordTable(body, "Satın alma listesi",
-            ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Kullanılan"],
+            ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Satın alma birimi", "Kullanılan"],
             report.PurchaseItems.Select(item => (IReadOnlyList<string?>)
             [
                 item.Name, item.Code, item.Variant, item.SecondaryVariant, item.QuantitySource, item.CalculationRule, item.Unit,
                 FormatQuantity(item.NetQuantity), FormatQuantity(item.WithWasteQuantity), FormatQuantity(item.PurchaseQuantity),
+                item.PurchaseUnit ?? item.Unit,
                 item.UsedQuantity is decimal used ? FormatQuantity(used) : null
             ]), pageBreakBefore: true);
         AddWordTable(body, "Sorumluluk özeti",
@@ -468,10 +469,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IReadOnlyList<MeasurementSummaryItem> summaries,
         IReadOnlyList<CalculationResultListItem> calculationResults)
     {
+        // Satın alma birimi girdi biriminden ayrıdır: 13 boy boru 13 metre değildir.
+        // Önceden rapora girdi birimi yazılıyordu ve tedarikçiye yanlış birim gidiyordu.
         var direct = summaries.Select(item => new ReportPurchaseItem(
             item.PlacementId, item.PlacementCode, item.PlacementName, item.Unit, "Kaynak metraj",
             item.NetQuantity, item.WithWasteQuantity, item.PurchaseQuantity, item.PurchaseQuantity, null,
-            item.Variant, item.SecondaryVariant));
+            item.Variant, item.SecondaryVariant, item.PurchaseUnit ?? item.Unit));
         var directlyMeasuredPlacementIds = summaries.Select(x => x.PlacementId).ToHashSet();
         var derived = calculationResults
             .Where(result => result.Status is CalculationResultStatus.Approved or CalculationResultStatus.Overridden)
@@ -489,7 +492,10 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 result.WithWasteQuantity,
                 result.PurchaseQuantity,
                 result.UsedQuantity,
-                $"{result.RuleCode} v{result.RuleVersionNumber}"));
+                $"{result.RuleCode} v{result.RuleVersionNumber}",
+                null,
+                null,
+                result.Unit));
         return direct.Concat(derived)
             .OrderBy(item => item.Code, StringComparer.Ordinal)
             .ThenBy(item => item.Name, StringComparer.Ordinal)
@@ -658,8 +664,11 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     {
         IXLWorksheet sheet = workbook.Worksheets.Add("Kaynak Satırları");
         sheet.Cell(1, 1).Value = "Metraj Kaynak Satırları";
-        sheet.Range(1, 1, 1, 12).Merge();
-        string[] headers = ["Malzeme", "Kod", "Kaynak", "Miktar", "Birim", "Blok", "Kat", "Mahal", "Bölge", "Pafta", "Çizim rev.", "Not"];
+        sheet.Range(1, 1, 1, 14).Merge();
+        // Çap ve çeşit, bu uygulamanın metrajındaki temel ayrımdır; denetim için
+        // kaynak satırlarını çıkaran kullanıcı hangi satırın hangi çapa ait
+        // olduğunu göremiyordu (Word'de vardı, PDF ve Excel'de yoktu).
+        string[] headers = ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Miktar", "Birim", "Blok", "Kat", "Mahal", "Bölge", "Pafta", "Çizim rev.", "Not"];
         for (int column = 0; column < headers.Length; column++)
         {
             sheet.Cell(3, column + 1).Value = headers[column];
@@ -670,16 +679,18 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         {
             sheet.Cell(row, 1).Value = SafeCellText(item.PlacementName);
             sheet.Cell(row, 2).Value = SafeCellText(item.PlacementCode);
-            sheet.Cell(row, 3).Value = SafeCellText(item.SourceKind);
-            sheet.Cell(row, 4).Value = item.InputQuantity;
-            sheet.Cell(row, 5).Value = SafeCellText(item.InputUnit);
-            sheet.Cell(row, 6).Value = SafeCellText(item.Block);
-            sheet.Cell(row, 7).Value = SafeCellText(item.Floor);
-            sheet.Cell(row, 8).Value = SafeCellText(item.Room);
-            sheet.Cell(row, 9).Value = SafeCellText(item.Zone);
-            sheet.Cell(row, 10).Value = SafeCellText(item.Sheet);
-            sheet.Cell(row, 11).Value = SafeCellText(item.DrawingRevision);
-            sheet.Cell(row, 12).Value = SafeCellText(item.Notes);
+            sheet.Cell(row, 3).Value = SafeCellText(item.Variant);
+            sheet.Cell(row, 4).Value = SafeCellText(item.SecondaryVariant);
+            sheet.Cell(row, 5).Value = SafeCellText(item.SourceKind);
+            sheet.Cell(row, 6).Value = item.InputQuantity;
+            sheet.Cell(row, 7).Value = SafeCellText(item.InputUnit);
+            sheet.Cell(row, 8).Value = SafeCellText(item.Block);
+            sheet.Cell(row, 9).Value = SafeCellText(item.Floor);
+            sheet.Cell(row, 10).Value = SafeCellText(item.Room);
+            sheet.Cell(row, 11).Value = SafeCellText(item.Zone);
+            sheet.Cell(row, 12).Value = SafeCellText(item.Sheet);
+            sheet.Cell(row, 13).Value = SafeCellText(item.DrawingRevision);
+            sheet.Cell(row, 14).Value = SafeCellText(item.Notes);
             row++;
         }
 
@@ -690,8 +701,8 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     {
         IXLWorksheet sheet = workbook.Worksheets.Add("Satın Alma");
         sheet.Cell(1, 1).Value = "Satın Alma Listesi";
-        sheet.Range(1, 1, 1, 11).Merge();
-        string[] headers = ["Malzeme", "Kod", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Kullanılan", "Çap / Boyut", "Çeşit"];
+        sheet.Range(1, 1, 1, 12).Merge();
+        string[] headers = ["Malzeme", "Kod", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Satın alma birimi", "Kullanılan", "Çap / Boyut", "Çeşit"];
         for (int column = 0; column < headers.Length; column++)
         {
             sheet.Cell(3, column + 1).Value = headers[column];
@@ -708,9 +719,10 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             sheet.Cell(row, 6).Value = item.NetQuantity;
             sheet.Cell(row, 7).Value = item.WithWasteQuantity;
             sheet.Cell(row, 8).Value = item.PurchaseQuantity;
-            sheet.Cell(row, 9).Value = item.UsedQuantity;
-            sheet.Cell(row, 10).Value = SafeCellText(item.Variant);
-            sheet.Cell(row, 11).Value = SafeCellText(item.SecondaryVariant);
+            sheet.Cell(row, 9).Value = SafeCellText(item.PurchaseUnit ?? item.Unit);
+            sheet.Cell(row, 10).Value = item.UsedQuantity;
+            sheet.Cell(row, 11).Value = SafeCellText(item.Variant);
+            sheet.Cell(row, 12).Value = SafeCellText(item.SecondaryVariant);
             row++;
         }
 
@@ -808,7 +820,10 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             for (int row = headerRow + 1; row <= finalRow; row++)
             {
                 sheet.Row(row).AdjustToContents(1, finalColumn);
-                sheet.Row(row).Height = Math.Clamp(sheet.Row(row).Height, 18d, 42d);
+                // Tavan 42 punto iken sarılmış uzun notlar hücrede kalıyor ama
+                // ne ekranda ne baskıda görünüyordu; teslim edilen belge eksik
+                // oluyordu. Sınır, birkaç satırlık nota yetecek kadar yükseltildi.
+                sheet.Row(row).Height = Math.Clamp(sheet.Row(row).Height, 18d, 120d);
             }
         }
 
@@ -828,9 +843,11 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         for (int column = 1; column <= finalColumn; column++)
         {
             string headerText = sheet.Cell(headerRow, column).GetString();
-            if (headerText is "Satır" or "Net" or "Fireli" or "Kullanılan" or "Miktar" || headerText.StartsWith("Satın alma", StringComparison.Ordinal))
+            // "Satın alma birimi" bir metin sütunudur; sayı biçimi uygulanmamalı.
+            if (headerText is "Satır" or "Net" or "Fireli" or "Kullanılan" or "Miktar"
+                || (headerText.StartsWith("Satın alma", StringComparison.Ordinal) && headerText != "Satın alma birimi"))
             {
-                sheet.Column(column).Style.NumberFormat.Format = "#,##0.###";
+                sheet.Column(column).Style.NumberFormat.Format = QuantityNumberFormat;
                 sheet.Column(column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             }
             double preferred = headerText switch
@@ -841,6 +858,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 "Kategori" or "Sistem" or "Yerleşim" => 22,
                 "Çap / Boyut" or "Çeşit" => 17,
                 "Kaynak" or "Kural" or "Atama kaynağı" => 18,
+                "Satın alma birimi" => 15,
                 "Birim" or "Satır" or "Sürüm" or "Durum" => 11,
                 _ => 14,
             };
@@ -938,23 +956,25 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
 
     private static void AddSourceTable(Section section, IReadOnlyList<MeasurementListItem> sources)
     {
-        Table table = CreateTable(section, [4.1, 2.0, 2.3, 1.4, 1.0, 1.4, 1.5, 1.8, 1.2, 1.5, 1.4, 2.5]);
-        AddHeader(table, ["Malzeme", "Kod", "Kaynak", "Miktar", "Birim", "Blok", "Kat", "Mahal", "Bölge", "Pafta", "Çizim rev.", "Not"]);
+        Table table = CreateTable(section, [3.5, 1.7, 1.7, 1.5, 1.3, 1.2, 0.9, 1.2, 1.3, 1.6, 1.1, 1.3, 1.2, 2.1]);
+        AddHeader(table, ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Miktar", "Birim", "Blok", "Kat", "Mahal", "Bölge", "Pafta", "Çizim rev.", "Not"]);
         foreach (MeasurementListItem item in sources)
         {
             Row row = table.AddRow();
             SetCell(row, 0, item.PlacementName);
             SetCell(row, 1, item.PlacementCode);
-            SetCell(row, 2, item.SourceKind);
-            SetCell(row, 3, FormatQuantity(item.InputQuantity), ParagraphAlignment.Right);
-            SetCell(row, 4, item.InputUnit);
-            SetCell(row, 5, item.Block);
-            SetCell(row, 6, item.Floor);
-            SetCell(row, 7, item.Room);
-            SetCell(row, 8, item.Zone);
-            SetCell(row, 9, item.Sheet);
-            SetCell(row, 10, item.DrawingRevision);
-            SetCell(row, 11, item.Notes);
+            SetCell(row, 2, item.Variant);
+            SetCell(row, 3, item.SecondaryVariant);
+            SetCell(row, 4, item.SourceKind);
+            SetCell(row, 5, FormatQuantity(item.InputQuantity), ParagraphAlignment.Right);
+            SetCell(row, 6, item.InputUnit);
+            SetCell(row, 7, item.Block);
+            SetCell(row, 8, item.Floor);
+            SetCell(row, 9, item.Room);
+            SetCell(row, 10, item.Zone);
+            SetCell(row, 11, item.Sheet);
+            SetCell(row, 12, item.DrawingRevision);
+            SetCell(row, 13, item.Notes);
         }
     }
 
@@ -1006,8 +1026,8 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     {
         // Keep the name column below the PDF renderer's problematic 4.5 cm boundary.
         // It also keeps the table visually aligned with the source-line report.
-        Table table = CreateTable(section, [3.6, 1.8, 1.9, 1.9, 2.2, 2.0, 1.0, 1.6, 1.6, 1.8, 1.8]);
-        AddHeader(table, ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Kullanılan"]);
+        Table table = CreateTable(section, [3.4, 1.7, 1.7, 1.7, 2.0, 1.8, 0.9, 1.4, 1.4, 1.6, 1.5, 1.5]);
+        AddHeader(table, ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Satın alma birimi", "Kullanılan"]);
         foreach (ReportPurchaseItem item in items)
         {
             Row row = table.AddRow();
@@ -1021,7 +1041,8 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             SetCell(row, 7, FormatQuantity(item.NetQuantity), ParagraphAlignment.Right);
             SetCell(row, 8, FormatQuantity(item.WithWasteQuantity), ParagraphAlignment.Right);
             SetCell(row, 9, FormatQuantity(item.PurchaseQuantity), ParagraphAlignment.Right);
-            SetCell(row, 10, item.UsedQuantity is decimal used ? FormatQuantity(used) : string.Empty, ParagraphAlignment.Right);
+            SetCell(row, 10, item.PurchaseUnit ?? item.Unit);
+            SetCell(row, 11, item.UsedQuantity is decimal used ? FormatQuantity(used) : string.Empty, ParagraphAlignment.Right);
         }
     }
 
@@ -1105,6 +1126,13 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         paragraph.Format.SpaceAfter = Unit.Zero;
         paragraph.Format.LineSpacing = 1;
     }
+
+    /// <summary>
+    /// Bütün çıktı biçimleri aynı hassasiyeti kullanır. Önceden Excel ve arayüz
+    /// 3, PDF ve Word 6 ondalık gösteriyordu; 0,0004 gibi küçük ama geçerli bir
+    /// miktar ekranda ve Excel'de 0 görünüp PDF'te görünüyordu.
+    /// </summary>
+    internal const string QuantityNumberFormat = "#,##0.######";
 
     private static string FormatQuantity(decimal value) => value.ToString("0.######", CultureInfo.InvariantCulture);
 

@@ -214,7 +214,11 @@ function buildFlow(placements: Placement[]): { nodes: PlacementNode[]; edges: Ed
 }
 
 function quantity(value: number) {
-  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 3 }).format(value);
+  // Rapor çıktılarıyla aynı hassasiyet. 3 basamakla sınırlıyken 0,0004 gibi
+  // küçük ama geçerli bir miktar ekranda ve Excel'de 0 görünüyor, PDF'te
+  // görünüyordu; kullanıcı ya sıfır sanıp veriyi siliyor ya da iki çıktının
+  // çeliştiğini görüyordu. Sondaki sıfırlar yine gösterilmez.
+  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 6 }).format(value);
 }
 
 function purchaseUnit(summary: MeasurementSummary) {

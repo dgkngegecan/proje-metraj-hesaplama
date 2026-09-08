@@ -109,6 +109,10 @@ public sealed class ProjectReportWorkspaceTests
                 Assert.Contains("Onaylı hesap önerisi", purchaseSheet.Column(3).CellsUsed().Select(cell => cell.GetString()));
                 Assert.Equal(9m, purchaseSheet.Cell(5, 8).GetValue<decimal>());
                 Assert.Equal(string.Empty, purchaseSheet.Cell(5, 4).GetString());
+                // Satın alma birimi, girdi biriminden ayrı bir sütun olarak taşınır:
+                // 13 boy boru 13 metre değildir.
+                Assert.Equal("Satın alma birimi", purchaseSheet.Cell(3, 9).GetString());
+                Assert.Equal("boy", purchaseSheet.Cell(5, 9).GetString());
                 IXLWorksheet classificationSheet = workbook.Worksheet("Sistem-Kategori");
                 Assert.Equal("Mekanik", classificationSheet.Cell(4, 1).GetString());
                 Assert.Equal("15.01", classificationSheet.Cell(4, 3).GetString());
@@ -117,10 +121,14 @@ public sealed class ProjectReportWorkspaceTests
                 IXLWorksheet calculationSheet = workbook.Worksheet("Hesap Kontrol");
                 Assert.Equal("Approved", calculationSheet.Cell(4, 5).GetString());
                 IXLWorksheet sourceSheet = workbook.Worksheet("Kaynak Satırları");
-                Assert.Equal("=metin", sourceSheet.Cell(4, 12).GetString());
-                Assert.Equal(XLDataType.Text, sourceSheet.Cell(4, 12).DataType);
-                Assert.True(string.IsNullOrEmpty(sourceSheet.Cell(4, 12).FormulaA1));
-                Assert.Equal(string.Empty, sourceSheet.Cell(5, 12).GetString());
+                // Çap ve çeşit sütunları eklendiği için "Not" 12'den 14'e kaydı.
+                Assert.Equal("Çap / Boyut", sourceSheet.Cell(3, 3).GetString());
+                Assert.Equal("Çeşit", sourceSheet.Cell(3, 4).GetString());
+                Assert.Equal("Not", sourceSheet.Cell(3, 14).GetString());
+                Assert.Equal("=metin", sourceSheet.Cell(4, 14).GetString());
+                Assert.Equal(XLDataType.Text, sourceSheet.Cell(4, 14).DataType);
+                Assert.True(string.IsNullOrEmpty(sourceSheet.Cell(4, 14).FormulaA1));
+                Assert.Equal(string.Empty, sourceSheet.Cell(5, 14).GetString());
             }
 
             byte[] pdfHeader = new byte[5];

@@ -1,4 +1,4 @@
-using Metraj.Domain;
+﻿using Metraj.Domain;
 
 namespace Metraj.Application;
 
@@ -60,7 +60,10 @@ public sealed record ReportPurchaseItem(
     decimal? UsedQuantity,
     string? CalculationRule,
     string? Variant = null,
-    string? SecondaryVariant = null);
+    string? SecondaryVariant = null,
+    // PurchaseUnit: satın alma miktarının birimi ("boy", "paket" veya ölçü
+    // birimi). Girdi biriminden ayrıdır: 13 boy boru 13 metre değildir.
+    string? PurchaseUnit = null);
 
 /// <summary>Visible calculation review state included in the control report.</summary>
 public sealed record ReportCalculationCheckItem(
