@@ -231,3 +231,21 @@ düzenleyiciyi değiştiriyor), T1-19 (kartlar kod önekiyle gizleniyor).
 **Dikkat:** Frontend değişikliklerinden sonra `npm run build` çalıştırılmalı;
 `src/Metraj.Web/dist` gömülü kaynak olduğu için build edilmezse değişiklik
 uygulamaya ulaşmaz. (Bu, T4-1'de MSBuild'e bağlanacak.)
+
+---
+
+## Gözlem: performans testi kararsız (flaky)
+
+`NonFunctionalRegressionTests.LocalLoadGrowthStressAndEnduranceRemainStable`
+tüm süitle birlikte koşarken **bir kez** başarısız oldu, tek başına ve sonraki
+tam koşuda geçti. Testin eşikleri duvar saati tabanlı (25/30/35 saniye) ve süit
+seri çalıştığı için makine yükü altında sınıra dayanabiliyor.
+
+Bu koşudaki değişikliklerin (T0-4'ün revizyon sorgusu, T0-5'in bayatlama
+sorguları) ölçülebilir bir katkısı yok: ikisi de yazma başına birkaç indeksli
+sorgu ekliyor, yük testindeki hacimde ihmal edilebilir.
+
+**Yapılacak (T5.8):** eşikleri duvar saatinden koparıp göreli büyümeye
+(örn. "5 kat veri, 8 kattan fazla yavaşlamamalı" kontrolü zaten var) dayandır
+veya bu testi ayrı bir kategoriye al. Rastgele başarısız olan bir test, gerçek
+bir gerilemeyi maskeleyebilir.
