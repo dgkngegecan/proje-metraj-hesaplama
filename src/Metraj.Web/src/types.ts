@@ -1,6 +1,6 @@
 export type CardType = 'Category' | 'Scope' | 'System' | 'Material' | 'Accessory';
 export type CatalogVariantMode = 'None' | 'Pipe' | 'Fitting';
-export type RevisionStatus = 'Draft' | 'Approved';
+export type RevisionStatus = 'Draft' | 'Approved' | 'Archived';
 
 export interface CatalogCardVariant {
   code: string;
@@ -56,7 +56,7 @@ export interface CatalogCard {
   unit: string;
   inputBehavior: 'Manual' | 'Boolean' | 'Derived';
   salesConversion: 'None' | 'StandardLength' | 'Package';
-  reportBehavior: 'Folder' | 'Measurable';
+  reportBehavior: 'Folder' | 'Measurable' | 'Auxiliary' | 'Reference';
   wasteRatePct: number;
   containerParameter?: number | null;
   positionNumber?: string | null;

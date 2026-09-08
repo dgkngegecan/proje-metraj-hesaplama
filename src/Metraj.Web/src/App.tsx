@@ -575,9 +575,29 @@ export default function App() {
       }
       if (enabled.has('wasteratepct')) attributeValues.WasteRatePct = String(wasteRatePct);
     }
+    // Yalnızca kullanıcının gerçekten değiştirdiği kontrollere bağlı alanlar
+    // yeniden çıkarılır; geri kalanı kartın mevcut hâlinden taşınır.
+    const carried = cardDraft.carried;
+    const effectiveType = selectedType?.baseCardType ?? cardDraft.type;
+    const typeChanged = !carried || carried.cardType !== effectiveType;
+    const variantModeChanged = !carried || carried.variantMode !== cardDraft.variantMode;
     const payload = {
-      code: cardDraft.code.trim() || makeCardCode(cardDraft.name), name: cardDraft.name.trim(), cardType: selectedType?.baseCardType ?? cardDraft.type, unit: cardDraft.unit.trim(),
-      inputBehavior: 'Manual', salesConversion: cardDraft.variantMode === 'Pipe' ? 'StandardLength' : 'None', reportBehavior: (selectedType?.baseCardType ?? cardDraft.type) === 'Material' || (selectedType?.baseCardType ?? cardDraft.type) === 'Accessory' ? 'Measurable' : 'Folder', wasteRatePct, containerParameter: cardDraft.variantMode === 'Pipe' && cardDraft.variants[0]?.standardLength ? cardDraft.variants[0].standardLength : null, positionNumber: null,
+      code: cardDraft.code.trim() || makeCardCode(cardDraft.name),
+      name: cardDraft.name.trim(),
+      cardType: effectiveType,
+      unit: cardDraft.unit.trim(),
+      inputBehavior: carried?.inputBehavior ?? 'Manual',
+      salesConversion: cardDraft.variantMode === 'Pipe'
+        ? 'StandardLength'
+        : variantModeChanged ? 'None' : carried?.salesConversion ?? 'None',
+      reportBehavior: typeChanged
+        ? (effectiveType === 'Material' || effectiveType === 'Accessory' ? 'Measurable' : 'Folder')
+        : carried!.reportBehavior,
+      wasteRatePct,
+      containerParameter: cardDraft.variantMode === 'Pipe' && cardDraft.variants[0]?.standardLength
+        ? cardDraft.variants[0].standardLength
+        : variantModeChanged ? null : carried?.containerParameter ?? null,
+      positionNumber: carried?.positionNumber ?? null,
       notes: cardDraft.notes.trim() || null, materialType: cardDraft.materialType.trim() || null,
       customTypeId: selectedType?.id ?? null, attributeValues, variantMode: cardDraft.variantMode, variants: cardDraft.variants,
     };
@@ -614,6 +634,15 @@ export default function App() {
       notes: card.notes ?? '',
       materialType: card.materialType ?? '',
       wasteRatePct: String(card.wasteRatePct ?? 0),
+      carried: {
+        cardType: card.cardType,
+        variantMode: card.variantMode ?? 'None',
+        inputBehavior: card.inputBehavior,
+        salesConversion: card.salesConversion,
+        reportBehavior: card.reportBehavior,
+        positionNumber: card.positionNumber ?? null,
+        containerParameter: card.containerParameter ?? null,
+      },
     });
     setAddNewCardToFlow(false);
     setView('catalog');
@@ -676,7 +705,10 @@ export default function App() {
         floor: measurementDraft.floor || null, room: measurementDraft.room || null, zone: null, sheet: measurementDraft.sheet || null,
         drawingRevision: null, notes: [row.notes, measurementDraft.notes].filter(Boolean).join(' · ') || null, sourceKind: 'USER', variant: row.variant ?? null, secondaryVariant: row.secondaryVariant ?? null,
       })));
-      setMeasurementDraft({ quantity: '', block: '', floor: '', room: '', sheet: '', notes: '' });
+      // Yalnızca miktar temizlenir. Blok/kat/mahal/pafta, kullanıcının o an
+      // çalıştığı yeri tarif eder; art arda satır girerken her seferinde yeniden
+      // yazdırmak hızlı giriş akışını kırıyordu.
+      setMeasurementDraft((current) => ({ ...current, quantity: '' }));
       await loadRevision(selectedRevisionId);
       notify('Metraj satırı eklendi.');
       saved = true;
@@ -755,7 +787,11 @@ export default function App() {
     setAddNewCardToFlow(true);
     setView('catalog');
   };
-  const activeSummary = summaries.find((item) => item.placementId === selectedPlacementId);
+  // Bir yerleşimin her varyantı (çap/çeşit) ayrı bir özet satırıdır. Tek satır
+  // seçmek, varyantlı kartlarda kullanıcıya toplam diye ilk çapın rakamını
+  // gösteriyordu; panel de kendi aritmetiğini yapıyordu. İkisi de backend'in
+  // decimal sonuçlarından beslenir.
+  const activeSummaries = summaries.filter((item) => item.placementId === selectedPlacementId);
   const scopedPlacementIds = useMemo(() => {
     if (!reportScopeId) return null;
     const ids = new Set<string>([reportScopeId]);
@@ -794,7 +830,7 @@ export default function App() {
                 </ReactFlow>
                 {!placements.length && <div className="empty-flow"><span>✦</span><h3>Harita boş</h3><p>Sağdaki kartlıktan bir kartı bu alana bırak.</p></div>}
               </div>
-              <Inspector key={selectedPlacement?.id ?? 'empty-inspector'} placement={selectedPlacement} placements={placements} summary={activeSummary} measurements={measurements.filter((item) => item.placementId === selectedPlacementId)} allMeasurements={measurements} canEdit={Boolean(canEdit)} busy={busy} draft={measurementDraft} onDraft={setMeasurementDraft} onSubmit={addMeasurement} onSubmitRows={addMeasurementRows} onToggleContext={() => setShowContext(!showContext)} showContext={showContext} placementNotes={placementNotesDraft} onPlacementNotes={setPlacementNotesDraft} onSavePlacementNotes={savePlacementNotes} onAdd={() => setShowCardShelf(true)} onDelete={deletePlacement} onScope={() => { if (selectedPlacementId) { setReportScopeId(selectedPlacementId); setView('control'); } }} />
+              <Inspector key={selectedPlacement?.id ?? 'empty-inspector'} placement={selectedPlacement} placements={placements} summaries={activeSummaries} measurements={measurements.filter((item) => item.placementId === selectedPlacementId)} allMeasurements={measurements} canEdit={Boolean(canEdit)} busy={busy} draft={measurementDraft} onDraft={setMeasurementDraft} onSubmit={addMeasurement} onSubmitRows={addMeasurementRows} onToggleContext={() => setShowContext(!showContext)} showContext={showContext} placementNotes={placementNotesDraft} onPlacementNotes={setPlacementNotesDraft} onSavePlacementNotes={savePlacementNotes} onAdd={() => setShowCardShelf(true)} onDelete={deletePlacement} onScope={() => { if (selectedPlacementId) { setReportScopeId(selectedPlacementId); setView('control'); } }} />
             </div>
           </section>}
 
@@ -846,6 +882,23 @@ type CardDraftState = {
   notes: string;
   materialType: string;
   wasteRatePct: string;
+  /**
+   * Düzenleyicide GÖSTERİLMEYEN ama korunması gereken alanlar. Bunlar olmadan
+   * bir kartın yalnızca adını değiştirmek, kartın giriş davranışını, paket
+   * dönüşümünü, rapor davranışını ve poz numarasını sessizce varsayılana
+   * döndürüyordu; kullanıcı neyi kaybettiğini göremiyordu.
+   */
+  carried?: CarriedCardFields;
+};
+
+type CarriedCardFields = {
+  cardType: CardType;
+  variantMode: CatalogVariantMode;
+  inputBehavior: CatalogCard['inputBehavior'];
+  salesConversion: CatalogCard['salesConversion'];
+  reportBehavior: CatalogCard['reportBehavior'];
+  positionNumber: string | null;
+  containerParameter: number | null;
 };
 
 type TypeDraftState = {
@@ -1027,8 +1080,8 @@ function Welcome({ onCreate, onExample }: { onCreate: () => void; onExample: () 
 
 type MeasurementDraft = { quantity: string; block: string; floor: string; room: string; sheet: string; notes: string };
 
-function Inspector({ placement, placements, summary, measurements, allMeasurements, canEdit, busy, draft, onDraft, onSubmit, onSubmitRows, onToggleContext, showContext, placementNotes, onPlacementNotes, onSavePlacementNotes, onAdd, onDelete, onScope }: {
-  placement: Placement | null; placements: Placement[]; summary?: MeasurementSummary; measurements: Measurement[]; allMeasurements: Measurement[]; canEdit: boolean; busy: boolean;
+function Inspector({ placement, placements, summaries, measurements, allMeasurements, canEdit, busy, draft, onDraft, onSubmit, onSubmitRows, onToggleContext, showContext, placementNotes, onPlacementNotes, onSavePlacementNotes, onAdd, onDelete, onScope }: {
+  placement: Placement | null; placements: Placement[]; summaries: MeasurementSummary[]; measurements: Measurement[]; allMeasurements: Measurement[]; canEdit: boolean; busy: boolean;
   draft: MeasurementDraft; onDraft: (value: MeasurementDraft) => void; onSubmit: () => void;
   onSubmitRows: (rows: Array<{ quantity: number; notes?: string | null; variant?: string | null; secondaryVariant?: string | null }>) => Promise<boolean>;
   onToggleContext: () => void; showContext: boolean; placementNotes: string; onPlacementNotes: (value: string) => void; onSavePlacementNotes: () => void; onAdd: () => void; onDelete: () => void; onScope: () => void;
@@ -1138,6 +1191,22 @@ function Inspector({ placement, placements, summary, measurements, allMeasuremen
   useEffect(() => { setShowHistory(false); }, [placement?.id]);
   if (!placement) return <aside className="inspector empty-inspector"><span>←</span><h3>Bir kart seç</h3><p>Kartın ne yaptığını ve sonraki en kolay adımı burada göstereceğim.</p></aside>;
   const meta = TYPE_META[placement.cardType];
+  // Yerleşimin toplamı, varyantların TAMAMINDAN gelir. Tek satır göstermek,
+  // dört çap girilmiş bir boru kartında "Şu ana kadar" başlığı altında yalnızca
+  // ilk çapın rakamını toplam gibi sunuyordu.
+  const placementTotals = summaries.length
+    ? {
+      net: summaries.reduce((sum, item) => sum + item.netQuantity, 0),
+      purchase: summaries.reduce((sum, item) => sum + item.purchaseQuantity, 0),
+      unit: summaries[0].unit,
+      purchaseUnit: purchaseUnit(summaries[0]),
+      variantCount: summaries.length,
+    }
+    : null;
+  const summaryForVariant = (code: string, label?: string) => summaries.find((item) => {
+    const variant = (item.variant ?? '').toLowerCase();
+    return variant === code.toLowerCase() || (label !== undefined && variant === label.toLowerCase());
+  });
   const isRadiator = /radyat[öo]r/i.test(placement.displayName);
   const isPipe = placement.variantMode === 'Pipe';
   const isFitting = placement.variantMode === 'Fitting';
@@ -1170,25 +1239,29 @@ function Inspector({ placement, placements, summary, measurements, allMeasuremen
     const compatible = item.compatibleDiameters ?? [];
     return compatible.length === 0 || compatible.some((itemDiameter) => itemDiameter.toLowerCase() === diameterCode.toLowerCase() || itemDiameter.toLowerCase() === variantDiameters.find((item) => item.code === diameterCode)?.label.toLowerCase());
   });
-  const submitPipeBox = (box: PipeBox) => {
+  // Girilen değer, kayıt BAŞARILI olmadan temizlenmez. Aksi hâlde bir doğrulama
+  // veya yazma hatasında kutu boşalıyor, kısa bir toast geçiyor ve kullanıcının
+  // sahadan okuyup yazdığı sayı hiçbir yerde kalmıyordu.
+  const submitPipeBox = async (box: PipeBox) => {
     const parsed = Number(box.pending.replace(',', '.'));
     if (parsed <= 0 || !Number.isFinite(parsed)) return;
     const profile = variantDiameters.find((item) => item.code === box.diameter);
-    onSubmitRows([{ quantity: parsed, variant: box.diameter, notes: `Çap: ${profile?.label ?? box.diameter}` }]);
-    setPipeBoxes((current) => current.map((item) => item.id === box.id ? { ...item, pending: '' } : item));
+    const saved = await onSubmitRows([{ quantity: parsed, variant: box.diameter, notes: `Çap: ${profile?.label ?? box.diameter}` }]);
+    if (!saved) return;
+    // Kayıt sürerken kullanıcı yeni bir değer yazmış olabilir; onu ezme.
+    setPipeBoxes((current) => current.map((item) => item.id === box.id && item.pending === box.pending ? { ...item, pending: '' } : item));
     onDraft({ ...draft, quantity: '' });
   };
-  const submitRadiator = () => {
+  const submitRadiator = async () => {
     const width = Number(radiatorWidth.replace(',', '.'));
-    if (width > 0) {
-      onSubmitRows([{
-        quantity: 1,
-        variant: `${radiatorType} · H${radiatorHeight}`,
-        secondaryVariant: `W${width}`,
-        notes: `Radyatör: ${radiatorType} · Yükseklik: ${radiatorHeight} · Genişlik: ${width}`,
-      }]);
-      setRadiatorWidth('');
-    }
+    if (!Number.isFinite(width) || width <= 0) return;
+    const saved = await onSubmitRows([{
+      quantity: 1,
+      variant: `${radiatorType} · H${radiatorHeight}`,
+      secondaryVariant: `W${width}`,
+      notes: `Radyatör: ${radiatorType} · Yükseklik: ${radiatorHeight} · Genişlik: ${width}`,
+    }]);
+    if (saved) setRadiatorWidth('');
   };
   const hasPendingFittings = fittingBoxes.some((box) => Object.values(box.countsByDiameter).some((counts) => Object.values(counts).some((count) => count > 0)));
   const submitFittings = async () => {
@@ -1222,6 +1295,15 @@ function Inspector({ placement, placements, summary, measurements, allMeasuremen
       return { ...box, countsByDiameter: { ...box.countsByDiameter, [diameterCode]: { ...diameterCounts, [code]: normalized } } };
     }));
   };
+  const submitSimpleCounts = async () => {
+    const rows = Object.entries(fittingCounts)
+      .filter(([, count]) => count > 0)
+      .map(([kind, count]) => ({ quantity: count, variant: diameter, secondaryVariant: kind, notes: `${kind} · Çap: ${diameter}` }));
+    if (!rows.length) return;
+    const saved = await onSubmitRows(rows);
+    // Sayaçlar yalnızca kayıt gerçekten başarılı olduğunda sıfırlanır.
+    if (saved) setFittingCounts({ Dirsek: 0, Muşon: 0, Te: 0, Vana: 0 });
+  };
   const setSimpleCount = (kind: string, value: string) => {
     const parsed = Number(value.replace(',', '.'));
     setFittingCounts((current) => ({ ...current, [kind]: Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0 }));
@@ -1234,9 +1316,9 @@ function Inspector({ placement, placements, summary, measurements, allMeasuremen
   });
   return <aside className="inspector"><div className="inspector-head"><div><div className="inspector-kind" style={{ color: meta.color }}>{meta.icon} {meta.label}</div><h3>{placement.displayName}</h3></div><button className="scope-button" onClick={onScope}>Bu daldan metraj →</button></div><p className="muted">{placement.isMeasurable ? `${placement.unit} ile ölçülür` : 'Alt kartları düzenleyen başlık'}</p>
     <div className="placement-note-panel"><div className="placement-note-heading"><strong>Bu karta özel not</strong><small>Yalnızca bu proje yerleşiminde saklanır.</small></div><textarea rows={3} value={placementNotes} disabled={!canEdit || busy} placeholder="Örn. 120 kW, marka/model, pompa basıncı…" onChange={(event) => onPlacementNotes(event.target.value)} /><button className="full" disabled={!canEdit || busy} onClick={onSavePlacementNotes}>Notu kaydet</button></div>
-    {summary && <div className="quantity-card"><span>Şu ana kadar</span><strong>{quantity(summary.netQuantity)} {summary.unit}</strong><small>Satın alma: {quantity(summary.purchaseQuantity)} {purchaseUnit(summary)}</small></div>}
+    {placementTotals && <div className="quantity-card"><span>Şu ana kadar</span><strong>{quantity(placementTotals.net)} {placementTotals.unit}</strong><small>Satın alma: {quantity(placementTotals.purchase)} {placementTotals.purchaseUnit}{placementTotals.variantCount > 1 ? ` · ${placementTotals.variantCount} çap/çeşit toplamı` : ''}</small></div>}
     {placement.isMeasurable && <div className="history-panel"><button type="button" className="history-toggle" disabled={!history.length} aria-expanded={showHistory} onClick={() => setShowHistory((current) => !current)}><span aria-hidden="true">◷</span><span>Giriş geçmişi</span><b>{history.length}</b></button><div className={`panel-collapse history-collapse ${showHistory ? 'open' : ''}`} aria-hidden={!showHistory}><div className="panel-collapse-inner"><div className="history-list">{history.map((item, index) => <article className="history-row" key={item.id}><div><strong>{index + 1}. {quantity(item.inputQuantity)} {item.inputUnit}</strong><small>{new Date(item.createdAtUtc).toLocaleString('tr-TR')}</small></div><span>{[item.variant, item.secondaryVariant].filter(Boolean).join(' · ') || measurementLabel(item.notes)}</span></article>)}</div></div></div></div>}
-    {placement.isMeasurable && placement.inputBehavior !== 'Derived' && isPipe && <div className="quick-measure variant-input-panel"><div className="variant-panel-heading"><div><strong>Boru çapları</strong><small>Bir çap kutusunu seç, metreyi yazıp Enter'a bas.</small></div><button type="button" onClick={() => setPipeBoxes((current) => [...current, { id: `${placement.id}-pipe-${Date.now()}`, diameter: variantDiameters[0]?.code ?? 'DN25', pending: '' }])}>+ Çap kutusu</button></div>{pipeBoxes.map((box) => { const profile = variantDiameters.find((item) => item.code === box.diameter); const entered = measurements.filter((item) => item.variant?.toLowerCase() === box.diameter.toLowerCase() || item.variant?.toLowerCase() === profile?.label.toLowerCase()).reduce((sum, item) => sum + item.inputQuantity, 0); const stockLength = profile?.standardLength ?? 0; const withWaste = entered * (1 + (summary?.appliedWasteRatePct ?? 0) / 100); const bars = stockLength > 0 ? Math.ceil(withWaste / stockLength) : 0; return <div className="pipe-variant-box" key={box.id}><div className="variant-box-head"><label>Çap / boyut<select value={box.diameter} onChange={(event) => setPipeBoxes((current) => current.map((item) => item.id === box.id ? { ...item, diameter: event.target.value } : item))}>{variantDiameters.map((item) => <option key={item.code} value={item.code}>{variantName(item)}</option>)}</select></label>{pipeBoxes.length > 1 && <button type="button" className="danger-link" onClick={() => setPipeBoxes((current) => current.filter((item) => item.id !== box.id))}>Kaldır</button>}</div><label className="large-input-label">Metre yaz, Enter'a bas<input autoFocus={pipeBoxes[0]?.id === box.id} className="large-measure-input" inputMode="decimal" placeholder="0,00" value={box.pending} onChange={(event) => setPipeBoxes((current) => current.map((item) => item.id === box.id ? { ...item, pending: event.target.value } : item))} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitPipeBox(box); } }} /></label><div className="variant-box-summary"><span>Toplam <b>{quantity(entered)} m</b></span><span>{stockLength > 0 ? `${stockLength} m boy` : 'Boy girilmemiş'} · <b>{bars || '—'} boy</b></span></div></div>; })}<small>Her Enter ayrı kaynak satırı olarak kaydolur; aynı çapın toplamı ve satın alınacak boy otomatik hesaplanır.</small></div>}
+    {placement.isMeasurable && placement.inputBehavior !== 'Derived' && isPipe && <div className="quick-measure variant-input-panel"><div className="variant-panel-heading"><div><strong>Boru çapları</strong><small>Bir çap kutusunu seç, metreyi yazıp Enter'a bas.</small></div><button type="button" onClick={() => setPipeBoxes((current) => [...current, { id: `${placement.id}-pipe-${Date.now()}`, diameter: variantDiameters[0]?.code ?? 'DN25', pending: '' }])}>+ Çap kutusu</button></div>{pipeBoxes.map((box) => { const profile = variantDiameters.find((item) => item.code === box.diameter); /* Toplam ve satin alma adedi backend'in decimal sonucundan okunur. Panelde JavaScript kayan noktasiyla yeniden hesaplamak, 40 adet 0,1 girisinde 4 m boy icin 1 yerine 2 boy gosteriyordu; ekran ile rapor celisiyordu. */ const variantSummary = summaryForVariant(box.diameter, profile?.label); const entered = variantSummary?.netQuantity ?? 0; const stockLength = profile?.standardLength ?? 0; const barsPurchase = (variantSummary?.purchaseUnit ?? '') === 'boy'; const bars = barsPurchase ? variantSummary?.purchaseQuantity ?? 0 : 0; return <div className="pipe-variant-box" key={box.id}><div className="variant-box-head"><label>Çap / boyut<select value={box.diameter} onChange={(event) => setPipeBoxes((current) => current.map((item) => item.id === box.id ? { ...item, diameter: event.target.value } : item))}>{variantDiameters.map((item) => <option key={item.code} value={item.code}>{variantName(item)}</option>)}</select></label>{pipeBoxes.length > 1 && <button type="button" className="danger-link" onClick={() => setPipeBoxes((current) => current.filter((item) => item.id !== box.id))}>Kaldır</button>}</div><label className="large-input-label">Metre yaz, Enter'a bas<input autoFocus={pipeBoxes[0]?.id === box.id} className="large-measure-input" inputMode="decimal" placeholder="0,00" value={box.pending} onChange={(event) => setPipeBoxes((current) => current.map((item) => item.id === box.id ? { ...item, pending: event.target.value } : item))} onKeyDown={(event) => { if (event.key === 'Enter' && !busy) { event.preventDefault(); void submitPipeBox(box); } }} /></label><div className="variant-box-summary"><span>Toplam <b>{quantity(entered)} {variantSummary?.unit ?? placement.unit}</b></span><span>{stockLength > 0 ? `${stockLength} m boy` : 'Boy girilmemiş'} · <b>{barsPurchase && bars > 0 ? `${quantity(bars)} boy` : '—'}</b></span></div></div>; })}<small>Her Enter ayrı kaynak satırı olarak kaydolur; aynı çapın toplamı ve satın alınacak boy otomatik hesaplanır.</small></div>}
     {placement.isMeasurable && placement.inputBehavior !== 'Derived' && isFitting && <div className="quick-measure variant-input-panel fitting-input-panel">
       <div className="variant-panel-heading"><div><strong>Fitting çap grupları</strong><small>Çaplar arasında geçiş yapabilirsin; gönderilmeyen adetler kaybolmaz.</small></div><button type="button" onClick={addFittingBox}>+ Çap kutusu</button></div>
       {parentDiameterFiltered && <div className="diameter-filter-note">Bağlı boruda ölçümü girilen çaplar gösteriliyor. <span>{parentDiameters.length} çap hazır</span></div>}
@@ -1260,9 +1342,9 @@ function Inspector({ placement, placements, summary, measurements, allMeasuremen
       <button className="primary full" disabled={!canEdit || busy || !hasPendingFittings} onClick={() => void submitFittings()}>Hepsini ekle ↵</button>
       <small>Bekleyen adetler bu kart, diğer kartlar ve ekranlar arasında saklanır; yalnız başarıyla eklenince temizlenir.</small>
     </div>}
-    {placement.isMeasurable && isRadiator && <div className="quick-measure"><div className="variant-grid"><label>Tür<select value={radiatorType} onChange={(event) => setRadiatorType(event.target.value)}><option>Panel</option><option>Döküm</option><option>Havlupan</option></select></label><label>Yükseklik<select value={radiatorHeight} onChange={(event) => setRadiatorHeight(event.target.value)}><option>300</option><option>400</option><option>500</option><option>600</option><option>900</option></select></label></div><label className="large-input-label">Genişlik yaz, Enter'a bas<input autoFocus className="large-measure-input" inputMode="decimal" value={radiatorWidth} onChange={(event) => setRadiatorWidth(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submitRadiator(); } }} placeholder="1000" /></label><button className="primary full" disabled={!canEdit || busy} onClick={submitRadiator}>Radyatörü ekle</button></div>}
+    {placement.isMeasurable && isRadiator && <div className="quick-measure"><div className="variant-grid"><label>Tür<select value={radiatorType} onChange={(event) => setRadiatorType(event.target.value)}><option>Panel</option><option>Döküm</option><option>Havlupan</option></select></label><label>Yükseklik<select value={radiatorHeight} onChange={(event) => setRadiatorHeight(event.target.value)}><option>300</option><option>400</option><option>500</option><option>600</option><option>900</option></select></label></div><label className="large-input-label">Genişlik yaz, Enter'a bas<input autoFocus className="large-measure-input" inputMode="decimal" value={radiatorWidth} onChange={(event) => setRadiatorWidth(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !busy) { event.preventDefault(); void submitRadiator(); } }} placeholder="1000" /></label><button className="primary full" disabled={!canEdit || busy} onClick={() => void submitRadiator()}>Radyatörü ekle</button></div>}
     {placement.isMeasurable && !isPipe && !isFitting && !isRadiator && !isCount && <div className="quick-measure"><label>Çap / boyut<select value={diameter} onChange={(event) => setDiameter(event.target.value)}>{fallbackDiameters.map((item) => <option key={item.code}>{item.code}</option>)}</select></label><label className="large-input-label">Metre yaz, Enter'a bas<input autoFocus className="large-measure-input" inputMode="decimal" placeholder="0,00" value={draft.quantity} onChange={(event) => onDraft({ ...draft, quantity: event.target.value })} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); const parsed = Number(draft.quantity.replace(',', '.')); if (parsed > 0) onSubmitRows([{ quantity: parsed, variant: diameter, notes: `Çap: ${diameter}` }]); } }} /></label><button className="primary full" disabled={!canEdit || busy} onClick={() => { const parsed = Number(draft.quantity.replace(',', '.')); if (parsed > 0) onSubmitRows([{ quantity: parsed, variant: diameter, notes: `Çap: ${diameter}` }]); else onSubmit(); }}>Metreyi ekle</button><small>Her Enter ayrı bir ölçüm olarak kaydolur; toplam otomatik güncellenir.</small></div>}
-    {placement.isMeasurable && isCount && <div className="quick-measure"><label>Çap / boyut<select value={diameter} onChange={(event) => setDiameter(event.target.value)}>{fallbackDiameters.map((item) => <option key={item.code}>{item.code}</option>)}</select></label><div className="counter-list">{Object.entries(fittingCounts).map(([kind, count]) => <div className="counter-row" key={kind}><strong>{kind}</strong><button type="button" onClick={() => setFittingCounts({ ...fittingCounts, [kind]: Math.max(0, count - 1) })}>−</button><input className="counter-input" type="number" min="0" step="1" inputMode="numeric" aria-label={`${kind} adedi`} value={count} onChange={(event) => setSimpleCount(kind, event.target.value)} /><button type="button" onClick={() => setFittingCounts({ ...fittingCounts, [kind]: count + 1 })}>+</button></div>)}</div><button className="primary full" disabled={!canEdit || busy || !Object.values(fittingCounts).some(Boolean)} onClick={() => { const rows = Object.entries(fittingCounts).filter(([, count]) => count > 0).map(([kind, count]) => ({ quantity: count, variant: diameter, secondaryVariant: kind, notes: `${kind} · Çap: ${diameter}` })); onSubmitRows(rows); setFittingCounts({ Dirsek: 0, Muşon: 0, Te: 0, Vana: 0 }); }}>Hepsini ekle ↵</button></div>}
+    {placement.isMeasurable && isCount && <div className="quick-measure"><label>Çap / boyut<select value={diameter} onChange={(event) => setDiameter(event.target.value)}>{fallbackDiameters.map((item) => <option key={item.code}>{item.code}</option>)}</select></label><div className="counter-list">{Object.entries(fittingCounts).map(([kind, count]) => <div className="counter-row" key={kind}><strong>{kind}</strong><button type="button" onClick={() => setFittingCounts({ ...fittingCounts, [kind]: Math.max(0, count - 1) })}>−</button><input className="counter-input" type="number" min="0" step="1" inputMode="numeric" aria-label={`${kind} adedi`} value={count} onChange={(event) => setSimpleCount(kind, event.target.value)} /><button type="button" onClick={() => setFittingCounts({ ...fittingCounts, [kind]: count + 1 })}>+</button></div>)}</div><button className="primary full" disabled={!canEdit || busy || !Object.values(fittingCounts).some(Boolean)} onClick={() => void submitSimpleCounts()}>Hepsini ekle ↵</button></div>}
     {placement.isMeasurable && <><button className="details-toggle" aria-expanded={showContext} onClick={onToggleContext}>{showContext ? '− Yer ve notu gizle' : '+ Kat / mahal / not ekle'}</button><div className={`panel-collapse context-collapse ${showContext ? 'open' : ''}`} aria-hidden={!showContext}><div className="panel-collapse-inner"><div className="inspector-context"><label>Blok<input value={draft.block} onChange={(event) => onDraft({ ...draft, block: event.target.value })} /></label><label>Kat<input value={draft.floor} onChange={(event) => onDraft({ ...draft, floor: event.target.value })} /></label><label>Mahal<input value={draft.room} onChange={(event) => onDraft({ ...draft, room: event.target.value })} /></label><label>Pafta<input value={draft.sheet} onChange={(event) => onDraft({ ...draft, sheet: event.target.value })} /></label><label className="wide">Not<input value={draft.notes} onChange={(event) => onDraft({ ...draft, notes: event.target.value })} /></label></div></div></div></>}
     <div className="inspector-actions"><button className="full add-child" disabled={!canEdit || busy} onClick={onAdd}>+ Bunun altına kart ekle</button><button className="full danger-link delete-placement" disabled={!canEdit || busy} onClick={onDelete}>Seçili kartı ve altını sil</button></div><p className="tip">Kartı büyütüp giriş özetini görmek için çift tıkla.</p></aside>;
 }
