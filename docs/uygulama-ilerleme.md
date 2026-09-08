@@ -19,15 +19,15 @@ oturum tam olarak nerede kalındığını görebilir.
 |---|---|---|
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
-| T1 — Şaşırtıcı/engelleyici (21 madde) | 🔄 18/21 tamam | aşağıda |
-| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 Kısmen (T2-5 ad, T2-17 tipler) | — |
+| T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
+| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 Sıradaki bölüm (T2-5, T2-17, T2-18 kısmen) | — |
 | T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
 | T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 90 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 92 başarılı, 0 başarısız.**
 
 ---
 
@@ -141,7 +141,7 @@ ebeveyn→çocuk haritası + bir kez hesaplanan derinlik; çevrim koruması var.
 ## Sürmekte olan bölüm
 
 ### T1 — Şaşırtıcı, engelleyici veya kafa karıştırıcı
-**Durum:** 🔄 18/21 tamam
+**Durum:** ✅ 21/21 tamam
 
 Öncelikli sıra (etki/maliyet oranına göre):
 
@@ -160,12 +160,12 @@ ebeveyn→çocuk haritası + bir kez hesaplanan derinlik; çevrim koruması var.
 | T1-9 | PDF/Excel'de çap-çeşit sütunu yok | ✅ `e2b643e` | Excel de eksikmiş |
 | T1-8 | Ondalık hassasiyeti tutarsız | ✅ `e2b643e` | Her yüzey 6 ondalık |
 | T1-10 | Excel'de uzun not kesiliyor | ✅ `e2b643e` | Satır yüksekliği 42→120 |
-| T1-3 | Taslaklar her açılışta sıfırlanıyor | 🔄 **Sıradaki** | Sunucu tarafı UI durumu |
+| T1-3 | Taslaklar her açılışta sıfırlanıyor | ✅ `69d19eb` | UiStates tablosu + /api/ui-state |
 | T1-14 | Açılış ilerleme göstermiyor | ✅ `309beac` | Pencere önce, adımlar yazılıyor |
 | T1-13 | window.prompt/confirm | ✅ `8c5f806` | 7 çağrı yeri AskDialog'a taşındı |
 | T1-16 | Klavye/ekran okuyucu | ✅ `8c5f806` | Odak tuzağı, Escape, aria-live |
-| T1-18 | Kart adı editörü değiştiriyor | ⬜ Sıradaki | |
-| T1-19 | Kartlar kod önekiyle gizleniyor | ⬜ Sıradaki | |
+| T1-18 | Kart adı editörü değiştiriyor | ✅ `cad7317` | Aile → kod → (son çare) ad |
+| T1-19 | Kartlar kod önekiyle gizleniyor | ✅ `cad7317` | Kesin kod listesi |
 | T1-21 | README ekranla uyuşmuyor | ✅ `309beac` | |
 | T1-4 | Varyantlı kartta toplam yanlış | ✅ `4df4856` | |
 
@@ -208,44 +208,58 @@ Backend maddelerinin hepsinde önce kırmızı test yazıldı, sonra düzeltildi
 
 ---
 
-## T1 ara notu (bu oturum)
+## T1 bölüm kapanışı
 
-**Tamamlananlar (18/21):** T1-1, T1-2, T1-4, T1-5, T1-6, T1-7, T1-8, T1-9,
-T1-10, T1-11, T1-12, T1-13, T1-14, T1-15, T1-16, T1-17, T1-20, T1-21.
-Commit'ler: `e5cf2d7`, `4bca53b`, `fbc3218`, `e2b643e`, `309beac`, `8c5f806`.
+**21/21 madde tamam.** Test tabanı 86 → 92.
+Commit'ler: `e5cf2d7`, `4bca53b`, `fbc3218`, `e2b643e`, `309beac`, `8c5f806`,
+`cad7317`, `69d19eb` (+ T1-4 `4df4856` içinde).
 
-**Kalan (3):** T1-3 (taslaklar her açılışta sıfırlanıyor), T1-18 (kart adı
-düzenleyiciyi değiştiriyor), T1-19 (kartlar kod önekiyle gizleniyor).
-
-**Bu bölümde ortaya çıkan yeni altyapı:**
+**Bu bölümde ortaya çıkan yeni altyapı** (sonraki bölümlerde kullanılacak):
 - `src/Metraj.Application/DomainMessageCatalog.cs` — 106 kural kodunun Türkçe
-  karşılığı. **Yeni bir kural eklenirse buraya da bir satır eklenmeli.**
+  karşılığı. **Yeni bir kural eklenirse buraya da bir satır eklenmeli**; eksikse
+  alan grubuna göre genel mesaj + kural kodu döner (asla boş kalmaz).
 - `src/Metraj.Web/src/AskDialog.tsx` — söz tabanlı, erişilebilir soru/onay
-  penceresi (`useAsk` + `AskDialog`). Yeni bir onay gerektiğinde bunu kullan;
-  `window.confirm`/`window.prompt` artık kod tabanında yok.
-- `ApplicationSchemaMigrator.IsUpToDateAsync` — açılışta gereksiz yedek/göç
-  yapmamak için.
+  penceresi (`useAsk` + `AskDialog`). `window.confirm`/`window.prompt` artık
+  kod tabanında YOK; yeni onaylar bunu kullanmalı.
+- `src/Metraj.Web/src/uiState.ts` + `UiStates` tablosu — kalıcı arayüz durumu.
+  `window.localStorage` uygulama kodunda artık doğrudan kullanılmıyor.
+- `ApplicationSchemaMigrator.IsUpToDateAsync` — gereksiz açılış yedeği/göçü önler.
 - `notifySuccess` — yalnızca işlem boyunca hiç hata olmadıysa mesaj gösterir.
 - `nodePositions` ref'i — harita konumlarını yerleşim kimliğine göre hatırlar.
+- `PlacementListItem.MaterialType` — arayüzün ada değil açık özelliğe bakması için.
+
+**Kalan borç (ilgili bölümlere bırakıldı):**
+- T1-19'daki gizleme listesi hâlâ frontend'de. Asıl yeri backend (`supersededBy`
+  alanı veya bu kartların hiç seed edilmemesi) — T5'te ele alınacak.
+- Performans testi kararsız (aşağıdaki nota bakın) — T5.8.
 
 **Dikkat:** Frontend değişikliklerinden sonra `npm run build` çalıştırılmalı;
 `src/Metraj.Web/dist` gömülü kaynak olduğu için build edilmezse değişiklik
-uygulamaya ulaşmaz. (Bu, T4-1'de MSBuild'e bağlanacak.)
+uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 
 ---
 
-## Gözlem: performans testi kararsız (flaky)
+## Sıradaki bölüm: T2 — Gizli doğruluk boşlukları (18 madde)
 
-`NonFunctionalRegressionTests.LocalLoadGrowthStressAndEnduranceRemainStable`
-tüm süitle birlikte koşarken **bir kez** başarısız oldu, tek başına ve sonraki
-tam koşuda geçti. Testin eşikleri duvar saati tabanlı (25/30/35 saniye) ve süit
-seri çalıştığı için makine yükü altında sınıra dayanabiliyor.
+Öncelik önerisi (kullanıcıya en yakın olandan uzağa):
 
-Bu koşudaki değişikliklerin (T0-4'ün revizyon sorgusu, T0-5'in bayatlama
-sorguları) ölçülebilir bir katkısı yok: ikisi de yazma başına birkaç indeksli
-sorgu ekliyor, yük testindeki hacimde ihmal edilebilir.
-
-**Yapılacak (T5.8):** eşikleri duvar saatinden koparıp göreli büyümeye
-(örn. "5 kat veri, 8 kattan fazla yavaşlamamalı" kontrolü zaten var) dayandır
-veya bu testi ayrı bir kategoriye al. Rastgele başarısız olan bir test, gerçek
-bir gerilemeyi maskeleyebilir.
+| # | Madde | Not |
+|---|---|---|
+| T2-1 | Özet ile hesap önerisi farklı politika çözüyor | Aynı veri, iki farklı sayı |
+| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | `RevisionWastePolicy` deseni uygulanabilir |
+| T2-8 | Ham container parametresi doğrulanıyor | Hata rapor alırken patlıyor |
+| T2-9 | Kural hash'i işletim sistemi diline göre değişiyor | Türkçe Windows'ta canlı |
+| T2-10 | Katalog hash'i taslağı hash'liyor | |
+| T2-4 | Geri yükleme sırasında bakım sınırı yok | |
+| T2-5 | Geri yükleme kendi kaynağını budayabilir | Ad benzersizliği T0-2'de yapıldı |
+| T2-7 | Sorumluluk benzersiz indeksi garanti vermiyor | |
+| T2-6 | Yeni/yükseltilmiş şema ayrışabiliyor | |
+| T2-13 | Tek-örnek kilidi "oluşturuldu"yu "alındı" sanıyor | Uygulama hiç açılmayabilir |
+| T2-14 | Veritabanı sessizce geçici klasöre düşebiliyor | |
+| T2-11 | API/servis doğrulaması düzensiz | |
+| T2-3 | Oku-sonra-yaz eşzamanlılığı | |
+| T2-12 | Bağlantı doğrulaması tüm projeleri yüklüyor | |
+| T2-15 | EF bağlantı dizesi elle birleştiriliyor | |
+| T2-16 | Ondalık temsil sözleşmesi yok | |
+| T2-17 | Frontend tipleri sapmış | Kısmen yapıldı (`cad7317`, `4df4856`) |
+| T2-18 | api.ts başlıkları düşürebilir | ✅ `e5cf2d7`'de yapıldı |
