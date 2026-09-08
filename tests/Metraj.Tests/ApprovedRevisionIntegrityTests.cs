@@ -103,6 +103,47 @@ public sealed class ApprovedRevisionIntegrityTests
     }
 
     [Fact]
+    public async Task AMistypedMeasurementRowCanBeCorrectedAndDeleted()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync();
+        var projects = new ProjectWorkspaceService(database.ContextFactory);
+        var cards = new CatalogWorkspaceService(database.ContextFactory);
+        var tree = new ProjectTreeWorkspaceService(database.ContextFactory);
+        var measurements = new MeasurementWorkspaceService(database.ContextFactory);
+
+        ProjectListItem project = await projects.CreateProjectAsync("P-FIX", "Satır düzeltme");
+        CatalogCardListItem card = await cards.CreateCardAsync(new CatalogCardDraft(
+            "MAT-FIX", "Boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "m"));
+        PlacementListItem placement = await tree.AddPlacementAsync(
+            new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
+
+        // Kullanıcı 12,4 yerine yanlışlıkla 124 yazar.
+        MeasurementListItem typo = await measurements.CreateMeasurementAsync(
+            new MeasurementDraft(project.LatestRevisionId, placement.Id, 124m, "m", Block: "A", Room: "101"));
+        MeasurementListItem keep = await measurements.CreateMeasurementAsync(
+            new MeasurementDraft(project.LatestRevisionId, placement.Id, 18.6m, "m"));
+
+        // Düzeltme, satırın diğer alanlarını korumalı.
+        await measurements.UpdateMeasurementAsync(typo.Id, new MeasurementDraft(
+            project.LatestRevisionId, placement.Id, 12.4m, "m", Block: "A", Room: "101"));
+
+        IReadOnlyList<MeasurementListItem> afterFix = await measurements.ListMeasurementsAsync(project.LatestRevisionId);
+        MeasurementListItem corrected = Assert.Single(afterFix, item => item.Id == typo.Id);
+        Assert.Equal(12.4m, corrected.InputQuantity);
+        Assert.Equal("A", corrected.Block);
+        Assert.Equal("101", corrected.Room);
+        Assert.NotNull(corrected.UpdatedAtUtc);
+        Assert.Equal(31m, Assert.Single(await measurements.ListSummariesAsync(project.LatestRevisionId)).NetQuantity);
+
+        // Yanlış satır tamamen silinebilmeli; diğeri kalmalı.
+        await measurements.DeleteMeasurementAsync(typo.Id);
+        MeasurementListItem survivor = Assert.Single(await measurements.ListMeasurementsAsync(project.LatestRevisionId));
+        Assert.Equal(keep.Id, survivor.Id);
+        Assert.Equal(18.6m, Assert.Single(await measurements.ListSummariesAsync(project.LatestRevisionId)).NetQuantity);
+    }
+
+    [Fact]
     public async Task DuplicatingAMeasurementStillWorksOnADraftRevision()
     {
         await using TestDatabase database = await TestDatabase.CreateAsync();
