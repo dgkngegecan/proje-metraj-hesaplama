@@ -7,7 +7,12 @@ namespace Metraj.Infrastructure;
 /// <summary>Creates verified SQLite online backups and performs validated, atomic restores.</summary>
 public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWorkspace
 {
-    private const int RetainedBackupCount = 20;
+    // Kullanıcının bilinçli aldığı yedekler ile uygulamanın her açılışta aldığı
+    // otomatik yedekler AYNI kotayı paylaşamaz. Paylaştıklarında yirmi açılış,
+    // kullanıcının kasıtlı olarak sakladığı bütün yedekleri siliyordu; yani
+    // yedekleme özelliği normal kullanım sırasında kendi kendini yok ediyordu.
+    private const int RetainedAutomaticBackupCount = 10;
+    private const int RetainedUserBackupCount = 20;
     private readonly Func<string> databasePathProvider;
     private readonly string backupDirectory;
 
@@ -43,7 +48,12 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
 
         Directory.CreateDirectory(backupDirectory);
         DateTime now = DateTime.UtcNow;
-        string stem = $"metraj-{now:yyyyMMdd-HHmmssfff}-{reason.ToString().ToLowerInvariant()}";
+        // Ayırt edici belirteç, sebep etiketinin ÖNÜNE girer; dosya adı hâlâ
+        // "-<sebep>.db" ile bittiği için ParseReason ve eski yedekler etkilenmez.
+        // Yalnız zaman damgası kullanmak, aynı milisaniyeye denk gelen iki yedeğin
+        // çakışmasına açık kapı bırakıyordu.
+        string token = Guid.NewGuid().ToString("N")[..6];
+        string stem = $"metraj-{now:yyyyMMdd-HHmmssfff}-{token}-{reason.ToString().ToLowerInvariant()}";
         string finalPath = Path.Combine(backupDirectory, $"{stem}.db");
         string temporaryPath = Path.Combine(backupDirectory, $".{stem}-{Guid.NewGuid():N}.tmp");
         try
@@ -190,14 +200,39 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
         return DatabaseBackupReason.Manual;
     }
 
+    /// <summary>
+    /// Otomatik ve kullanıcı kaynaklı yedekleri ayrı kotalarda budar. Böylece
+    /// açılış yedekleri hiçbir zaman kullanıcının sakladığı bir yedeği düşüremez.
+    /// </summary>
     private void PruneOldBackups()
     {
-        foreach (string obsolete in Directory.EnumerateFiles(backupDirectory, "metraj-*.db", SearchOption.TopDirectoryOnly)
-                     .OrderByDescending(File.GetCreationTimeUtc)
-                     .ThenByDescending(path => path, StringComparer.Ordinal)
-                     .Skip(RetainedBackupCount))
+        // FileInfo bir kez oluşturulur: önceki sürüm her karşılaştırmada
+        // File.GetCreationTimeUtc çağırarak dosya sistemine gidiyordu.
+        IEnumerable<IGrouping<bool, FileInfo>> groups = Directory
+            .EnumerateFiles(backupDirectory, "metraj-*.db", SearchOption.TopDirectoryOnly)
+            .Select(path => new FileInfo(path))
+            .GroupBy(file => ParseReason(file.Name) == DatabaseBackupReason.BeforeMigration);
+
+        foreach (IGrouping<bool, FileInfo> group in groups)
         {
-            File.Delete(obsolete);
+            int retained = group.Key ? RetainedAutomaticBackupCount : RetainedUserBackupCount;
+            foreach (FileInfo obsolete in group
+                         .OrderByDescending(file => file.CreationTimeUtc)
+                         .ThenByDescending(file => file.Name, StringComparer.Ordinal)
+                         .Skip(retained))
+            {
+                try
+                {
+                    obsolete.Delete();
+                }
+                catch (IOException)
+                {
+                    // Kilitli bir eski yedek, yeni yedeğin alınmasını engellememeli.
+                }
+                catch (UnauthorizedAccessException)
+                {
+                }
+            }
         }
     }
 
