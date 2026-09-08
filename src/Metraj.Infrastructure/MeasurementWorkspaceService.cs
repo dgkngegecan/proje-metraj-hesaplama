@@ -205,6 +205,12 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
             .Include(x => x.ProjectPlacement).ThenInclude(x => x!.CatalogCardVersion).ThenInclude(x => x!.CatalogCardDefinition)
             .SingleOrDefaultAsync(x => x.Id == measurementId, cancellationToken)
             ?? throw new DomainRuleViolationException("measurement.not-found", "Measurement was not found.");
+        // Çoğaltma da bir yazma işlemidir: oluşturma, güncelleme ve silme yollarıyla
+        // aynı taslak korumasından geçmelidir. Bu kontrol olmadan onaylanmış bir
+        // revizyona satır eklenebiliyor ve "onaylandı ve kilitlendi" vaadi deliniyordu.
+        ProjectRevision revision = await context.ProjectRevisions
+            .SingleAsync(x => x.Id == source.ProjectRevisionId, cancellationToken);
+        ProjectRevisionRules.EnsureDraft(revision);
         var copy = new Measurement
         {
             Id = Guid.NewGuid(),
