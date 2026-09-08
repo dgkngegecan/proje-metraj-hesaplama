@@ -751,3 +751,14 @@ button.primary:hover:not(:disabled), .primary:hover { background-position: 100% 
   .inspector,
   .inspector > * { animation-duration: .16s !important; animation-delay: 0s !important; }
 }
+
+/* Uygulamanın kendi soru/onay penceresi (window.prompt / window.confirm yerine). */
+.ask-modal { max-width: 460px; display: grid; gap: 11px; }
+.ask-modal h2 { margin: 0; }
+.ask-modal > p { margin: 0; color: #9eacc3; font-size: .78rem; }
+.ask-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.ask-actions button { min-width: 104px; }
+.danger-confirm { background: linear-gradient(135deg, #ff5a7d, #ff8a5b); }
+/* Yalnızca anlamsal bir canlı bölge: kendi kutusunu üretmez, bu yüzden
+   toast'ın mevcut sağ-alt konumu ve görünümü birebir korunur. */
+.toast-region { display: contents; }

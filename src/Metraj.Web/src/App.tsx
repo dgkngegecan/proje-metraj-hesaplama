@@ -22,6 +22,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { api, ApiError } from './api';
+import { AskDialog, useAsk } from './AskDialog';
 import type {
   CalculationResult,
   CalculationRule,
@@ -278,6 +279,7 @@ export default function App() {
   const [reportScopeId, setReportScopeId] = useState<string | null>(null);
   const [addNewCardToFlow, setAddNewCardToFlow] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { pending: askRequest, ask, close: closeAsk } = useAsk();
   const [toast, setToast] = useState('');
   const [projectDraft, setProjectDraft] = useState({ code: '', name: '' });
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
@@ -515,20 +517,34 @@ export default function App() {
   const reviewCalculation = (resultId: string, decision: 'approve' | 'reject') => withBusy(async () => {
     if (decision === 'approve') await api.post(`/calculations/results/${resultId}/approve`);
     else {
-      const reason = window.prompt('Neden uygulanmasın?', 'Kontrol sonrası uygulanmadı');
-      if (reason === null) return;
-      await api.post(`/calculations/results/${resultId}/reject`, { reason });
+      const answer = await ask({
+        title: 'Hesap önerisi uygulanmasın mı?',
+        description: 'Gerekçe kontrol listesinde ve raporda görünür.',
+        confirmLabel: 'Uygulama', danger: true,
+        fields: [{ key: 'reason', label: 'Gerekçe', value: 'Kontrol sonrası uygulanmadı', multiline: true }],
+      });
+      if (!answer?.reason?.trim()) return;
+      await api.post(`/calculations/results/${resultId}/reject`, { reason: answer.reason.trim() });
     }
     await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]); notify(decision === 'approve' ? 'Hesap önerisi onaylandı.' : 'Hesap önerisi uygulanmadı.');
   });
   const overrideCalculation = (result: CalculationResult) => withBusy(async () => {
-    const enteredQuantity = window.prompt(`${result.targetPlacementName} için kullanılacak miktar (${result.unit})`, String(result.proposedQuantity));
-    if (enteredQuantity === null) return;
-    const usedQuantity = Number(enteredQuantity.replace(',', '.'));
-    const reason = window.prompt('Bu miktar neden elle değiştirildi?', 'Saha kontrolü sonrası düzeltildi');
-    if (reason === null) return;
+    // Tek pencerede hem miktar hem gerekçe: önceden arka arkaya iki
+    // window.prompt açılıyor, ikincisinde vazgeçen kullanıcı ilkini de kaybediyordu.
+    const answer = await ask({
+      title: `${result.targetPlacementName} için kullanılacak miktar`,
+      description: `Öneri: ${quantity(result.proposedQuantity)} ${result.unit}`,
+      confirmLabel: 'Miktarı uygula',
+      fields: [
+        { key: 'quantity', label: `Kullanılacak miktar (${result.unit})`, value: String(result.proposedQuantity), inputMode: 'decimal' },
+        { key: 'reason', label: 'Neden elle değiştirildi?', value: 'Saha kontrolü sonrası düzeltildi', multiline: true },
+      ],
+    });
+    if (!answer) return;
+    const usedQuantity = Number((answer.quantity ?? '').replace(',', '.'));
     if (!Number.isFinite(usedQuantity) || usedQuantity < 0) throw new ApiError('Kullanılacak miktarı sayı olarak yazın.');
-    await api.post(`/calculations/results/${result.id}/override`, { usedQuantity, reason });
+    if (!answer.reason?.trim()) throw new ApiError('Değiştirme gerekçesini yazın.');
+    await api.post(`/calculations/results/${result.id}/override`, { usedQuantity, reason: answer.reason.trim() });
     await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]); notifySuccess('Hesap önerisi elle güncellendi.');
   });
   const createDimension = () => withBusy(async () => {
@@ -550,7 +566,12 @@ export default function App() {
   const createBackup = () => withBusy(async () => { await api.post('/database/backups'); await loadAdvanced(); notifySuccess('Güvenli yedek alındı.'); });
   const checkIntegrity = () => withBusy(async () => { const result = await api.get<DatabaseIntegrity>('/database/integrity'); setIntegrity(result); notify(result.isHealthy ? 'Veritabanı kontrolü temiz.' : 'Veritabanı kontrolü uyarı verdi.'); });
   const restoreBackup = (backup: DatabaseBackup) => withBusy(async () => {
-    if (!window.confirm(`${backup.fileName} yedeğine dönülsün mü? Önce mevcut hal ayrıca yedeklenir.`)) return;
+    const answer = await ask({
+      title: 'Bu yedeğe dönülsün mü?',
+      description: `${backup.fileName} geri yüklenecek. Mevcut hâl önce ayrıca yedeklenir.`,
+      confirmLabel: 'Geri yükle', danger: true,
+    });
+    if (!answer) return;
     await api.post('/database/backups/restore', { fullPath: backup.fullPath });
     await reload(); await loadAdvanced(); notifySuccess('Yedek geri yüklendi.');
   });
@@ -568,7 +589,12 @@ export default function App() {
     notifySuccess(`${materialType} için %${quantity(wasteRatePct)} fire payı kaydedildi.`);
   });
   const removeWasteSetting = (setting: MaterialWasteSetting) => withBusy(async () => {
-    if (!window.confirm(`“${setting.materialType}” fire kuralı kaldırılsın mı?`)) return;
+    const answer = await ask({
+      title: 'Fire kuralı kaldırılsın mı?',
+      description: `“${setting.materialType}” için tanımlı oran silinecek; kartların kendi oranları geçerli olur.`,
+      confirmLabel: 'Kaldır', danger: true,
+    });
+    if (!answer) return;
     await api.delete(`/settings/material-waste/${setting.id}`);
     await Promise.all([loadAdvanced(), loadRevision(selectedRevisionId)]);
     notifySuccess('Malzeme fire kuralı kaldırıldı.');
@@ -611,7 +637,12 @@ export default function App() {
     notifySuccess('Yeni kart türü global kütüphaneye eklendi.');
   });
   const deleteCatalogType = (type: CatalogCardType) => withBusy(async () => {
-    if (!window.confirm(`“${type.name}” türü yeni kart seçimlerinden kaldır? Mevcut kartlar korunur.`)) return;
+    const answer = await ask({
+      title: 'Kart türü kaldırılsın mı?',
+      description: `“${type.name}” yeni kart seçimlerinden kaldırılacak. Mevcut kartlar ve projeler korunur.`,
+      confirmLabel: 'Kaldır', danger: true,
+    });
+    if (!answer) return;
     await api.delete(`/catalog/types/${type.id}`);
     await Promise.all([loadCatalogTypeSettings(), loadCards()]);
     notifySuccess('Kart türü kaldırıldı.');
@@ -716,7 +747,12 @@ export default function App() {
   });
 
   const deactivateCard = (card: CatalogCard) => withBusy(async () => {
-    if (!window.confirm(`“${card.name}” kartı kütüphaneden kaldırılsın mı? Projelerdeki mevcut kullanımları korunur.`)) return;
+    const answer = await ask({
+      title: 'Kart kütüphaneden kaldırılsın mı?',
+      description: `“${card.name}” yeni projelerde seçilemeyecek. Projelerdeki mevcut kullanımları korunur.`,
+      confirmLabel: 'Kaldır', danger: true,
+    });
+    if (!answer) return;
     await api.post(`/catalog/cards/${card.id}/deactivate`);
     await loadCards();
     notifySuccess('Kart kütüphaneden kaldırıldı.');
@@ -724,7 +760,12 @@ export default function App() {
   const deletePlacement = () => withBusy(async () => {
     const placement = selectedPlacement;
     if (!placement || !selectedRevisionId) return;
-    if (!window.confirm(`“${placement.displayName}” ve altındaki tüm kartlar silinsin mi?`)) return;
+    const answer = await ask({
+      title: 'Kart ve altındakiler silinsin mi?',
+      description: `“${placement.displayName}” ve altındaki bütün kartlar, metrajlarıyla birlikte kalıcı olarak silinecek.`,
+      confirmLabel: 'Sil', danger: true,
+    });
+    if (!answer) return;
     await api.delete(`/placements/${placement.id}`);
     setSelectedPlacementId(null);
     setExpandedPlacementIds((current) => {
@@ -972,9 +1013,11 @@ export default function App() {
         </>}
       </section>
 
-      {showCardShelf && <div className="modal-backdrop" onMouseDown={() => setShowCardShelf(false)}><div className="modal shelf-modal" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={() => setShowCardShelf(false)}>×</button><span className="eyebrow">KÜTÜPHANE</span><h2>{selectedPlacement ? `“${selectedPlacement.displayName}” altına ekle` : 'Haritaya kart ekle'}</h2><p>Bir kart seç veya ihtiyacın olan yeni kartı hemen oluştur.</p><button className="primary new-card-button" onClick={startFirstCardForFlow}>+ Yeni kart oluştur</button><CardShelf cards={cards} onAdd={addCardToFlow} onCreate={startFirstCardForFlow} /></div></div>}
-      {showProjectDialog && <div className="modal-backdrop"><div className="modal"><button className="modal-close" onClick={() => setShowProjectDialog(false)}>×</button><span className="eyebrow">YENİ PROJE</span><h2>Projenin adını ver</h2><p>Sonra kartlarını haritaya sürükleyerek kurarsın.</p><label>Proje kodu<input autoFocus placeholder="Örn. P-001" value={projectDraft.code} onChange={(event) => setProjectDraft({ ...projectDraft, code: event.target.value })} /></label><label>Proje adı<input placeholder="Örn. Villa Temiz Su" value={projectDraft.name} onChange={(event) => setProjectDraft({ ...projectDraft, name: event.target.value })} /></label><button className="primary full" disabled={busy} onClick={createProject}>Projeyi oluştur →</button></div></div>}
-      {toast && <div className="toast">{toast}</div>}
+      {showCardShelf && <div className="modal-backdrop" onMouseDown={() => setShowCardShelf(false)}><div className="modal shelf-modal" role="dialog" aria-modal="true" aria-label="Kütüphaneden kart ekle" onKeyDown={(event) => { if (event.key === 'Escape') setShowCardShelf(false); }} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Kapat" onClick={() => setShowCardShelf(false)}>×</button><span className="eyebrow">KÜTÜPHANE</span><h2>{selectedPlacement ? `“${selectedPlacement.displayName}” altına ekle` : 'Haritaya kart ekle'}</h2><p>Bir kart seç veya ihtiyacın olan yeni kartı hemen oluştur.</p><button className="primary new-card-button" onClick={startFirstCardForFlow}>+ Yeni kart oluştur</button><CardShelf cards={cards} onAdd={addCardToFlow} onCreate={startFirstCardForFlow} /></div></div>}
+      {showProjectDialog && <div className="modal-backdrop" onMouseDown={() => setShowProjectDialog(false)}><div className="modal" role="dialog" aria-modal="true" aria-label="Yeni proje oluştur" onKeyDown={(event) => { if (event.key === 'Escape') setShowProjectDialog(false); }} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Kapat" onClick={() => setShowProjectDialog(false)}>×</button><span className="eyebrow">YENİ PROJE</span><h2>Projenin adını ver</h2><p>Sonra kartlarını haritaya sürükleyerek kurarsın.</p><label>Proje kodu<input autoFocus placeholder="Örn. P-001" value={projectDraft.code} onChange={(event) => setProjectDraft({ ...projectDraft, code: event.target.value })} /></label><label>Proje adı<input placeholder="Örn. Villa Temiz Su" value={projectDraft.name} onChange={(event) => setProjectDraft({ ...projectDraft, name: event.target.value })} /></label><button className="primary full" disabled={busy} onClick={createProject}>Projeyi oluştur →</button></div></div>}
+      {/* Bildirimler ekran okuyucuya da ulaşmalı; önceden yalnızca görsel bir kutuydu. */}
+      <div className="toast-region" role="status" aria-live="polite" aria-atomic="true">{toast && <div className="toast">{toast}</div>}</div>
+      {askRequest && <AskDialog request={askRequest} onClose={closeAsk} />}
     </main>
   );
 }
@@ -1179,7 +1222,7 @@ function CatalogPage(props: {
     </div>
     {activeTypes.length > 0 && <section className="catalog-types"><div className="summary-heading"><div><span className="eyebrow">TÜR ŞABLONLARI</span><h3>Özel kart türleri</h3></div><span>{activeTypes.length} global tür</span></div><div className="catalog-type-list">{activeTypes.map((type) => <article key={type.id} className="catalog-type-row"><div><strong>{type.name}</strong><small>{type.code} · temel tür: {TYPE_META[type.baseCardType].label}</small><p>{type.attributeKeys.length} bilgi alanı · {type.allowedParentCardIds.length ? `${type.allowedParentCardIds.length} üst kart kısıtı` : 'üst kart kısıtı yok'} · {type.allowedChildCardIds.length ? `${type.allowedChildCardIds.length} alt kart kısıtı` : 'alt kart kısıtı yok'}</p></div><button className="danger-link" disabled={props.busy} onClick={() => props.onDeleteType(type)}>Kaldır</button></article>)}</div></section>}
     <CardShelf cards={props.cards} compact onAdd={props.onAddCard} onDelete={props.onDeactivateCard} onEdit={props.onEditCard} />
-    {props.showTypeDialog && <div className="modal-backdrop" onMouseDown={props.onCloseType}><div className="modal type-editor-modal" onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" onClick={props.onCloseType}>×</button><span className="eyebrow">GLOBAL KÜTÜPHANE</span><h2>Yeni kart türü oluştur</h2><p>Bir tür, aynı bilgileri taşıyan kartlar için şablondur. Üst/alt kart seçimleri ek ağaç kısıtı getirir; boş bırakırsan temel beşli kural çalışır.</p><div className="type-editor-grid"><label>Kısa kod<input autoFocus placeholder="Örn. RADYATOR" value={props.typeDraft.code} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, code: event.target.value })} /></label><label>Tür adı<input placeholder="Örn. Panel radyatör" value={props.typeDraft.name} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, name: event.target.value })} /></label><label>Temel kart davranışı<select value={props.typeDraft.baseCardType} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, baseCardType: event.target.value as CardType })}>{Object.entries(TYPE_META).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label><label className="wide">Açıklama<input placeholder="Bu tür neyi temsil eder?" value={props.typeDraft.description} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, description: event.target.value })} /></label></div><div className="type-editor-columns"><fieldset><legend>İzin verilen üst kartlar</legend><small>Bu tür kartın altına bağlanabileceği global kartlar. Boş liste: kısıt yok.</small>{activeCards.length ? <div className="check-list">{activeCards.map((card) => <label key={card.id}><input type="checkbox" checked={props.typeDraft.parentCardIds.includes(card.id)} onChange={() => toggleTypeList('parentCardIds', card.id)} />{card.name}<small>{card.code}</small></label>)}</div> : <p className="muted">Önce kütüphaneye kart ekleyin.</p>}</fieldset><fieldset><legend>İzin verilen alt kartlar</legend><small>Bu tür kartın altında bulunabilecek global kartlar. Boş liste: kısıt yok.</small>{activeCards.length ? <div className="check-list">{activeCards.map((card) => <label key={card.id}><input type="checkbox" checked={props.typeDraft.childCardIds.includes(card.id)} onChange={() => toggleTypeList('childCardIds', card.id)} />{card.name}<small>{card.code}</small></label>)}</div> : <p className="muted">Önce kütüphaneye kart ekleyin.</p>}</fieldset></div><fieldset className="attribute-fieldset"><legend>Kartta istenecek bilgiler</legend><small>Kod, ad ve birim motorun zorunlu alanlarıdır; diğerlerini ihtiyacına göre işaretle.</small><div className="attribute-check-list">{props.catalogAttributes.map((attribute) => <label key={attribute.key}><input type="checkbox" checked={attribute.isRequired || props.typeDraft.attributeKeys.includes(attribute.key)} disabled={attribute.isRequired} onChange={() => toggleAttribute(attribute)} /><span><strong>{attribute.label}{attribute.isRequired ? ' · zorunlu' : ''}</strong><small>{attribute.description}</small></span></label>)}</div></fieldset><div className="inline-actions"><button onClick={props.onClose}>Vazgeç</button><button className="primary" disabled={props.busy} onClick={props.onCreateType}>Türü kaydet</button></div></div></div>}
+    {props.showTypeDialog && <div className="modal-backdrop" onMouseDown={props.onCloseType}><div className="modal type-editor-modal" role="dialog" aria-modal="true" aria-label="Yeni kart türü oluştur" onKeyDown={(event) => { if (event.key === 'Escape') props.onCloseType(); }} onMouseDown={(event) => event.stopPropagation()}><button className="modal-close" aria-label="Kapat" onClick={props.onCloseType}>×</button><span className="eyebrow">GLOBAL KÜTÜPHANE</span><h2>Yeni kart türü oluştur</h2><p>Bir tür, aynı bilgileri taşıyan kartlar için şablondur. Üst/alt kart seçimleri ek ağaç kısıtı getirir; boş bırakırsan temel beşli kural çalışır.</p><div className="type-editor-grid"><label>Kısa kod<input autoFocus placeholder="Örn. RADYATOR" value={props.typeDraft.code} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, code: event.target.value })} /></label><label>Tür adı<input placeholder="Örn. Panel radyatör" value={props.typeDraft.name} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, name: event.target.value })} /></label><label>Temel kart davranışı<select value={props.typeDraft.baseCardType} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, baseCardType: event.target.value as CardType })}>{Object.entries(TYPE_META).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}</select></label><label className="wide">Açıklama<input placeholder="Bu tür neyi temsil eder?" value={props.typeDraft.description} onChange={(event) => props.onTypeDraft({ ...props.typeDraft, description: event.target.value })} /></label></div><div className="type-editor-columns"><fieldset><legend>İzin verilen üst kartlar</legend><small>Bu tür kartın altına bağlanabileceği global kartlar. Boş liste: kısıt yok.</small>{activeCards.length ? <div className="check-list">{activeCards.map((card) => <label key={card.id}><input type="checkbox" checked={props.typeDraft.parentCardIds.includes(card.id)} onChange={() => toggleTypeList('parentCardIds', card.id)} />{card.name}<small>{card.code}</small></label>)}</div> : <p className="muted">Önce kütüphaneye kart ekleyin.</p>}</fieldset><fieldset><legend>İzin verilen alt kartlar</legend><small>Bu tür kartın altında bulunabilecek global kartlar. Boş liste: kısıt yok.</small>{activeCards.length ? <div className="check-list">{activeCards.map((card) => <label key={card.id}><input type="checkbox" checked={props.typeDraft.childCardIds.includes(card.id)} onChange={() => toggleTypeList('childCardIds', card.id)} />{card.name}<small>{card.code}</small></label>)}</div> : <p className="muted">Önce kütüphaneye kart ekleyin.</p>}</fieldset></div><fieldset className="attribute-fieldset"><legend>Kartta istenecek bilgiler</legend><small>Kod, ad ve birim motorun zorunlu alanlarıdır; diğerlerini ihtiyacına göre işaretle.</small><div className="attribute-check-list">{props.catalogAttributes.map((attribute) => <label key={attribute.key}><input type="checkbox" checked={attribute.isRequired || props.typeDraft.attributeKeys.includes(attribute.key)} disabled={attribute.isRequired} onChange={() => toggleAttribute(attribute)} /><span><strong>{attribute.label}{attribute.isRequired ? ' · zorunlu' : ''}</strong><small>{attribute.description}</small></span></label>)}</div></fieldset><div className="inline-actions"><button onClick={props.onClose}>Vazgeç</button><button className="primary" disabled={props.busy} onClick={props.onCreateType}>Türü kaydet</button></div></div></div>}
   </section>;
 }
 
