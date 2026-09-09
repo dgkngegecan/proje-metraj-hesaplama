@@ -20,7 +20,7 @@ oturum tam olarak nerede kalındığını görebilir.
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
 | T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
-| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 10/18 tamam | aşağıda |
+| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 12/18 tamam (son 2'si test edilemedi) | aşağıda |
 | T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
 | T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
@@ -246,13 +246,13 @@ uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 | # | Madde | Not |
 |---|---|---|
 | T2-1 | Özet ile hesap önerisi farklı politika çözüyor | ✅ `b921b4a` — `ResolveEffectiveCard` |
-| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | 🔄 **Sıradaki** |
+| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | ⚠️ `119ee4d` — `ReadSnapshotScope` (test EDİLEMEDİ) |
 | T2-8 | Ham container parametresi doğrulanıyor | ✅ `8e6cc2a` — `ResolveContentAsync` |
 | T2-9 | Kural hash'i işletim sistemi diline göre değişiyor | ✅ `8e6cc2a` — InvariantCulture |
 | T2-10 | Katalog hash'i taslağı hash'liyor | ✅ `8e6cc2a` — çözülmüş içerik + sıralı kanonik biçim |
 | T2-4 | Geri yükleme sırasında bakım sınırı yok | |
 | T2-5 | Geri yükleme kendi kaynağını budayabilir | ✅ `01c059b` |
-| T2-7 | Sorumluluk benzersiz indeksi garanti vermiyor | |
+| T2-7 | Sorumluluk benzersiz indeksi garanti vermiyor | ⚠️ `119ee4d` — filtreli indeksler (test EDİLEMEDİ) |
 | T2-6 | Yeni/yükseltilmiş şema ayrışabiliyor | |
 | T2-13 | Tek-örnek kilidi "oluşturuldu"yu "alındı" sanıyor | ✅ `01c059b` |
 | T2-14 | Veritabanı sessizce geçici klasöre düşebiliyor | ✅ `01c059b` — mevcut veritabanı öncelikli |
@@ -263,3 +263,41 @@ uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 | T2-16 | Ondalık temsil sözleşmesi yok | |
 | T2-17 | Frontend tipleri sapmış | Kısmen yapıldı (`cad7317`, `4df4856`) |
 | T2-18 | api.ts başlıkları düşürebilir | ✅ `e5cf2d7`'de yapıldı |
+
+---
+
+## ⛔ ORTAM ENGELİ — sonraki oturumun İLK işi
+
+**Durum:** Yerel derleme ortamı, `dotnet build` tarafından üretilen
+`src/Metraj.Infrastructure/obj/**/Metraj.Infrastructure.dll` dosyasını
+**okunamaz** hâle getiriyor. MSBuild bu yüzden obj → bin kopyalamasında
+`error MSB3021 ... Access to the path ... is denied` veriyor ve test süiti
+çalıştırılamıyor.
+
+**Tespit edilenler (hepsi denendi):**
+- Dosyanın ACL'leri normal; sahibi mevcut kullanıcı, Authenticated Users için
+  Modify izni var.
+- Dosya **yazmak için açılabiliyor** (paylaşımsız, exclusive) ama
+  **okunamıyor**. Bu, başka bir sürecin tuttuğu bir kilit OLMADIĞINI gösterir.
+- Restart Manager dosyayı tutan bir süreç bulamıyor.
+- `dotnet`, `VBCSCompiler`, `MSBuild`, `testhost` süreçleri öldürüldü; obj/bin
+  tamamen silindi; `MSBUILDDISABLENODEREUSE=1`, `UseSharedCompilation=false`,
+  `-m:1`, `--no-build`, `-c Release` denendi. Hiçbiri çözmedi.
+- Windows Defender gerçek zamanlı koruma **kapalı**; disk alanı yeterli (D: 204 GB).
+- Aynı kaynak, sorun başlamadan hemen önce **iki kez sorunsuz derlendi**. Yani
+  kod içeriğiyle ilgili değil; ortam sonradan bu duruma girdi.
+
+**Muhtemel neden:** Makinedeki sandbox/EDR katmanı (ACL'lerde
+`CodexSandboxUsers` grubu görünüyor) yeni üretilen ikiliyi okumaya karşı
+engelliyor.
+
+**Önerilen çözüm sırası:**
+1. Makineyi yeniden başlat (veya güvenlik ajanını yeniden başlat).
+2. `dotnet test Metraj.sln` çalıştır.
+3. Yeşilse `119ee4d` commit'i doğrulanmış olur ve T2 kaldığı yerden sürer.
+4. Hâlâ kırmızıysa, `src/Metraj.Infrastructure` klasörünü güvenlik yazılımının
+   istisna listesine eklemeyi dene.
+
+**Etkilenen commit:** `119ee4d` (T2-2, T2-7) — derlendi ama test edilemedi.
+Ondan önceki bütün commit'ler **101 test yeşil** durumda doğrulanmıştı
+(`01c059b`).
