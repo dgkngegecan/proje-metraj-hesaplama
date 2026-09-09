@@ -266,38 +266,50 @@ uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 
 ---
 
-## ⛔ ORTAM ENGELİ — sonraki oturumun İLK işi
+## ⛔ ORTAM ENGELİ — Kaspersky yanlış pozitifi (sonraki oturumun İLK işi)
 
-**Durum:** Yerel derleme ortamı, `dotnet build` tarafından üretilen
-`src/Metraj.Infrastructure/obj/**/Metraj.Infrastructure.dll` dosyasını
-**okunamaz** hâle getiriyor. MSBuild bu yüzden obj → bin kopyalamasında
-`error MSB3021 ... Access to the path ... is denied` veriyor ve test süiti
-çalıştırılamıyor.
+**Kök neden bulundu:** Makinede **Kaspersky** kurulu ve etkin (Windows Defender
+bu yüzden devre dışı). Kaspersky, derlenen `Metraj.Infrastructure.dll`
+dosyasını **yanlış pozitif olarak karantinaya alıyor**.
 
-**Tespit edilenler (hepsi denendi):**
-- Dosyanın ACL'leri normal; sahibi mevcut kullanıcı, Authenticated Users için
-  Modify izni var.
-- Dosya **yazmak için açılabiliyor** (paylaşımsız, exclusive) ama
-  **okunamıyor**. Bu, başka bir sürecin tuttuğu bir kilit OLMADIĞINI gösterir.
-- Restart Manager dosyayı tutan bir süreç bulamıyor.
-- `dotnet`, `VBCSCompiler`, `MSBuild`, `testhost` süreçleri öldürüldü; obj/bin
-  tamamen silindi; `MSBUILDDISABLENODEREUSE=1`, `UseSharedCompilation=false`,
-  `-m:1`, `--no-build`, `-c Release` denendi. Hiçbiri çözmedi.
-- Windows Defender gerçek zamanlı koruma **kapalı**; disk alanı yeterli (D: 204 GB).
-- Aynı kaynak, sorun başlamadan hemen önce **iki kez sorunsuz derlendi**. Yani
-  kod içeriğiyle ilgili değil; ortam sonradan bu duruma girdi.
+**Kanıt zinciri:**
+- `Get-CimInstance root/SecurityCenter2 AntiVirusProduct` → Kaspersky etkin.
+- Derleme başarılı olduktan sonra bile
+  `src/Metraj.Infrastructure/bin/Debug/net10.0/Metraj.Infrastructure.dll`
+  **dosyası ortadan kayboluyor** (silinmiş/karantinaya alınmış).
+- `obj` altındaki kopya **yazmak için açılabiliyor ama okunamıyor** — bu, bir
+  süreç kilidi değil, çekirdek seviyesinde bir filtre sürücüsü davranışıdır.
+- Restart Manager dosyayı tutan hiçbir süreç bulamıyor.
+- Test barındırıcısı `FileNotFoundException: Could not load file or assembly
+  'Metraj.Infrastructure'` veriyor (104 testin 82'si bu yüzden düşüyor).
+- **Aynı kaynak bu oturumun başında 101 test yeşil geçti.** Ayrıca doğrulanmış
+  `01c059b` commit'i, farklı bir yola açılan temiz bir `git worktree` içinde de
+  artık derlenemiyor. Yani sorun kodda değil.
+- Küçük projeler (Domain, Application) sorunsuz derleniyor; yalnızca ~500 KB'lık,
+  SQLite yerel birlikte çalışma ve Office/PDF kitaplıkları içeren
+  Infrastructure derlemesi hedef alınıyor.
+- Dosya bazen ~3 dakika sonra serbest bırakılıyor, sonra yeniden kilitleniyor.
 
-**Muhtemel neden:** Makinedeki sandbox/EDR katmanı (ACL'lerde
-`CodexSandboxUsers` grubu görünüyor) yeni üretilen ikiliyi okumaya karşı
-engelliyor.
+**Çözüm (kullanıcının yapması gerekir — güvenlik ayarı):**
+1. Kaspersky → Ayarlar → Tehditler ve İstisnalar → **İstisnaları yönet**
+2. Şu klasörü güvenilir listeye ekle:
+   `D:\github_repo\proje-metraj-hesaplama`
+   (en azından `src\**in`, `src\**\obj`, `tests\**in`, `tests\**\obj`)
+3. Ayrıca "Güvenilir uygulamalar"a `dotnet.exe` eklenebilir.
+4. Karantinadan `Metraj.Infrastructure.dll` geri yüklenmeli
+   (Kaspersky → Karantina).
+5. Sonra: `dotnet test Metraj.sln`
 
-**Önerilen çözüm sırası:**
-1. Makineyi yeniden başlat (veya güvenlik ajanını yeniden başlat).
-2. `dotnet test Metraj.sln` çalıştır.
-3. Yeşilse `119ee4d` commit'i doğrulanmış olur ve T2 kaldığı yerden sürer.
-4. Hâlâ kırmızıysa, `src/Metraj.Infrastructure` klasörünü güvenlik yazılımının
-   istisna listesine eklemeyi dene.
+**Geçici çözüm (istisna eklenemiyorsa):** Derleme başarılı olana kadar
+tekrar dene, sonra ~3 dakika bekleyip `dotnet test --no-build` çalıştır.
+Bu oturumda derleme bu yolla başarıldı ama testler yine karantina yüzünden
+çalışmadı.
 
-**Etkilenen commit:** `119ee4d` (T2-2, T2-7) — derlendi ama test edilemedi.
-Ondan önceki bütün commit'ler **101 test yeşil** durumda doğrulanmıştı
-(`01c059b`).
+**Doğrulama durumu:**
+- `01c059b` ve öncesi: **101 test yeşil** (bu oturumda doğrulandı).
+- `119ee4d` (T2-2, T2-7): **derlendi, test edilemedi.** Yeniden doğrulanmalı.
+- Frontend: `npm run build` **çalışıyor** (Kaspersky etkilemiyor).
+
+**Not:** Bu oturumda yapılan bir temizlik komutu (`Get-ChildItem -Include obj,bin
+-Recurse`) yanlışlıkla `src/Metraj.Web/node_modules/*/bin` klasörlerini de
+sildi; `npm ci` ile geri yüklendi ve frontend derlemesi doğrulandı.
