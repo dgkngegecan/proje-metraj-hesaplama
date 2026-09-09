@@ -20,14 +20,14 @@ oturum tam olarak nerede kalındığını görebilir.
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
 | T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
-| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 12/18 tamam (son 2'si test edilemedi) | aşağıda |
+| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 12/18 tamam | aşağıda |
 | T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
 | T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 101 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 104 başarılı, 0 başarısız.**
 
 ---
 
@@ -246,13 +246,13 @@ uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 | # | Madde | Not |
 |---|---|---|
 | T2-1 | Özet ile hesap önerisi farklı politika çözüyor | ✅ `b921b4a` — `ResolveEffectiveCard` |
-| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | ⚠️ `119ee4d` — `ReadSnapshotScope` (test EDİLEMEDİ) |
+| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | ✅ `119ee4d` — `ReadSnapshotScope` |
 | T2-8 | Ham container parametresi doğrulanıyor | ✅ `8e6cc2a` — `ResolveContentAsync` |
 | T2-9 | Kural hash'i işletim sistemi diline göre değişiyor | ✅ `8e6cc2a` — InvariantCulture |
 | T2-10 | Katalog hash'i taslağı hash'liyor | ✅ `8e6cc2a` — çözülmüş içerik + sıralı kanonik biçim |
 | T2-4 | Geri yükleme sırasında bakım sınırı yok | |
 | T2-5 | Geri yükleme kendi kaynağını budayabilir | ✅ `01c059b` |
-| T2-7 | Sorumluluk benzersiz indeksi garanti vermiyor | ⚠️ `119ee4d` — filtreli indeksler (test EDİLEMEDİ) |
+| T2-7 | Sorumluluk benzersiz indeksi garanti vermiyor | ✅ `119ee4d` — filtreli indeksler |
 | T2-6 | Yeni/yükseltilmiş şema ayrışabiliyor | |
 | T2-13 | Tek-örnek kilidi "oluşturuldu"yu "alındı" sanıyor | ✅ `01c059b` |
 | T2-14 | Veritabanı sessizce geçici klasöre düşebiliyor | ✅ `01c059b` — mevcut veritabanı öncelikli |
@@ -305,9 +305,29 @@ tekrar dene, sonra ~3 dakika bekleyip `dotnet test --no-build` çalıştır.
 Bu oturumda derleme bu yolla başarıldı ama testler yine karantina yüzünden
 çalışmadı.
 
+**ÇALIŞAN GEÇİCİ YÖNTEM (istisna eklenene kadar bunu kullan):**
+
+```bash
+# 1) Derleme temiz olana kadar tekrar dene (Kaspersky ~90-120 sn tutuyor)
+for i in 1 2 3 4 5; do
+  n=$(dotnet build Metraj.sln --nologo -v q 2>&1 | grep -cE "error")
+  [ "$n" = "0" ] && break
+  sleep 90
+done
+
+# 2) Test ikilileri serbest kalana kadar bekle (~6-7 dakika sürebilir)
+P="tests/Metraj.Tests/bin/Debug/net10.0/Metraj.Infrastructure.dll"
+until head -c 2 "$P" > /dev/null 2>&1; do sleep 45; done
+
+# 3) YENIDEN DERLEMEDEN test et
+dotnet test Metraj.sln --nologo --no-build
+```
+
+Bu yöntemle **104 test yeşil** doğrulandı.
+
 **Doğrulama durumu:**
-- `01c059b` ve öncesi: **101 test yeşil** (bu oturumda doğrulandı).
-- `119ee4d` (T2-2, T2-7): **derlendi, test edilemedi.** Yeniden doğrulanmalı.
+- `01c059b` ve öncesi: **101 test yeşil**.
+- `119ee4d` (T2-2, T2-7): **104 test yeşil** — doğrulandı.
 - Frontend: `npm run build` **çalışıyor** (Kaspersky etkilemiyor).
 
 **Not:** Bu oturumda yapılan bir temizlik komutu (`Get-ChildItem -Include obj,bin
