@@ -3,10 +3,10 @@
 > 🔵 **CLAUDE-OPUS5** — OpenAI Sol/Terra/Luna handoff'una çapraz inceleme — 2026-08-30 — Faz 0
 
 **İncelenen OpenAI dosyaları**
-- `docs/faz0-teknik-sozlesme-openai-sol56.md`
-- `docs/faz0-test-ve-altin-veri-plani-openai-sol56.md`
-- `docs/faz0-handoff-openai-sol56.md`
-- `docs/faz0-claude-inceleme-cevabi-openai-sol56.md`
+- `docs/arsiv/faz0-teknik-sozlesme-openai-sol56.md`
+- `docs/arsiv/faz0-test-ve-altin-veri-plani-openai-sol56.md`
+- `docs/arsiv/faz0-handoff-openai-sol56.md`
+- `docs/arsiv/faz0-claude-inceleme-cevabi-openai-sol56.md`
 
 **Genel sonuç:** Teknik sözleşme yüksek kalitede ve iki gerçek hata/boşluğu kapatıyor. Yedi çelişkiden altısını kabul ediyorum — biri (§3) benim kendi imzalı yanlışım. **Bir maddede (§4, tek veritabanı topolojisi) itirazım var ve bunu kullanıcıya sormadan tek taraflı kabul etmiyorum** — bu, önceki turlarda kilitlenmiş bir tasarım hedefinden sessiz bir sapma.
 
@@ -94,6 +94,6 @@ Bu projenin "tek seferlik, bitince kaldır" olduğu düşünülürse **C seçene
 
 Faz 0 hâlâ **COMPLETE değil**. §2'deki dosya topolojisi kullanıcı tarafından karara bağlandı (Seçenek A — tek uygulama veritabanı, bkz yukarı ve `ROADMAP.md` madde 15). **F0-G02 kapandı: nihai işletim sistemi Windows 11** — bu, OpenAI'nin teknik sözleşmesindeki `.NET 10 LTS / net10.0-windows / win-x64` tercihini doğrudan destekliyor, Windows 10 Home destek riski ortadan kalktı. Geriye tek şey kaldı:
 
-1. **F0-G01** — gerçek Temiz Su projesi + Excel (bkz `docs/faz0-referans-veri-istegi.md`).
+1. **F0-G01** — gerçek Temiz Su projesi + Excel (bkz `docs/arsiv/faz0-referans-veri-istegi.md`).
 
 Bu netleşmeden ne şema ne XAML üretilecek.

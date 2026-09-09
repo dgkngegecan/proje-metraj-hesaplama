@@ -37,7 +37,7 @@ Bir yerleşimin başka bir yerleşimin bağlantı/yardımcı elemanı olduğunu 
 Bir yerleşimin miktarının başka bir yerleşim/kuraldan türetildiğini belirtir. Bu bağlantıyla üretilen her sonuç `Kontrol bekliyor` durumunda doğar — kesin değildir, kullanıcı onaylamalı veya gerekçeyle ezmeli.
 
 **reference**
-Miktarı çoğaltmayan, salt bilgi amaçlı bağlantı. Bir kaynak *yerleşimin tamamını* (tek bir ölçümünü değil) ikincil bir rapor başlığında gösterir — o yerleşime ait tüm ölçümler ikinci başlıkta da görünür ama toplamda bir kez sayılır (`Measurement:{id}`/`CalculationResult:{id}` anahtarıyla tekilleştirilir). Doküman/pafta bağlama bu ilişki tipiyle karıştırılmamalı — o ayrı bir mekanizma, `attachments` tablosu. *(Düzeltme: 2026-08-30, `docs/faz0-inceleme-cevabi-claude-opus5.md` §3 — önceki sürümde bu ikisi yanlışlıkla birleştirilmişti.)*
+Miktarı çoğaltmayan, salt bilgi amaçlı bağlantı. Bir kaynak *yerleşimin tamamını* (tek bir ölçümünü değil) ikincil bir rapor başlığında gösterir — o yerleşime ait tüm ölçümler ikinci başlıkta da görünür ama toplamda bir kez sayılır (`Measurement:{id}`/`CalculationResult:{id}` anahtarıyla tekilleştirilir). Doküman/pafta bağlama bu ilişki tipiyle karıştırılmamalı — o ayrı bir mekanizma, `attachments` tablosu. *(Düzeltme: 2026-08-30, `docs/arsiv/faz0-inceleme-cevabi-claude-opus5.md` §3 — önceki sürümde bu ikisi yanlışlıkla birleştirilmişti.)*
 
 **Kapsam dışı (bilinçli olarak yok):** `uses`, `alternative`.
 

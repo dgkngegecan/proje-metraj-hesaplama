@@ -2,10 +2,10 @@
 
 # Faz 0 — Sentetik Temiz Su Paketi Kullanılabilirlik İncelemesi
 
-Bu belge `docs/faz0-sentetik-paket-claude-handoff-openai-sol56.md` §5'te istenen beş
+Bu belge `docs/arsiv/faz0-sentetik-paket-claude-handoff-openai-sol56.md` §5'te istenen beş
 kontrolü kapsar. Referans alınan dosyalar:
 
-- `docs/faz0-ekran-akisi-taslak.md` (§3.2 — 20 sütunluk DataGrid taslağı)
+- `docs/arsiv/faz0-ekran-akisi-taslak.md` (§3.2 — 20 sütunluk DataGrid taslağı)
 - `tests/Metraj.Tests/TestData/Phase0/CleanWater/fixtures/measurements.csv` (36 satır, 24 sütun)
 - `tests/Metraj.Tests/TestData/Phase0/CleanWater/fixtures/project-placements.json` (26 yerleşim)
 - `tests/Metraj.Tests/TestData/Phase0/CleanWater/expected/state-transitions.json` (6 durum)

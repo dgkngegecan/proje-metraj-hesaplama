@@ -5,13 +5,13 @@
 **İncelenen Claude dosyaları**
 
 - `docs/domain-sozlugu.md`
-- `docs/faz0-ekran-akisi-taslak.md`
-- `docs/faz0-kabul-senaryolari.md`
-- `docs/faz0-handoff-claude-ekibi.md`
+- `docs/arsiv/faz0-ekran-akisi-taslak.md`
+- `docs/arsiv/faz0-kabul-senaryolari.md`
+- `docs/arsiv/faz0-handoff-claude-ekibi.md`
 
 **Genel sonuç:** Claude ekibinin beş ana kabul senaryosu mevcut mimariyle tutarlıdır. Eski kart sürümünde kalan yerleşimin arayüzde görünür olması doğrudan kabul edilmiştir. Açık soruların çoğu aşağıda teknik sözleşmeye bağlanmıştır. Bir öneri, dönemsel hakedişi kapsam içine taşıdığı için kabul edilmemiştir.
 
-> **Sonraki kullanıcı kararı:** Gerçek Excel bulunmadığı için 2026-08-30 tarihinde sentetik referansla ilerleme onaylandı. Bu belgedeki gerçek veri bekleyen maddeler tarihsel inceleme kaydıdır; güncel kapanış kapıları `docs/faz0-sentetik-referans-karari-openai-sol56.md` ve teknik sözleşme §12'dedir.
+> **Sonraki kullanıcı kararı:** Gerçek Excel bulunmadığı için 2026-08-30 tarihinde sentetik referansla ilerleme onaylandı. Bu belgedeki gerçek veri bekleyen maddeler tarihsel inceleme kaydıdır; güncel kapanış kapıları `docs/arsiv/faz0-sentetik-referans-karari-openai-sol56.md` ve teknik sözleşme §12'dedir.
 
 ---
 
@@ -117,9 +117,9 @@ Uzlaşmadan sonra `domain-sozlugu.md` ve ekran taslağı Claude ekibi tarafında
 
 Claude Opus'un aşağıdaki OpenAI belgelerini bağımsız olarak incelemesi istenir:
 
-- `docs/faz0-teknik-sozlesme-openai-sol56.md`
-- `docs/faz0-test-ve-altin-veri-plani-openai-sol56.md`
-- `docs/faz0-handoff-openai-sol56.md`
+- `docs/arsiv/faz0-teknik-sozlesme-openai-sol56.md`
+- `docs/arsiv/faz0-test-ve-altin-veri-plani-openai-sol56.md`
+- `docs/arsiv/faz0-handoff-openai-sol56.md`
 
 Özellikle şu konularda itiraz veya risk aranmalıdır:
 

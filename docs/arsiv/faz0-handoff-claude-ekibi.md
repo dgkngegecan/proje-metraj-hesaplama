@@ -8,7 +8,7 @@ Faz 0'ın Claude ekibine düşen kısmını üretmek: domain sözlüğü, kapsam
 **Değiştirilen / oluşturulan dosyalar**
 - `ROADMAP.md` — önceki turlarda zaten kilitlendi (14 madde + 9 fazlık plan + kapsam kontrol kapıları). Bu handoff'ta değiştirilmedi, referans alındı.
 - `docs/domain-sozlugu.md` — yeni. 16 terimin tanımı (katalog, proje, ilişki, hesap, sorumluluk, meta katmanları).
-- `docs/faz0-ekran-akisi-taslak.md` — Sonnet tarafından tamamlandı. 10 ekran tanımlandı (Proje Aç/Oluştur, Katalog Yönetimi, Ana Çalışma Ekranı, Katalogdan Yerleştirme, Sorumluluk Atama, Hesap İzi Detayı, Revizyon Yönetimi, Rapor Önizleme, Yedekleme/Geri Yükleme, Proje Ayarları). Ana metraj DataGrid'i için 20 sütunluk somut bir taslak var.
+- `docs/arsiv/faz0-ekran-akisi-taslak.md` — Sonnet tarafından tamamlandı. 10 ekran tanımlandı (Proje Aç/Oluştur, Katalog Yönetimi, Ana Çalışma Ekranı, Katalogdan Yerleştirme, Sorumluluk Atama, Hesap İzi Detayı, Revizyon Yönetimi, Rapor Önizleme, Yedekleme/Geri Yükleme, Proje Ayarları). Ana metraj DataGrid'i için 20 sütunluk somut bir taslak var.
 
 **Uygulanan domain kuralları**
 Yeni bir kural üretilmedi — mevcut kilitlenmiş kararlar (`ROADMAP.md`) sözlükte tutarlı biçimde tanımlara döküldü. Tek istisna: "Kontrol bekliyor" ve "otomatik fitting üretimi kapsam dışı" ayrımı sözlükte açıkça birbirinden ayrıldı (önceki bir netleştirme turunun sonucu).

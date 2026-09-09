@@ -32,7 +32,7 @@ Kullanıcı, iki ekip incelemesini gördükten sonra 2026-08-30 tarihinde Faz 0 
 | Pending/Rejected/Stale/Superseded dışlama | Geçti | Geçti | Geçti |
 | Sorumluluk çözüm sırası | Geçti | Geçti | Geçti |
 
-Claude bağımsız kanıtı: `docs/faz0-sentetik-paket-inceleme-claude-opus5.md`. Claude kullanılabilirlik kanıtı: `docs/faz0-sentetik-paket-kullanilabilirlik-claude-sonnet5.md`.
+Claude bağımsız kanıtı: `docs/arsiv/faz0-sentetik-paket-inceleme-claude-opus5.md`. Claude kullanılabilirlik kanıtı: `docs/arsiv/faz0-sentetik-paket-kullanilabilirlik-claude-sonnet5.md`.
 
 ## 4. Kapanış kapıları
 
@@ -57,7 +57,7 @@ Claude bağımsız kanıtı: `docs/faz0-sentetik-paket-inceleme-claude-opus5.md`
 - Altı durum renk dışında desen, kenarlık, kısaltma ve tam metinle ayırt edilir.
 - Şaft ayrı çekirdek sütun değildir; kanıtlı ihtiyaç çıkarsa sabit alan olarak yeniden değerlendirilir.
 
-Bu kuralların kanonik ayrıntısı `docs/faz0-teknik-sozlesme-openai-sol56.md` §10.1'de yer alır.
+Bu kuralların kanonik ayrıntısı `docs/arsiv/faz0-teknik-sozlesme-openai-sol56.md` §10.1'de yer alır.
 
 ## 6. Kabul edilmiş artık riskler
 
@@ -82,7 +82,7 @@ Mevcut çalışma ağacındaki Faz 0 dosyaları Git tarafından henüz izlenmeme
 ## 8. Onay kaydı
 
 - **OpenAI ekibi:** Onaylandı — bu rapor.
-- **Claude ekibi:** Onaylandı — `docs/faz0-kapanis-raporu.md`.
+- **Claude ekibi:** Onaylandı — `docs/arsiv/faz0-kapanis-raporu.md`.
 - **Kullanıcı/proje yöneticisi:** Onaylandı — 2026-08-30.
 
 ## 9. Son kapanış kontrolü

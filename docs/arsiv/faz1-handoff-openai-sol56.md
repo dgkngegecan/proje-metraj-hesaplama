@@ -23,8 +23,8 @@
 - `SQLitePCLRaw.lib.e_sqlite3` 2.1.13’e doğrudan sabitlendi; 2.1.11 güvenlik uyarısı nedeniyle kullanılmıyor.
 - `CommunityToolkit.Mvvm` 8.4.0 WPF shell’de kaynak üretici tabanlı ViewModel için kullanıldı.
 - EF Core SQLite’ın varsayılan decimal saklama davranışı kabul edilmedi; Faz 2’de açık ölçekli `decimal → INTEGER` converter zorunlu.
-- Rapor paketleri kesinleştirildi: PDF için PDFsharp + MigraDoc, Excel için ClosedXML. QuestPDF ve EPPlus lisans takip riski nedeniyle kullanılmayacak. Ayrıntı: `docs/faz1-lisans-ve-paket-karari-openai-sol56.md`.
-- Rapor paketleri kesinleştirildi: PDF için PDFsharp + MigraDoc, Excel için ClosedXML. QuestPDF ve EPPlus lisans takip riski nedeniyle kullanılmayacak. Ayrıntı: `docs/faz1-lisans-ve-paket-karari-openai-sol56.md`.
+- Rapor paketleri kesinleştirildi: PDF için PDFsharp + MigraDoc, Excel için ClosedXML. QuestPDF ve EPPlus lisans takip riski nedeniyle kullanılmayacak. Ayrıntı: `docs/arsiv/faz1-lisans-ve-paket-karari-openai-sol56.md`.
+- Rapor paketleri kesinleştirildi: PDF için PDFsharp + MigraDoc, Excel için ClosedXML. QuestPDF ve EPPlus lisans takip riski nedeniyle kullanılmayacak. Ayrıntı: `docs/arsiv/faz1-lisans-ve-paket-karari-openai-sol56.md`.
 
 ## 3. Doğrulama sonucu
 

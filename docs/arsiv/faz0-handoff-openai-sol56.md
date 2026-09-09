@@ -28,12 +28,12 @@
 
 ## 2. Oluşturulan OpenAI dosyaları
 
-- `docs/faz0-teknik-sozlesme-openai-sol56.md`
-- `docs/faz0-test-ve-altin-veri-plani-openai-sol56.md`
-- `docs/faz0-claude-inceleme-cevabi-openai-sol56.md`
-- `docs/faz0-handoff-openai-sol56.md`
-- `docs/faz0-sentetik-referans-karari-openai-sol56.md`
-- `docs/faz0-sentetik-paket-claude-handoff-openai-sol56.md`
+- `docs/arsiv/faz0-teknik-sozlesme-openai-sol56.md`
+- `docs/arsiv/faz0-test-ve-altin-veri-plani-openai-sol56.md`
+- `docs/arsiv/faz0-claude-inceleme-cevabi-openai-sol56.md`
+- `docs/arsiv/faz0-handoff-openai-sol56.md`
+- `docs/arsiv/faz0-sentetik-referans-karari-openai-sol56.md`
+- `docs/arsiv/faz0-sentetik-paket-claude-handoff-openai-sol56.md`
 - `tests/Metraj.Tests/TestData/Phase0/CleanWater/` altındaki sentetik fixture/expected paketi
 
 Claude ekibine ait hiçbir `.md` dosyası değiştirilmedi.
@@ -118,4 +118,4 @@ Bu hesaplar test sözleşmesini doğrular; gerçek altın veri yerine geçmez.
 - Faz 1'e, kullanıcı başlatma talimatı verdiğinde çözüm iskeleti ve kalite altyapısıyla başlanır.
 - İlk teknik önkoşul Windows 11 x64 geliştirme ortamında .NET 10 SDK'nın kurulup `dotnet --info` ile doğrulanmasıdır.
 - Kullanılabilirlik incelemesinden çıkan kurallar Faz 2 domain/read-model ve Faz 4 DataGrid kabul testlerine izlenebilir gereksinim olarak taşınır.
-- Nihai OpenAI kapanış kanıtı: `docs/faz0-bitis-raporu-openai-sol56.md`.
+- Nihai OpenAI kapanış kanıtı: `docs/arsiv/faz0-bitis-raporu-openai-sol56.md`.

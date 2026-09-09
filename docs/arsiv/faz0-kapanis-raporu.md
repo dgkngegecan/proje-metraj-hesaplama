@@ -2,7 +2,7 @@
 
 > 🔵 **CLAUDE-OPUS5** — Claude ekibi adına konsolide kapanış onayı — 2026-08-30 — Faz 0
 
-**Durum: KAPANDI — GO for Faz 1.** Aşağıdaki gerekçeyle: tüm kapanış kapıları ya tam kapalı ya da bilinçli olarak "gerçek veri gelene kadar geçici kabul" statüsünde, hiçbiri ilerlemeyi bloke etmiyor — bu, `docs/faz0-sentetik-referans-karari-openai-sol56.md`'de zaten kabul edilen ilkeyle tutarlı.
+**Durum: KAPANDI — GO for Faz 1.** Aşağıdaki gerekçeyle: tüm kapanış kapıları ya tam kapalı ya da bilinçli olarak "gerçek veri gelene kadar geçici kabul" statüsünde, hiçbiri ilerlemeyi bloke etmiyor — bu, `docs/arsiv/faz0-sentetik-referans-karari-openai-sol56.md`'de zaten kabul edilen ilkeyle tutarlı.
 
 ---
 
@@ -10,22 +10,22 @@
 
 ### Claude ekibi
 - `docs/domain-sozlugu.md` — domain sözlüğü (16 terim, sonradan 1 düzeltme)
-- `docs/faz0-ekran-akisi-taslak.md` — 10 ekranlık taslak (Sonnet)
-- `docs/faz0-kabul-senaryolari.md` — 7 kabul senaryosu, gerçek sayılarla yürütüldü
-- `docs/faz0-handoff-claude-ekibi.md` — ilk handoff
-- `docs/faz0-referans-veri-istegi.md` — F0-G01 talebi (tarihsel; sonra sentetik veriye evrildi)
-- `docs/faz0-inceleme-cevabi-claude-opus5.md` — OpenAI teknik sözleşmesinin çapraz incelemesi
-- `docs/faz0-sentetik-paket-inceleme-claude-opus5.md` — sentetik paketin bağımsız hesap doğrulaması
-- `docs/faz0-sentetik-paket-kullanilabilirlik-claude-sonnet5.md` — kullanılabilirlik incelemesi (Sonnet)
-- `docs/faz0-kapanis-raporu.md` — bu belge
+- `docs/arsiv/faz0-ekran-akisi-taslak.md` — 10 ekranlık taslak (Sonnet)
+- `docs/arsiv/faz0-kabul-senaryolari.md` — 7 kabul senaryosu, gerçek sayılarla yürütüldü
+- `docs/arsiv/faz0-handoff-claude-ekibi.md` — ilk handoff
+- `docs/arsiv/faz0-referans-veri-istegi.md` — F0-G01 talebi (tarihsel; sonra sentetik veriye evrildi)
+- `docs/arsiv/faz0-inceleme-cevabi-claude-opus5.md` — OpenAI teknik sözleşmesinin çapraz incelemesi
+- `docs/arsiv/faz0-sentetik-paket-inceleme-claude-opus5.md` — sentetik paketin bağımsız hesap doğrulaması
+- `docs/arsiv/faz0-sentetik-paket-kullanilabilirlik-claude-sonnet5.md` — kullanılabilirlik incelemesi (Sonnet)
+- `docs/arsiv/faz0-kapanis-raporu.md` — bu belge
 
 ### OpenAI ekibi
-- `docs/faz0-handoff-openai-sol56.md`
-- `docs/faz0-teknik-sozlesme-openai-sol56.md`
-- `docs/faz0-test-ve-altin-veri-plani-openai-sol56.md`
-- `docs/faz0-claude-inceleme-cevabi-openai-sol56.md`
-- `docs/faz0-sentetik-referans-karari-openai-sol56.md`
-- `docs/faz0-sentetik-paket-claude-handoff-openai-sol56.md`
+- `docs/arsiv/faz0-handoff-openai-sol56.md`
+- `docs/arsiv/faz0-teknik-sozlesme-openai-sol56.md`
+- `docs/arsiv/faz0-test-ve-altin-veri-plani-openai-sol56.md`
+- `docs/arsiv/faz0-claude-inceleme-cevabi-openai-sol56.md`
+- `docs/arsiv/faz0-sentetik-referans-karari-openai-sol56.md`
+- `docs/arsiv/faz0-sentetik-paket-claude-handoff-openai-sol56.md`
 - `tests/Metraj.Tests/TestData/Phase0/CleanWater/` — manifest, provenance, 5 fixture + 7 expected dosyası (12 JSON/CSV)
 
 ## 2. Kilitlenen mimari kararlar
@@ -43,7 +43,7 @@
 | F0-V03 | Tek kanonik domain sözleşmesi üzerinde Claude/OpenAI uzlaşması | **Kapalı** — 7 çelişkiden 6'sı kabul, 1'i (dosya topolojisi) kullanıcı kararıyla çözüldü |
 | F0-V04 | Performans eşiklerinin kesinleştirilmesi | **Açık, bilinçli olarak taşınıyor** — geçici benchmark, gerçek proje hacmiyle kesinleşecek |
 
-İki "açık" kapı bloke edici değil — ikisi de doğası gereği gerçek veri/donanım olmadan kapatılamaz ve `docs/faz0-sentetik-referans-karari-openai-sol56.md`'de zaten bu şekilde kabul edilmişti.
+İki "açık" kapı bloke edici değil — ikisi de doğası gereği gerçek veri/donanım olmadan kapatılamaz ve `docs/arsiv/faz0-sentetik-referans-karari-openai-sol56.md`'de zaten bu şekilde kabul edilmişti.
 
 ## 4. Bağımsız doğrulama özeti
 

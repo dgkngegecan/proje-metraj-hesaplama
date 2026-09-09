@@ -2,7 +2,7 @@
 
 > 🔵 **CLAUDE-OPUS5** — destek görevi (Faz 1 RACI) — 2026-08-30 — Faz 1
 
-Kod yazılmadan önce, teknik sözleşmede (`docs/faz0-teknik-sozlesme-openai-sol56.md` §13) "doğrulanacak" diye işaretlenen kütüphane kararlarını lisans/uygunluk açısından inceledim. Güncel lisans bilgisi web aramasıyla doğrulandı (2026-08-30).
+Kod yazılmadan önce, teknik sözleşmede (`docs/arsiv/faz0-teknik-sozlesme-openai-sol56.md` §13) "doğrulanacak" diye işaretlenen kütüphane kararlarını lisans/uygunluk açısından inceledim. Güncel lisans bilgisi web aramasıyla doğrulandı (2026-08-30).
 
 ## 1. PDF kütüphanesi
 

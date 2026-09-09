@@ -3,7 +3,7 @@
 > 🟢 **OPENAI-SOL56** — teknik lider; Terra 5.6 teknik incelemesi ve Luna 5.6 test incelemesi birleştirilmiştir — 2026-08-30 — Faz 0
 
 **Durum:** `PHASE0 COMPLETE — USER APPROVED`  
-**Dayanak:** `ROADMAP.md`, `docs/domain-sozlugu.md`, `docs/faz0-ekran-akisi-taslak.md`, `docs/faz0-kabul-senaryolari.md` ve `docs/faz0-handoff-claude-ekibi.md` birlikte incelenmiştir.  
+**Dayanak:** `ROADMAP.md`, `docs/domain-sozlugu.md`, `docs/arsiv/faz0-ekran-akisi-taslak.md`, `docs/arsiv/faz0-kabul-senaryolari.md` ve `docs/arsiv/faz0-handoff-claude-ekibi.md` birlikte incelenmiştir.  
 **Amaç:** Faz 1 başlamadan önce uygulamanın teknik ve hesaplama sözleşmesini test edilebilir biçimde dondurmak. Bu belge yeni bir ürün yol haritası açmaz.
 
 ---

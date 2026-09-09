@@ -40,6 +40,6 @@ Bu paket; kart/yerleşim ayrımı, ölçüm bağlamı, fire, standart boy, paket
 - İlk üretim: `OPENAI-LUNA56`
 - Entegrasyon ve aritmetik kontrol: `OPENAI-SOL56`
 - Bağımsız ikinci hesap: `CLAUDE-OPUS5` — 2026-08-30 tarihinde tamamlandı; 12/12 hash, 13/13 hesap grubu ve 14/14 satın alma grubu eşleşti, aritmetik uyuşmazlık bulunmadı.
-- Bağımsız inceleme kanıtı: `docs/faz0-sentetik-paket-inceleme-claude-opus5.md`.
+- Bağımsız inceleme kanıtı: `docs/arsiv/faz0-sentetik-paket-inceleme-claude-opus5.md`.
 - Kullanıcı yönetici onayıyla manifest durumu `PHASE0_COMPLETE` olarak kapatıldı; resmî doğrulama etiketi değişmedi: `SYNTHETIC-VALIDATED / REAL-DATA-NOT-VALIDATED`.
 - Fixture/expected dosyalarının SHA-256 değerleri OpenAI doğrulamasından sonra `manifest.json` içine pinlenmiştir. Claude doğrulaması dosyaları değiştirmeden bu hash'ler üzerinden yapılmalıdır; değişiklik gerekirse paket sürümü artırılır ve hash'ler yeniden üretilir.

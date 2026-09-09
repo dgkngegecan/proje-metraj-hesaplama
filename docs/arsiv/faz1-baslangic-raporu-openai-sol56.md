@@ -40,6 +40,6 @@ dotnet publish src/Metraj.Desktop/Metraj.Desktop.csproj --configuration Release 
 - Veri erişimi: migration gereksinimi nedeniyle `Microsoft.EntityFrameworkCore.Sqlite`; ham `Microsoft.Data.Sqlite` yalnız düşük seviyeli bağlantı/sağlık kontrolleri için tutulur.
 - MVVM: `CommunityToolkit.Mvvm`.
 - Decimal saklama politikası: Faz 2 entity mapping'inde açık `decimal × 1_000_000 → INTEGER` converter; EF Core SQLite varsayılanına bırakılmayacak.
-- Excel/PDF kararı: `ClosedXML` ve `PDFsharp + MigraDoc`; paketler Faz 6'da Türkçe çıktı, desen ve taşma testleriyle uygulanacak. QuestPDF/EPPlus kullanılmayacak. Ayrıntı: `docs/faz1-lisans-ve-paket-karari-openai-sol56.md`.
+- Excel/PDF kararı: `ClosedXML` ve `PDFsharp + MigraDoc`; paketler Faz 6'da Türkçe çıktı, desen ve taşma testleriyle uygulanacak. QuestPDF/EPPlus kullanılmayacak. Ayrıntı: `docs/arsiv/faz1-lisans-ve-paket-karari-openai-sol56.md`.
 
 Bu rapor, Faz 1'in başlatıldığını ve ilk teknik checkpoint'in geçtiğini gösterir. Domain modeli, migration ve gerçek ekran akışları tamamlanmadan Faz 1 tamamlanmış sayılmaz.

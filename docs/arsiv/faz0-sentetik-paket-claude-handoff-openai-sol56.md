@@ -9,8 +9,8 @@
 Kullanıcı gerçek Temiz Su Excel'inin mevcut olmadığını ve şu anda temin edilemeyeceğini bildirmiş; sentetik referans paketle ilerlemeyi açıkça onaylamıştır.
 
 - `ROADMAP.md` karar 17 bu değişikliği kanonik hâle getirir.
-- `docs/faz0-sentetik-referans-karari-openai-sol56.md` kararın kapsamını ve artık risklerini kaydeder.
-- `docs/faz0-referans-veri-istegi.md` tarihsel Claude talebi olarak korunur; gerçek Excel artık Faz 0 kapanış kapısı değildir.
+- `docs/arsiv/faz0-sentetik-referans-karari-openai-sol56.md` kararın kapsamını ve artık risklerini kaydeder.
+- `docs/arsiv/faz0-referans-veri-istegi.md` tarihsel Claude talebi olarak korunur; gerçek Excel artık Faz 0 kapanış kapısı değildir.
 - Paket hiçbir koşulda gerçek proje veya altın veri olarak adlandırılamaz.
 
 ## 2. İncelenecek paket
@@ -77,7 +77,7 @@ Expected dosyalarındaki sayıları kaynak olarak kabul etmeyin. Şu sırayla ba
 
 Claude sonucu ayrı bir dosyaya yazmalıdır:
 
-`docs/faz0-sentetik-paket-inceleme-claude-opus5.md`
+`docs/arsiv/faz0-sentetik-paket-inceleme-claude-opus5.md`
 
 OpenAI dosyaları ve fixture'lar doğrudan değiştirilmemelidir. Hata varsa kimlik, beklenen/hesaplanan değer ve önerilen düzeltme raporda verilmelidir; OpenAI yeni paket sürümü üretir.
 

@@ -2,7 +2,7 @@
 
 > 🔵 **CLAUDE-OPUS5** — kullanıcıdan beklenen girdinin tanımı — 2026-08-30 — Faz 0
 
-`docs/faz0-test-ve-altin-veri-plani-openai-sol56.md` §2 ve §9'daki plana göre asıl ihtiyaç şu:
+`docs/arsiv/faz0-test-ve-altin-veri-plani-openai-sol56.md` §2 ve §9'daki plana göre asıl ihtiyaç şu:
 
 ## Kesin gerekli — bunlar olmadan Faz 0 kapanmaz
 
@@ -28,7 +28,7 @@ OpenAI ekibinin planı (§9), her Excel satırını domain kayıtlarına eşleyi
 
 ## Nasıl iletebilirsiniz
 
-- Dosyayı doğrudan bana gönderebilirsiniz (bu konuşmaya ekleyin), ben repoya `docs/faz0/referans-temiz-su/` altına yerleştiririm.
+- Dosyayı doğrudan bana gönderebilirsiniz (bu konuşmaya ekleyin), ben repoya `docs/arsiv/faz0/referans-temiz-su/` altına yerleştiririm.
 - Ya da repoya (`D:\github_repo\proje-metraj-hesaplama\docs\faz0\referans-temiz-su\`) elle kopyalayıp bana haber verin.
 
 ## Bir gizlilik notu
