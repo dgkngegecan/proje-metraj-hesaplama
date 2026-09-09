@@ -1,4 +1,4 @@
-using Metraj.Application;
+﻿using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.EntityFrameworkCore;
 
@@ -269,9 +269,27 @@ public sealed class ProjectWorkspaceService : IProjectWorkspace
         // Bu olmadan onaylı bir revizyonun fireli miktarları, aylar sonra yapılan
         // ilgisiz bir ayar değişikliğiyle birlikte değişiyordu ve "onaylanan sürüm
         // korunur" vaadi tutmuyordu.
-        revision.EffectivePolicyJson = await RevisionWastePolicy.CaptureAsync(context, cancellationToken);
+        string effectivePolicyJson = await RevisionWastePolicy.CaptureAsync(context, cancellationToken);
+        revision.EffectivePolicyJson = effectivePolicyJson;
+        // Durum geçişi KOŞULLU bir güncellemeyle yapılır: "taslak mı?" kontrolü ile
+        // yazma arasına giren ikinci bir onay isteği, ikisi de Draft görüp iki kez
+        // onaylayamaz. Etkilenen satır yoksa aradaki başka bir istek kazanmıştır.
+        DateTime approvedAtUtc = DateTime.UtcNow;
+        int changed = await context.ProjectRevisions
+            .Where(x => x.Id == revisionId && x.Status == ProjectRevisionStatus.Draft)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(x => x.Status, ProjectRevisionStatus.Approved)
+                .SetProperty(x => x.ApprovedAtUtc, approvedAtUtc)
+                .SetProperty(x => x.EffectivePolicyJson, effectivePolicyJson), cancellationToken);
+        if (changed == 0)
+        {
+            throw new DomainRuleViolationException(
+                "revision.read-only",
+                "Project revision is no longer a draft and cannot be changed.");
+        }
+
         revision.Status = ProjectRevisionStatus.Approved;
-        revision.ApprovedAtUtc = DateTime.UtcNow;
+        revision.ApprovedAtUtc = approvedAtUtc;
         context.AuditEntries.Add(new AuditEntry
         {
             Id = Guid.NewGuid(), ProjectRevisionId = revision.Id, EntityType = "ProjectRevision", EntityId = revision.Id,

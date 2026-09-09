@@ -16,11 +16,21 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
     private const int RetainedUserBackupCount = 20;
     private readonly Func<string> databasePathProvider;
     private readonly string backupDirectory;
+    private readonly ApplicationDatabaseGate? gate;
 
     /// <summary>Builds the service for a database path and its sibling backup directory.</summary>
-    public DatabaseMaintenanceWorkspaceService(Func<string> databasePathProvider, string? backupDirectory = null)
+    /// <param name="databasePathProvider">Uygulama veritabanının yolunu çözer.</param>
+    /// <param name="backupDirectory">Yedek klasörü; verilmezse veritabanının yanındaki "backups".</param>
+    /// <param name="gate">
+    /// Verildiğinde geri yükleme, devam eden bütün veritabanı işlemleri bitene
+    /// kadar bekler ve süresince yenilerini durdurur. Verilmezse (testler)
+    /// eski davranış korunur.
+    /// </param>
+    public DatabaseMaintenanceWorkspaceService(
+        Func<string> databasePathProvider, string? backupDirectory = null, ApplicationDatabaseGate? gate = null)
     {
         this.databasePathProvider = databasePathProvider ?? throw new ArgumentNullException(nameof(databasePathProvider));
+        this.gate = gate;
         string databasePath = GetDatabasePath();
         this.backupDirectory = backupDirectory ?? Path.Combine(Path.GetDirectoryName(databasePath)!, "backups");
     }
@@ -90,6 +100,11 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
     /// <inheritdoc />
     public async Task RestoreBackupAsync(string backupPath, CancellationToken cancellationToken = default)
     {
+        // Dosyanın üzerine yazarken hiçbir istek veritabanına dokunmamalı.
+        await using IAsyncDisposable? maintenance = gate is null
+            ? null
+            : await gate.EnterMaintenanceAsync(cancellationToken);
+
         string trustedBackupPath = ValidateBackupPath(backupPath);
         await VerifyDatabaseAsync(trustedBackupPath, cancellationToken);
         // Kimlik doğrulaması, güvenlik yedeği alınmadan ÖNCE yapılır: yanlış bir

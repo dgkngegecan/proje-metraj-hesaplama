@@ -40,6 +40,22 @@ public static class ApplicationSchemaMigrator
         ResponsibilityScopedIndexesVersion
     ];
 
+    /// <summary>
+    /// Göç sonrası bulunması beklenen indeksler. Yeni kurulan bir veritabanı ile
+    /// yükseltilmiş bir veritabanının aynı kısıtlara sahip olmasını güvence altına
+    /// alır; ikisi ayrıştığında sorgular kurulumdan kuruluma farklı davranır.
+    /// </summary>
+    public static IReadOnlyList<string> ExpectedIndexes { get; } =
+    [
+        "IX_CatalogCardDefinitions_Code",
+        "IX_CatalogCardTypeDefinitions_Code",
+        "IX_CatalogCardVersions_CatalogCardTypeDefinitionId",
+        "IX_MaterialTypeWasteSettings_MaterialType",
+        "IX_Projects_Code",
+        "IX_ResponsibilityAssignments_MeasurementScope",
+        "IX_ResponsibilityAssignments_PlacementScope"
+    ];
+
     /// <summary>Bir Metraj veritabanında bulunması zorunlu çekirdek tablolar.</summary>
     public static IReadOnlyList<string> RequiredTables { get; } =
     [
@@ -173,6 +189,15 @@ public static class ApplicationSchemaMigrator
         index.Transaction = transaction.GetDbTransaction();
         index.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_CatalogCardTypeDefinitions_Code\" ON \"CatalogCardTypeDefinitions\" (\"Code\");";
         await index.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+        // Yükseltme yolu bu ilişki indeksini oluşturmuyordu; yeni bir veritabanı
+        // EF modelinden ürettiği için ONDA vardı. Aynı uygulamanın iki kurulumu
+        // farklı indekslere sahip olabiliyor, sorgular farklı davranabiliyordu.
+        await using DbCommand relation = connection.CreateCommand();
+        relation.Transaction = transaction.GetDbTransaction();
+        relation.CommandText =
+            "CREATE INDEX IF NOT EXISTS \"IX_CatalogCardVersions_CatalogCardTypeDefinitionId\" ON \"CatalogCardVersions\" (\"CatalogCardTypeDefinitionId\");";
+        await relation.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task EnsureCatalogVariantProfilesAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)

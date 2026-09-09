@@ -52,8 +52,10 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
             ProjectRevisionId = revision.Id,
             CatalogCardVersionId = card.Id,
             ParentPlacementId = draft.ParentPlacementId,
-            DisplayNameOverride = string.IsNullOrWhiteSpace(draft.DisplayNameOverride) ? null : draft.DisplayNameOverride.Trim(),
-            ProcurementScope = string.IsNullOrWhiteSpace(draft.ProcurementScope) ? null : draft.ProcurementScope.Trim()
+            // Uzunluk kuralları güncelleme yolunda vardı ama oluşturma yolunda
+            // yoktu; aynı alan bir uçtan sınırsız, diğerinden sınırlı geçiyordu.
+            DisplayNameOverride = NormalizeOptional(draft.DisplayNameOverride, 256, "placement.display-name"),
+            ProcurementScope = NormalizeOptional(draft.ProcurementScope, 128, "placement.procurement-scope")
         };
         if (draft.ParentPlacementId is Guid parentId)
         {
@@ -139,9 +141,18 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
             SourcePlacementId = source.Id,
             TargetPlacementId = target.Id,
             LinkType = linkType,
-            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim()
+            Notes = NormalizeOptional(notes, 2_000, "link.notes")
         };
-        var existing = await context.PlacementLinks.AsNoTracking().ToListAsync(cancellationToken);
+        // Yalnızca BU revizyonun bağlantıları yüklenir. Önceden bütün projelerin
+        // bağlantıları belleğe alınıp üzerinde çevrim tespiti yapılıyordu; hem
+        // gereksiz bir yük hem de kapsam dışı bir karşılaştırmaydı.
+        Guid[] revisionPlacementIds = await context.ProjectPlacements.AsNoTracking()
+            .Where(x => x.ProjectRevisionId == revision.Id)
+            .Select(x => x.Id)
+            .ToArrayAsync(cancellationToken);
+        List<PlacementLink> existing = await context.PlacementLinks.AsNoTracking()
+            .Where(x => revisionPlacementIds.Contains(x.SourcePlacementId) || revisionPlacementIds.Contains(x.TargetPlacementId))
+            .ToListAsync(cancellationToken);
         ProjectTreeRules.EnsureLinkAllowed(link, source, target, existing);
         context.PlacementLinks.Add(link);
         await context.SaveChangesAsync(cancellationToken);

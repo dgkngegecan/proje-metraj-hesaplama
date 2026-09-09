@@ -444,7 +444,10 @@ public sealed class CatalogWorkspaceService : ICatalogWorkspace
     {
         string? raw = ResolveTextAttribute(values, key);
         if (raw is null) return null;
-        return Enum.TryParse(raw, ignoreCase: true, out TEnum parsed)
+        // TryParse tek başına yeterli değil: tanımsız bir sayısal değer ("5")
+        // de başarıyla ayrıştırılır ve numaralandırmada karşılığı olmayan bir
+        // değer kaydedilirdi.
+        return Enum.TryParse(raw, ignoreCase: true, out TEnum parsed) && Enum.IsDefined(parsed)
             ? parsed
             : throw new DomainRuleViolationException("catalog-type.attribute-enum", $"Attribute '{key}' has an unsupported value.");
     }

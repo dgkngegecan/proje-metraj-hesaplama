@@ -38,13 +38,23 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         builder.Services.Configure<JsonOptions>(json =>
         {
             json.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
-            json.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+            // allowIntegerValues: false -> numaralandırmalar yalnızca adlarıyla
+            // kabul edilir. Varsayılan davranış, karşılığı olmayan bir tam sayının
+            // (örn. 99) sessizce enum değeri olarak kaydedilmesine izin veriyordu.
+            json.SerializerOptions.Converters.Add(new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: false));
         });
         RegisterWorkspaceServices(builder.Services, databasePath);
 
         WebApplication app = builder.Build();
+        ApplicationDatabaseGate databaseGate = app.Services.GetRequiredService<ApplicationDatabaseGate>();
         app.Use(async (context, next) =>
         {
+            // Geri yükleme ucu bakım sınırını KENDİSİ alır; burada da bir yuva
+            // tutulsaydı kendi kendini bekleyip kilitlenirdi.
+            bool isMaintenanceRequest = context.Request.Path.StartsWithSegments("/api/database/backups/restore");
+            await using IAsyncDisposable? operation = isMaintenanceRequest
+                ? null
+                : await databaseGate.EnterOperationAsync(context.RequestAborted);
             try
             {
                 await next(context);
@@ -98,6 +108,8 @@ public sealed partial class LocalApiHost : IAsyncDisposable
 
     private static void RegisterWorkspaceServices(IServiceCollection services, string databasePath)
     {
+        // Bakım (geri yükleme) ile sıradan istekler arasındaki sınır.
+        services.AddSingleton<ApplicationDatabaseGate>();
         services.AddSingleton<IProjectWorkspace>(_ => new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<ICatalogWorkspace>(_ => new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<ICatalogCardTypeWorkspace>(_ => new CatalogCardTypeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
@@ -109,7 +121,9 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         services.AddSingleton<IProjectReportWorkspace>(_ => new ProjectReportWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<IMaterialTypeWasteWorkspace>(_ => new MaterialTypeWasteWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
         services.AddSingleton<IUiStateWorkspace>(_ => new UiStateWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IDatabaseMaintenanceWorkspace>(_ => new DatabaseMaintenanceWorkspaceService(() => databasePath));
+        services.AddSingleton<IDatabaseMaintenanceWorkspace>(provider =>
+            new DatabaseMaintenanceWorkspaceService(() => databasePath, backupDirectory: null,
+                provider.GetRequiredService<ApplicationDatabaseGate>()));
         services.AddSingleton<ISyntheticCleanWaterWorkspace>(_ => new SyntheticCleanWaterWorkspaceService(
             () => MetrajDbContextFactory.Create(databasePath), OpenSyntheticCleanWaterFixture));
     }

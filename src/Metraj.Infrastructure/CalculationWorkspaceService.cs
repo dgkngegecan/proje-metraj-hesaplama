@@ -192,8 +192,7 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
     public async Task ApproveAsync(Guid resultId, CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = contextFactory();
-        CalculationResult result = await LoadReviewableResultAsync(context, resultId, cancellationToken);
-        result.Status = CalculationResultStatus.Approved;
+        CalculationResult result = await ClaimReviewableResultAsync(context, resultId, CalculationResultStatus.Approved, cancellationToken);
         result.UsedQuantity = result.PurchaseQuantity;
         result.OverrideReason = null;
         await AddAuditAsync(context, result.ProjectRevisionId, "CalculationResult", result.Id, "calculation-result-approved",
@@ -207,8 +206,7 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
         QuantityRules.EnsureValid(usedQuantity, "manual purchase quantity");
         string normalizedReason = NormalizeReason(reason, "calculation.override-reason");
         await using MetrajDbContext context = contextFactory();
-        CalculationResult result = await LoadReviewableResultAsync(context, resultId, cancellationToken);
-        result.Status = CalculationResultStatus.Overridden;
+        CalculationResult result = await ClaimReviewableResultAsync(context, resultId, CalculationResultStatus.Overridden, cancellationToken);
         result.UsedQuantity = usedQuantity;
         result.OverrideReason = normalizedReason;
         await AddAuditAsync(context, result.ProjectRevisionId, "CalculationResult", result.Id, "calculation-result-overridden",
@@ -221,8 +219,7 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
     {
         string normalizedReason = NormalizeReason(reason, "calculation.reject-reason");
         await using MetrajDbContext context = contextFactory();
-        CalculationResult result = await LoadReviewableResultAsync(context, resultId, cancellationToken);
-        result.Status = CalculationResultStatus.Rejected;
+        CalculationResult result = await ClaimReviewableResultAsync(context, resultId, CalculationResultStatus.Rejected, cancellationToken);
         result.UsedQuantity = null;
         result.OverrideReason = normalizedReason;
         await AddAuditAsync(context, result.ProjectRevisionId, "CalculationResult", result.Id, "calculation-result-rejected",
@@ -295,17 +292,32 @@ public sealed class CalculationWorkspaceService : ICalculationWorkspace
         return new SourceSnapshot(quantity, measurements, sourceRows);
     }
 
-    private static async Task<CalculationResult> LoadReviewableResultAsync(MetrajDbContext context, Guid resultId, CancellationToken cancellationToken)
+    /// <summary>
+    /// İnceleme kararını atomik olarak uygular ve güncellenecek kaydı verir.
+    /// </summary>
+    /// <remarks>
+    /// Durum geçişi KOŞULLU bir güncellemeyle alınır: "kontrol bekliyor mu?"
+    /// kontrolü ile yazma arasına giren ikinci bir inceleme isteği, ikisi de
+    /// PendingReview görüp çelişkili kararlar yazamaz. Yalnızca geçişi kazanan
+    /// istek devam eder.
+    /// </remarks>
+    private static async Task<CalculationResult> ClaimReviewableResultAsync(
+        MetrajDbContext context, Guid resultId, CalculationResultStatus decision, CancellationToken cancellationToken)
     {
         CalculationResult result = await context.CalculationResults.SingleOrDefaultAsync(x => x.Id == resultId, cancellationToken)
             ?? throw new DomainRuleViolationException("calculation.result", "Calculation result was not found.");
         ProjectRevision revision = await context.ProjectRevisions.SingleAsync(x => x.Id == result.ProjectRevisionId, cancellationToken);
         ProjectRevisionRules.EnsureDraft(revision);
-        if (result.Status != CalculationResultStatus.PendingReview)
+
+        int claimed = await context.CalculationResults
+            .Where(x => x.Id == resultId && x.Status == CalculationResultStatus.PendingReview)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.Status, decision), cancellationToken);
+        if (claimed == 0)
         {
             throw new DomainRuleViolationException("calculation.review-state", "Only a pending-review calculation result can be reviewed.");
         }
 
+        result.Status = decision;
         return result;
     }
 

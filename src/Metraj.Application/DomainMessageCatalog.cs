@@ -69,6 +69,7 @@ public static class DomainMessageCatalog
         ["link.duplicate"] = "Bu bağlantı zaten var.",
         ["link.cross-revision"] = "Bağlanan kartlar aynı proje sürümünde olmalıdır.",
         ["link.calculated-from-cycle"] = "Hesap kaynağı bağlantıları döngü oluşturamaz.",
+        ["link.notes"] = "Bağlantı notu çok uzun.",
 
         // Metraj girişi
         ["measurement.not-found"] = "Metraj satırı bulunamadı.",
