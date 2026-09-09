@@ -75,7 +75,8 @@ public sealed class DatabaseMaintenanceWorkspaceTests
     [Fact]
     public async Task VerifiedBackupRestoresTheCompleteSingleDatabaseAndKeepsSafetySnapshot()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-backup-{Guid.NewGuid():N}.db");
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-backup");
+        string databasePath = database.Path;
         string backupDirectory = Path.Combine(Path.GetTempPath(), $"metraj-backups-{Guid.NewGuid():N}");
         try
         {
@@ -104,10 +105,6 @@ public sealed class DatabaseMaintenanceWorkspaceTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
-            File.Delete($"{databasePath}-wal");
-            File.Delete($"{databasePath}-shm");
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, recursive: true);
@@ -118,7 +115,11 @@ public sealed class DatabaseMaintenanceWorkspaceTests
     [Fact]
     public async Task IntegrityCheckReportsCorruptDatabaseWithoutMutatingIt()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-corrupt-{Guid.NewGuid():N}.db");
+        // Bu test dosyanın SQLite OLMAYAN bir içerikle bozulmasını gerektiriyor.
+        // CreateAsync gerçek bir veritabanı açtığı için dosya havuzda tutuluyor
+        // ve üzerine yazılamıyor; burada yalnızca yol ayıran Reserve kullanılır.
+        await using var database = TestDatabase.Reserve("metraj-corrupt");
+        string databasePath = database.Path;
         string backupDirectory = Path.Combine(Path.GetTempPath(), $"metraj-corrupt-backups-{Guid.NewGuid():N}");
         try
         {
@@ -130,8 +131,6 @@ public sealed class DatabaseMaintenanceWorkspaceTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
             if (Directory.Exists(backupDirectory))
             {
                 Directory.Delete(backupDirectory, recursive: true);

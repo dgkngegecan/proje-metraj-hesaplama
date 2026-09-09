@@ -2,7 +2,6 @@ using ClosedXML.Excel;
 using Metraj.Application;
 using Metraj.Domain;
 using Metraj.Infrastructure;
-using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
@@ -13,7 +12,8 @@ public sealed class ProjectReportWorkspaceTests
     [Fact]
     public async Task ExcelAndPdfUseTheSameRevisionSnapshotAndPreserveSafeSourceText()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-phase4-report-{Guid.NewGuid():N}.db");
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-phase4-report");
+        string databasePath = database.Path;
         string outputDirectory = Path.Combine(Path.GetTempPath(), $"metraj-phase4-report-{Guid.NewGuid():N}");
         Directory.CreateDirectory(outputDirectory);
         string excelPath = Path.Combine(outputDirectory, "metraj.xlsx");
@@ -144,12 +144,10 @@ public sealed class ProjectReportWorkspaceTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
             if (Directory.Exists(outputDirectory))
             {
                 Directory.Delete(outputDirectory, recursive: true);
-            }
+        }
         }
     }
 }

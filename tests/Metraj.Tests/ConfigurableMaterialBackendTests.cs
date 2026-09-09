@@ -112,7 +112,8 @@ public sealed class ConfigurableMaterialBackendTests
     [Fact]
     public async Task FittingsFilterByEnteredDiameterAndSubtreeExportsExcelAndWord()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-fitting-{Guid.NewGuid():N}.db");
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-fitting");
+        string databasePath = database.Path;
         string directory = Path.Combine(Path.GetTempPath(), $"metraj-export-{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         try
@@ -151,8 +152,6 @@ public sealed class ConfigurableMaterialBackendTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
             if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
     }
