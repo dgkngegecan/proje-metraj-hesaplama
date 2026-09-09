@@ -1,4 +1,4 @@
-root = true
+﻿root = true
 
 [*]
 charset = utf-8-bom
@@ -15,4 +15,17 @@ dotnet_style_require_accessibility_modifiers = always:warning
 dotnet_diagnostic.IDE0005.severity = warning
 
 [*.xaml]
+indent_size = 2
+
+# Frontend. React kaynağı 2 boşluk kullanıyor; [*] altındaki 4 boşluk
+# varsayılanı bu dosyalar için yanlıştı.
+[*.{ts,tsx,js,jsx,mjs,cjs}]
+charset = utf-8
+indent_style = space
+indent_size = 2
+quote_type = single
+
+[*.{json,yml,yaml}]
+charset = utf-8
+indent_style = space
 indent_size = 2

@@ -1,8 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <AssemblyName>Metraj.Domain</AssemblyName>
-    <RootNamespace>Metraj.Domain</RootNamespace>
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
-  </PropertyGroup>
+  <!-- TargetFramework, NoWarn: Directory.Build.props.
+       AssemblyName / RootNamespace: proje dosya adından türer. -->
 </Project>

@@ -1,5 +1,8 @@
 <Project>
   <PropertyGroup>
+    <!-- Bütün projeler net10.0. Metraj.Desktop WPF olduğu için kendi
+         dosyasında net10.0-windows'a geçiyor; buradaki değer varsayılandır. -->
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
@@ -11,5 +14,18 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Deterministic>true</Deterministic>
     <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      XML belge dosyası üretiliyor (IDE ipuçları ve `<inheritdoc>` için),
+      ama "eksik XML yorumu" uyarısı KAPALI ve bu bilinçli bir seçim:
+      TreatWarningsAsErrors açıkken CS1591'i açmak, her genel üyeye
+      belge yazılmadıkça build'in kırılması demektir. Belge, gerçekten
+      açıklama gereken yerlere yazılıyor; tören amaçlı değil.
+
+      Önceden bu satır dört .csproj'da ayrı ayrı tekrarlanıyordu.
+    -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 </Project>
