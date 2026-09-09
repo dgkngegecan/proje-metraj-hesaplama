@@ -8,7 +8,7 @@ namespace Metraj.Tests;
 /// kalmalıdır.
 /// </summary>
 /// <remarks>
-/// Aynı referans veri iki dilde ayrı ayrı yazılı: <c>App.tsx</c> içinde
+/// Aynı referans veri iki dilde ayrı ayrı yazılı: <c>lib/catalogData.ts</c> içinde
 /// <c>STEEL_DIAMETERS</c> / <c>PPRC_DIAMETERS</c> / <c>FITTING_PRESETS</c>,
 /// <c>StarterCatalogWorkspaceService</c> içinde <c>SteelPipeVariants</c> /
 /// <c>PprcPipeVariants</c> / <c>FittingVariants</c>.
@@ -59,7 +59,7 @@ public sealed class ReferenceDataParityTests
     public void FrontendFallbackDiametersMatchTheStarterCatalog(
         string frontendStart, string frontendEnd, string backendStart, string backendEnd)
     {
-        string frontend = ReadSource("src", "Metraj.Web", "src", "App.tsx");
+        string frontend = ReadSource("src", "Metraj.Web", "src", "lib", "catalogData.ts");
         string backend = ReadSource("src", "Metraj.Infrastructure", "StarterCatalogWorkspaceService.cs");
 
         string[] fromUi = CodesBetween(frontend, $"const {frontendStart}", $"const {frontendEnd}");
