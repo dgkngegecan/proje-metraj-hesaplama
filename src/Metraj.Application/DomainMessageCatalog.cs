@@ -159,7 +159,9 @@ public static class DomainMessageCatalog
         ["ui-state.value"] = "Saklanacak arayüz durumu çok büyük.",
 
         // Rapor
-        ["report.root"] = "Raporlanacak kart bu projede bulunamadı."
+        ["report.root"] = "Raporlanacak kart bu projede bulunamadı.",
+        ["report.revision"] = "Raporlanacak proje sürümü bulunamadı.",
+        ["report.project"] = "Raporlanacak proje bulunamadı."
     };
 
     /// <summary>

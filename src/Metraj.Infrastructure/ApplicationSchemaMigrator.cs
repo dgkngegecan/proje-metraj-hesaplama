@@ -18,6 +18,7 @@ public static class ApplicationSchemaMigrator
     private const string MaterialWasteCaseInsensitiveVersion = "20260908-material-waste-nocase";
     private const string RevisionEffectivePolicyVersion = "20260908-revision-effective-policy";
     private const string UiStateVersion = "20260909-ui-state";
+    private const string ResponsibilityScopedIndexesVersion = "20260909-responsibility-scoped-indexes";
 
     /// <summary>
     /// Bu uygulama sürümünün tanıdığı şema adımları. Geri yükleme doğrulaması da
@@ -35,7 +36,8 @@ public static class ApplicationSchemaMigrator
         CatalogVariantProfilesVersion,
         MaterialWasteCaseInsensitiveVersion,
         RevisionEffectivePolicyVersion,
-        UiStateVersion
+        UiStateVersion,
+        ResponsibilityScopedIndexesVersion
     ];
 
     /// <summary>Bir Metraj veritabanında bulunması zorunlu çekirdek tablolar.</summary>
@@ -105,6 +107,7 @@ public static class ApplicationSchemaMigrator
         await EnsureMaterialWasteCaseInsensitiveAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureRevisionEffectivePolicyAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureUiStateAsync(context, transaction, cancellationToken).ConfigureAwait(false);
+        await EnsureResponsibilityScopedIndexesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "__AppSchemaVersions" (
@@ -281,6 +284,62 @@ public static class ApplicationSchemaMigrator
         create.CommandText =
             "CREATE TABLE IF NOT EXISTS \"UiStates\" (\"Key\" TEXT NOT NULL CONSTRAINT \"PK_UiStates\" PRIMARY KEY, \"ValueJson\" TEXT NOT NULL, \"UpdatedAtUtc\" TEXT NOT NULL);";
         await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Sorumluluk atamalarının benzersizliğini gerçekten uygulayan filtreli
+    /// indeksleri kurar ve çakışan eski satırları temizler.
+    /// </summary>
+    /// <remarks>
+    /// Önceki tek indeks nullable MeasurementId içeriyordu; SQLite NULL'ları
+    /// benzersizlik açısından farklı saydığı için aynı yerleşim/boyut çifti
+    /// birden çok kez kaydedilebiliyordu.
+    /// </remarks>
+    private static async Task EnsureResponsibilityScopedIndexesAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        string[] statements =
+        [
+            // Çakışan eski satırlardan en yenisi (en büyük Id) korunur.
+            """
+            DELETE FROM "ResponsibilityAssignments"
+            WHERE "MeasurementId" IS NULL AND "ProjectPlacementId" IS NOT NULL AND "Id" NOT IN (
+                SELECT MAX("Id") FROM "ResponsibilityAssignments"
+                WHERE "MeasurementId" IS NULL AND "ProjectPlacementId" IS NOT NULL
+                GROUP BY "ProjectRevisionId", "ResponsibilityDimensionId", "ProjectPlacementId");
+            """,
+            """
+            DELETE FROM "ResponsibilityAssignments"
+            WHERE "MeasurementId" IS NOT NULL AND "Id" NOT IN (
+                SELECT MAX("Id") FROM "ResponsibilityAssignments"
+                WHERE "MeasurementId" IS NOT NULL
+                GROUP BY "ProjectRevisionId", "ResponsibilityDimensionId", "MeasurementId");
+            """,
+            "DROP INDEX IF EXISTS \"IX_ResponsibilityAssignments_ProjectRevisionId_ResponsibilityDimensionId_ProjectPlacementId_MeasurementId\";",
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ResponsibilityAssignments_PlacementScope"
+                ON "ResponsibilityAssignments" ("ProjectRevisionId", "ResponsibilityDimensionId", "ProjectPlacementId")
+                WHERE "MeasurementId" IS NULL AND "ProjectPlacementId" IS NOT NULL;
+            """,
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_ResponsibilityAssignments_MeasurementScope"
+                ON "ResponsibilityAssignments" ("ProjectRevisionId", "ResponsibilityDimensionId", "MeasurementId")
+                WHERE "MeasurementId" IS NOT NULL;
+            """
+        ];
+
+        foreach (string statement in statements)
+        {
+            await using DbCommand command = connection.CreateCommand();
+            command.Transaction = transaction.GetDbTransaction();
+            command.CommandText = statement;
+            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private static async Task EnsureColumnAsync(DbConnection connection, IDbContextTransaction transaction, string table, string column, string definition, CancellationToken cancellationToken)

@@ -29,21 +29,29 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     /// <inheritdoc />
     public async Task<ProjectReportData> BuildReportDataAsync(Guid revisionId, CancellationToken cancellationToken = default)
     {
-        await using MetrajDbContext context = contextFactory();
+        // Raporun bütün parçaları TEK bir tutarlı anlık görüntüden okunur.
+        // Önceden her alt servis kendi bağlantısını açıyordu; okumalar arasına
+        // giren bir yazma, kaynak satırları ile özetleri farklı anlardan
+        // getirebiliyor ve rapor kendi içinde tutarsız olabiliyordu.
+        await using ReadSnapshotScope snapshot = await ReadSnapshotScope.OpenAsync(contextFactory, cancellationToken);
+        Func<MetrajDbContext> snapshotFactory = snapshot.ContextFactory;
+
+        await using MetrajDbContext context = snapshotFactory();
         ProjectRevision revision = await context.ProjectRevisions.AsNoTracking()
             .Include(x => x.Project)
             .SingleOrDefaultAsync(x => x.Id == revisionId, cancellationToken)
-            ?? throw new InvalidOperationException("Raporlanacak proje revizyonu bulunamadı.");
-        Project project = revision.Project ?? throw new InvalidOperationException("Raporlanacak proje bulunamadı.");
+            ?? throw new DomainRuleViolationException("report.revision", "Reported project revision was not found.");
+        Project project = revision.Project
+            ?? throw new DomainRuleViolationException("report.project", "Reported project was not found.");
 
-        var measurementWorkspace = new MeasurementWorkspaceService(contextFactory);
+        var measurementWorkspace = new MeasurementWorkspaceService(snapshotFactory);
         IReadOnlyList<MeasurementListItem> sources = await measurementWorkspace.ListMeasurementsAsync(revisionId, cancellationToken);
         IReadOnlyList<MeasurementSummaryItem> summaries = await measurementWorkspace.ListSummariesAsync(revisionId, cancellationToken);
-        var treeWorkspace = new ProjectTreeWorkspaceService(contextFactory);
+        var treeWorkspace = new ProjectTreeWorkspaceService(snapshotFactory);
         IReadOnlyList<PlacementListItem> placements = await treeWorkspace.ListPlacementsAsync(revisionId, cancellationToken);
-        var calculationWorkspace = new CalculationWorkspaceService(contextFactory);
+        var calculationWorkspace = new CalculationWorkspaceService(snapshotFactory);
         IReadOnlyList<CalculationResultListItem> calculationResults = await calculationWorkspace.ListResultsAsync(revisionId, cancellationToken);
-        var responsibilityWorkspace = new ResponsibilityWorkspaceService(contextFactory);
+        var responsibilityWorkspace = new ResponsibilityWorkspaceService(snapshotFactory);
         IReadOnlyList<ResponsibilityAssignmentListItem> responsibilities = await responsibilityWorkspace.ListAssignmentsAsync(revisionId, cancellationToken);
         return new ProjectReportData(
             revisionId,

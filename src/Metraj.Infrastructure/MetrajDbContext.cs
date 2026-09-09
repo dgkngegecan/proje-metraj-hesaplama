@@ -165,7 +165,17 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
         EntityTypeBuilder<ResponsibilityAssignment> assignments = modelBuilder.Entity<ResponsibilityAssignment>();
         assignments.HasKey(x => x.Id);
         assignments.Property(x => x.State).HasConversion<string>().HasMaxLength(32);
-        assignments.HasIndex(x => new { x.ProjectRevisionId, x.ResponsibilityDimensionId, x.ProjectPlacementId, x.MeasurementId }).IsUnique();
+        // SQLite benzersizlik açısından NULL'ları birbirinden FARKLI sayar, bu
+        // yüzden nullable MeasurementId içeren tek bir indeks hiçbir şeyi garanti
+        // etmiyordu: iki eşzamanlı ekleme aynı doğrudan atamayı iki kez
+        // oluşturabiliyor, sonraki upsert ise tam bir satır bekleyip istisna
+        // atıyordu. İki kapsam ayrı ayrı ve filtreli olarak benzersizleştirilir.
+        assignments.HasIndex(x => new { x.ProjectRevisionId, x.ResponsibilityDimensionId, x.ProjectPlacementId })
+            .IsUnique()
+            .HasFilter("\"MeasurementId\" IS NULL AND \"ProjectPlacementId\" IS NOT NULL");
+        assignments.HasIndex(x => new { x.ProjectRevisionId, x.ResponsibilityDimensionId, x.MeasurementId })
+            .IsUnique()
+            .HasFilter("\"MeasurementId\" IS NOT NULL");
         assignments.HasOne(x => x.ResponsibilityDimension).WithMany(x => x.Assignments)
             .HasForeignKey(x => x.ResponsibilityDimensionId).OnDelete(DeleteBehavior.Cascade);
         assignments.HasOne(x => x.ResponsibilityParty).WithMany()

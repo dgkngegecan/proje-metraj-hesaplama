@@ -112,6 +112,55 @@ public sealed class InfrastructureRobustnessTests
     }
 
     [Fact]
+    public async Task DuplicateResponsibilityAssignmentsAreRejectedByTheDatabase()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync();
+        var projects = new ProjectWorkspaceService(database.ContextFactory);
+        var cards = new CatalogWorkspaceService(database.ContextFactory);
+        var tree = new ProjectTreeWorkspaceService(database.ContextFactory);
+        var responsibilities = new ResponsibilityWorkspaceService(database.ContextFactory);
+
+        ProjectListItem project = await projects.CreateProjectAsync("P-RESP", "Sorumluluk benzersizliği");
+        CatalogCardListItem card = await cards.CreateCardAsync(new CatalogCardDraft(
+            "MAT-RESP", "Boru", Metraj.Domain.CardType.Material, Metraj.Domain.ItemKind.Material,
+            Metraj.Domain.InputBehavior.Manual, Metraj.Domain.SalesConversion.None,
+            Metraj.Domain.ReportBehavior.Measurable, "m"));
+        PlacementListItem placement = await tree.AddPlacementAsync(
+            new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
+        ResponsibilityDimensionListItem dimension =
+            await responsibilities.CreateDimensionAsync(project.LatestRevisionId, "MONTAJ", "Montaj");
+
+        await responsibilities.AssignPlacementAsync(project.LatestRevisionId, dimension.Id, placement.Id,
+            partyId: null, Metraj.Domain.ResponsibilityAssignmentState.Optional);
+
+        // Aynı boyut/yerleşim çifti için ikinci bir SATIR yazılamamalı. Nullable
+        // MeasurementId içeren eski tek indeks bunu engellemiyordu: SQLite
+        // NULL'ları benzersizlik açısından farklı sayar.
+        await using (MetrajDbContext context = database.ContextFactory())
+        {
+            context.ResponsibilityAssignments.Add(new Metraj.Domain.ResponsibilityAssignment
+            {
+                Id = Guid.NewGuid(),
+                ProjectRevisionId = project.LatestRevisionId,
+                ResponsibilityDimensionId = dimension.Id,
+                ProjectPlacementId = placement.Id,
+                MeasurementId = null,
+                State = Metraj.Domain.ResponsibilityAssignmentState.Excluded
+            });
+            await Assert.ThrowsAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(
+                () => context.SaveChangesAsync());
+        }
+
+        // Servis yolu ise mevcut satırı güncelleyerek çalışmaya devam etmeli.
+        await responsibilities.AssignPlacementAsync(project.LatestRevisionId, dimension.Id, placement.Id,
+            partyId: null, Metraj.Domain.ResponsibilityAssignmentState.Excluded);
+        IReadOnlyList<ResponsibilityAssignmentListItem> assignments =
+            await responsibilities.ListAssignmentsAsync(project.LatestRevisionId);
+        ResponsibilityAssignmentListItem entry = Assert.Single(assignments, item => item.PlacementId == placement.Id);
+        Assert.Equal(Metraj.Domain.ResponsibilityAssignmentState.Excluded, entry.State);
+    }
+
+    [Fact]
     public async Task DatabasePathsContainingASemicolonAreNotMisparsed()
     {
         // Noktalı virgül, bağlantı dizesinde ayraçtır. Elle birleştirilen bir

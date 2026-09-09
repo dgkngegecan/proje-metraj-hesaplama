@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace Metraj.Infrastructure;
@@ -23,6 +23,24 @@ public static class MetrajDbContextFactory
 
         var options = new DbContextOptionsBuilder<MetrajDbContext>()
             .UseSqlite(connectionString)
+            .Options;
+
+        return new MetrajDbContext(options);
+    }
+
+    /// <summary>
+    /// Dışarıdan sahiplenilen açık bir bağlantı üzerinde context oluşturur.
+    /// </summary>
+    /// <remarks>
+    /// Birden çok okumanın TEK bir tutarlı anlık görüntüden yapılması için
+    /// kullanılır: bağlantı ve işlem çağırana aittir, context kapanınca
+    /// bağlantı kapanmaz.
+    /// </remarks>
+    public static MetrajDbContext Create(SqliteConnection connection)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        var options = new DbContextOptionsBuilder<MetrajDbContext>()
+            .UseSqlite(connection)
             .Options;
 
         return new MetrajDbContext(options);
