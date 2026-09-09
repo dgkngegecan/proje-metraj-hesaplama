@@ -16,17 +16,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // init önce yayılır: bir çağıran kendi başlıklarını verirse, aşağıdaki
     // birleştirilmiş nesne onu ezmek yerine içerir.
     ...init,
-    headers: init?.body
-      ? { 'Content-Type': 'application/json', ...init.headers }
-      : init?.headers,
+    headers: init?.body ? { 'Content-Type': 'application/json', ...init.headers } : init?.headers,
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new ApiError(
-      body.message ?? 'İşlem tamamlanamadı.',
-      body.rule ?? '',
-      response.status >= 500,
-    );
+    throw new ApiError(body.message ?? 'İşlem tamamlanamadı.', body.rule ?? '', response.status >= 500);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -34,7 +28,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T = void>(path: string) => request<T>(path, { method: 'DELETE' }),
 };

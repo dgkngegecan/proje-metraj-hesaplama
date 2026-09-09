@@ -110,29 +110,63 @@ public sealed partial class LocalApiHost : IAsyncDisposable
     {
         // Bakım (geri yükleme) ile sıradan istekler arasındaki sınır.
         services.AddSingleton<ApplicationDatabaseGate>();
-        services.AddSingleton<IProjectWorkspace>(_ => new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<ICatalogWorkspace>(_ => new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<ICatalogCardTypeWorkspace>(_ => new CatalogCardTypeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IStarterCatalogWorkspace>(_ => new StarterCatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IProjectTreeWorkspace>(_ => new ProjectTreeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IResponsibilityWorkspace>(_ => new ResponsibilityWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IMeasurementWorkspace>(_ => new MeasurementWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<ICalculationWorkspace>(_ => new CalculationWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IProjectReportWorkspace>(_ => new ProjectReportWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IMaterialTypeWasteWorkspace>(_ => new MaterialTypeWasteWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
-        services.AddSingleton<IUiStateWorkspace>(_ => new UiStateWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)));
+
+        // Bağlam fabrikası bir kez kaydediliyor. Önceden aynı lambda on iki
+        // kayıtta ayrı ayrı yazılıydı; veritabanı yolunun nasıl açıldığını
+        // değiştirmek on iki satıra dokunmayı gerektiriyordu.
+        services.AddSingleton<Func<MetrajDbContext>>(_ => () => MetrajDbContextFactory.Create(databasePath));
+
+        services.AddSingleton<IProjectWorkspace, ProjectWorkspaceService>();
+        services.AddSingleton<ICatalogWorkspace, CatalogWorkspaceService>();
+        services.AddSingleton<ICatalogCardTypeWorkspace, CatalogCardTypeWorkspaceService>();
+        services.AddSingleton<IStarterCatalogWorkspace, StarterCatalogWorkspaceService>();
+        services.AddSingleton<IProjectTreeWorkspace, ProjectTreeWorkspaceService>();
+        services.AddSingleton<IResponsibilityWorkspace, ResponsibilityWorkspaceService>();
+        services.AddSingleton<IMeasurementWorkspace, MeasurementWorkspaceService>();
+        services.AddSingleton<ICalculationWorkspace, CalculationWorkspaceService>();
+        services.AddSingleton<IProjectReportWorkspace, ProjectReportWorkspaceService>();
+        services.AddSingleton<IMaterialTypeWasteWorkspace, MaterialTypeWasteWorkspaceService>();
+        services.AddSingleton<IUiStateWorkspace, UiStateWorkspaceService>();
+
+        // Bu ikisi bağlam fabrikasının yanında başka bağımlılık da alıyor.
         services.AddSingleton<IDatabaseMaintenanceWorkspace>(provider =>
             new DatabaseMaintenanceWorkspaceService(() => databasePath, backupDirectory: null,
                 provider.GetRequiredService<ApplicationDatabaseGate>()));
-        services.AddSingleton<ISyntheticCleanWaterWorkspace>(_ => new SyntheticCleanWaterWorkspaceService(
-            () => MetrajDbContextFactory.Create(databasePath), OpenSyntheticCleanWaterFixture));
+        services.AddSingleton<ISyntheticCleanWaterWorkspace>(provider => new SyntheticCleanWaterWorkspaceService(
+            provider.GetRequiredService<Func<MetrajDbContext>>(), OpenSyntheticCleanWaterFixture));
     }
 
+    /// <summary>Uç noktaları alan alan bağlar.</summary>
+    /// <remarks>
+    /// Bu metot tek parça hâlinde 185 satırdı ve on bir ayrı alanı bir arada
+    /// tutuyordu; bir uç noktayı bulmak için tamamını okumak gerekiyordu.
+    /// Rotalar, gövdeleri ve sıraları birebir korunarak alanlarına ayrıldı.
+    /// </remarks>
     private static void MapWorkspaceEndpoints(WebApplication app)
     {
         RouteGroupBuilder api = app.MapGroup("/api");
-        api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+        MapHealthEndpoints(api);
+        MapProjectEndpoints(api);
+        MapCatalogEndpoints(api);
+        MapPlacementEndpoints(api);
+        MapMeasurementEndpoints(api);
+        MapCalculationEndpoints(api);
+        MapResponsibilityEndpoints(api);
+        MapReportEndpoints(api);
+        MapSyntheticDataEndpoints(api);
+        MapUiStateEndpoints(api);
+        MapDatabaseEndpoints(api);
+    }
 
+    /// <summary>Canlılık yoklaması.</summary>
+    private static void MapHealthEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+    }
+
+    /// <summary>Projeler ve revizyonlar.</summary>
+    private static void MapProjectEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/projects", async (IProjectWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListProjectsAsync(token)));
         api.MapPost("/projects", async (CreateProjectRequest request, IProjectWorkspace workspace, CancellationToken token) =>
@@ -146,7 +180,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await workspace.ApproveRevisionAsync(revisionId, token);
             return Results.NoContent();
         });
+    }
 
+    /// <summary>Kart kütüphanesi, kart türleri ve merkezi fire ayarları.</summary>
+    private static void MapCatalogEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/catalog/cards", async (ICatalogWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListCardsAsync(token)));
         api.MapGet("/catalog/attributes", () => Results.Ok(CatalogCardAttributeCatalog.All));
@@ -186,7 +224,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await workspace.DeleteAsync(id, token);
             return Results.NoContent();
         });
+    }
 
+    /// <summary>Proje haritasındaki kartlar ve aralarındaki bağlantılar.</summary>
+    private static void MapPlacementEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/revisions/{revisionId:guid}/placements", async (Guid revisionId, IProjectTreeWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListPlacementsAsync(revisionId, token)));
         api.MapPost("/revisions/{revisionId:guid}/placements", async (Guid revisionId, AddPlacementRequest request, IProjectTreeWorkspace workspace, CancellationToken token) =>
@@ -211,7 +253,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await workspace.DeletePlacementAsync(placementId, token);
             return Results.NoContent();
         });
+    }
 
+    /// <summary>Metraj satırları.</summary>
+    private static void MapMeasurementEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/revisions/{revisionId:guid}/measurements", async (Guid revisionId, IMeasurementWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListMeasurementsAsync(revisionId, token)));
         api.MapGet("/revisions/{revisionId:guid}/measurement-summaries", async (Guid revisionId, IMeasurementWorkspace workspace, CancellationToken token) =>
@@ -239,7 +285,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
                 request.SourceKind ?? "USER", request.Variant, request.SecondaryVariant), token);
             return Results.NoContent();
         });
+    }
 
+    /// <summary>Hesap kuralları, sonuçları ve inceleme kararları.</summary>
+    private static void MapCalculationEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/revisions/{revisionId:guid}/calculations/rules", async (Guid revisionId, ICalculationWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListRulesAsync(revisionId, token)));
         api.MapPost("/revisions/{revisionId:guid}/calculations/rules", async (Guid revisionId, CreateRuleRequest request, ICalculationWorkspace workspace, CancellationToken token) =>
@@ -263,7 +313,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await workspace.OverrideAsync(resultId, request.UsedQuantity, request.Reason, token);
             return Results.NoContent();
         });
+    }
 
+    /// <summary>Sorumluluk boyutları, tarafları ve atamaları.</summary>
+    private static void MapResponsibilityEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/revisions/{revisionId:guid}/responsibilities", async (Guid revisionId, IResponsibilityWorkspace workspace, CancellationToken token) =>
             Results.Ok(new ResponsibilityView(
                 await workspace.ListDimensionsAsync(revisionId, token),
@@ -278,7 +332,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await workspace.AssignPlacementAsync(revisionId, request.DimensionId, request.PlacementId, request.PartyId, request.State, request.Notes, token);
             return Results.NoContent();
         });
+    }
 
+    /// <summary>Rapor verisi ve dışa aktarımlar.</summary>
+    private static void MapReportEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/revisions/{revisionId:guid}/report", async (Guid revisionId, IProjectReportWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.BuildReportDataAsync(revisionId, token)));
         api.MapGet("/revisions/{revisionId:guid}/report/excel", async (Guid revisionId, Guid? placementId, IProjectReportWorkspace workspace, CancellationToken token) =>
@@ -301,8 +359,18 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await CreateSubtreeDownloadAsync(revisionId, rootPlacementId, ".pdf", "application/pdf", workspace.ExportSubtreePdfAsync, token));
         api.MapGet("/revisions/{revisionId:guid}/report/subtree/{rootPlacementId:guid}/word", async (Guid revisionId, Guid rootPlacementId, IProjectReportWorkspace workspace, CancellationToken token) =>
             await CreateSubtreeDownloadAsync(revisionId, rootPlacementId, ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", workspace.ExportSubtreeWordAsync, token));
+    }
+
+    /// <summary>Sentetik örnek veri içe aktarımı.</summary>
+    private static void MapSyntheticDataEndpoints(RouteGroupBuilder api)
+    {
         api.MapPost("/synthetic-clean-water", async (ISyntheticCleanWaterWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ImportAsync(token)));
+    }
+
+    /// <summary>Arayüzün kalıcı taslakları ve tercihleri.</summary>
+    private static void MapUiStateEndpoints(RouteGroupBuilder api)
+    {
         // Arayüzün kalıcı taslakları ve tercihleri. localStorage kullanılamaz:
         // loopback portu her açılışta değiştiği için origin, dolayısıyla
         // localStorage da sıfırlanıyor.
@@ -315,6 +383,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             await workspace.DeleteAsync(key, token);
             return Results.NoContent();
         });
+    }
+
+    /// <summary>Yedekleme, geri yükleme ve bütünlük.</summary>
+    private static void MapDatabaseEndpoints(RouteGroupBuilder api)
+    {
         api.MapGet("/database/backups", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.ListBackupsAsync(token)));
         api.MapPost("/database/backups", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
@@ -363,14 +436,49 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         });
     }
 
-    private static Stream? OpenEmbeddedWebAsset(string assetPath)
+    /// <summary>İstek yolundan gömülü kaynak adına: bir kez kurulur, bellekten servis edilir.</summary>
+    /// <remarks>
+    /// Önceki hâl kaynak adını istek başına tahmin ediyordu:
+    /// <c>"Metraj.Api.Web." + assetPath.Replace('/', '\\')</c> -- yani DERLEME
+    /// MAKİNESİNİN yol ayıracını çalışma zamanına gömüyordu, üstelik ikinci bir
+    /// tahminle (assets\ ön eki) yedekleniyordu. Gerçek kaynak adları
+    /// derlemeden okununca tahmin ortadan kalkıyor; ".." kontrolü de gereksizleşir
+    /// çünkü sözlük araması dizinde gezinemez (kontrol yine de yerinde tutuldu).
+    /// </remarks>
+    private static readonly Dictionary<string, string> EmbeddedWebAssets = BuildEmbeddedWebAssetIndex();
+
+    private static Dictionary<string, string> BuildEmbeddedWebAssetIndex()
     {
-        string resourceName = "Metraj.Api.Web." + assetPath.Replace('/', '\\');
-        var assembly = typeof(LocalApiHost).Assembly;
-        return assembly.GetManifestResourceStream(resourceName)
-            // Tolerate a nested Vite output directory while a front-end build atomically replaces dist.
-            ?? assembly.GetManifestResourceStream("Metraj.Api.Web.assets\\" + assetPath.Replace('/', '\\'));
+        const string prefix = "Metraj.Api.Web.";
+        var index = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (string resourceName in typeof(LocalApiHost).Assembly.GetManifestResourceNames())
+        {
+            if (!resourceName.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // Gömme sırasında dizin ayıracı olarak ne kullanıldıysa ('/' ya da
+            // '\\') istek yolunun biçimine ('/') normalleştirilir.
+            string relativePath = resourceName[prefix.Length..].Replace('\\', '/');
+            index[relativePath] = resourceName;
+
+            // "assets/index-abc.js" yerine yalnızca "index-abc.js" istendiğinde de
+            // bulunabilsin: önceki hâlin ikinci tahmini bunu karşılıyordu.
+            int lastSeparator = relativePath.LastIndexOf('/');
+            if (lastSeparator >= 0)
+            {
+                index.TryAdd(relativePath[(lastSeparator + 1)..], resourceName);
+            }
+        }
+
+        return index;
     }
+
+    private static Stream? OpenEmbeddedWebAsset(string assetPath) =>
+        EmbeddedWebAssets.TryGetValue(assetPath, out string? resourceName)
+            ? typeof(LocalApiHost).Assembly.GetManifestResourceStream(resourceName)
+            : null;
 
     private static Stream OpenSyntheticCleanWaterFixture()
     {

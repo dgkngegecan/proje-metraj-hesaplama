@@ -68,12 +68,21 @@
           BeforeTargets="AssignTargetPaths">
     <ItemGroup>
       <FrontendAsset Include="$(FrontendDist)**\*" />
+      <FrontendScript Include="$(FrontendDist)**\*.js" />
     </ItemGroup>
 
     <Error Condition="!Exists('$(FrontendDist)index.html')"
            Text="Arayüz çıktısı eksik: $(FrontendDist)index.html bulunamadı. Arayüzsüz bir uygulama üretmektense build durduruldu. Çözüm: src/Metraj.Web içinde 'npm ci &amp;&amp; npm run build' çalıştırın ya da -p:BuildFrontend=true ile derleyin." />
     <Error Condition="'@(FrontendAsset)' == ''"
            Text="Arayüz çıktısı boş: $(FrontendDist) altında gömülecek dosya yok. Build durduruldu." />
+    <!--
+      index.html'in var olması arayüzün TAM olduğu anlamına gelmiyor: bu
+      makinede virüs koruması derlenmiş dosyaları karantinaya alabiliyor ve
+      index.html yerinde dururken JavaScript paketi silinebiliyor. O durumda
+      kullanıcı boş bir pencere görür. Paketin varlığı ayrıca doğrulanıyor.
+    -->
+    <Error Condition="'@(FrontendScript)' == ''"
+           Text="Arayüz çıktısında JavaScript paketi yok ($(FrontendDist)). index.html var ama uygulama kodu eksik; bu hâlde paketlenen uygulama boş bir pencere açar. Build durduruldu. Çözüm: src/Metraj.Web içinde 'npm run build' çalıştırın." />
 
     <ItemGroup>
       <EmbeddedResource Include="@(FrontendAsset)" LogicalName="Metraj.Api.Web.%(RecursiveDir)%(Filename)%(Extension)" />

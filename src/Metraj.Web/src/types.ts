@@ -74,7 +74,11 @@ export interface CatalogCard {
   variants?: CatalogCardVariant[] | null;
 }
 
-export interface StarterCatalogSeedResult { addedCount: number; existingCount: number; addedCodes: string[]; }
+export interface StarterCatalogSeedResult {
+  addedCount: number;
+  existingCount: number;
+  addedCodes: string[];
+}
 
 export interface Placement extends Record<string, unknown> {
   id: string;
@@ -179,8 +183,16 @@ export interface CalculationResult {
   unit: string;
 }
 
-export interface ResponsibilityDimension { id: string; code: string; name: string; }
-export interface ResponsibilityParty { id: string; code: string; name: string; }
+export interface ResponsibilityDimension {
+  id: string;
+  code: string;
+  name: string;
+}
+export interface ResponsibilityParty {
+  id: string;
+  code: string;
+  name: string;
+}
 export interface ResponsibilityAssignment {
   id: string;
   dimensionName: string;
@@ -202,7 +214,10 @@ export interface DatabaseBackup {
   sizeBytes: number;
 }
 
-export interface DatabaseIntegrity { isHealthy: boolean; details: string; }
+export interface DatabaseIntegrity {
+  isHealthy: boolean;
+  details: string;
+}
 export interface MaterialWasteSetting {
   id: string;
   materialType: string;

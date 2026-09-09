@@ -50,10 +50,16 @@ export function useAsk() {
   return { pending, ask, close };
 }
 
-export function AskDialog({ request, onClose }: { request: PendingAsk; onClose: (values: Record<string, string> | null) => void }) {
+export function AskDialog({
+  request,
+  onClose,
+}: {
+  request: PendingAsk;
+  onClose: (values: Record<string, string> | null) => void;
+}) {
   const fields = request.fields ?? [];
-  const [values, setValues] = useState<Record<string, string>>(
-    () => Object.fromEntries(fields.map((field) => [field.key, field.value])),
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(fields.map((field) => [field.key, field.value])),
   );
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -76,11 +82,13 @@ export function AskDialog({ request, onClose }: { request: PendingAsk; onClose: 
     }
     if (event.key !== 'Tab') return;
     // Odak tuzağı: sekme, pencerenin dışına çıkıp arka plandaki forma düşemez.
-    const focusable = [...(panelRef.current?.querySelectorAll<HTMLElement>('input, textarea, button') ?? [])]
-      .filter((element) => !element.hasAttribute('disabled'));
+    const focusable = [...(panelRef.current?.querySelectorAll<HTMLElement>('input, textarea, button') ?? [])].filter(
+      (element) => !element.hasAttribute('disabled'),
+    );
     if (focusable.length === 0) return;
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
+    if (!first || !last) return;
     if (event.shiftKey && document.activeElement === first) {
       event.preventDefault();
       last.focus();
@@ -109,24 +117,33 @@ export function AskDialog({ request, onClose }: { request: PendingAsk; onClose: 
         {fields.map((field) => (
           <label key={field.key}>
             {field.label}
-            {field.multiline
-              ? <textarea
+            {field.multiline ? (
+              <textarea
                 rows={3}
                 value={values[field.key] ?? ''}
                 placeholder={field.placeholder}
                 onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
               />
-              : <input
+            ) : (
+              <input
                 inputMode={field.inputMode}
                 value={values[field.key] ?? ''}
                 placeholder={field.placeholder}
                 onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
-                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submit(); } }}
-              />}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    submit();
+                  }
+                }}
+              />
+            )}
           </label>
         ))}
         <div className="ask-actions">
-          <button type="button" onClick={() => onClose(null)}>{request.cancelLabel ?? 'Vazgeç'}</button>
+          <button type="button" onClick={() => onClose(null)}>
+            {request.cancelLabel ?? 'Vazgeç'}
+          </button>
           <button type="button" className={request.danger ? 'primary danger-confirm' : 'primary'} onClick={submit}>
             {request.confirmLabel}
           </button>
