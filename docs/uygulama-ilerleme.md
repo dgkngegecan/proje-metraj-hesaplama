@@ -21,13 +21,13 @@ oturum tam olarak nerede kalındığını görebilir.
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
 | T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
 | T2 — Gizli doğruluk boşlukları (18 madde) | ✅ **18/18 TAMAM** | aşağıda |
-| T3 — Hissedilen yavaşlık (6 madde) | 🔄 **SIRADA** | — |
-| T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
+| T3 — Hissedilen yavaşlık (6 madde) | ✅ **6/6 TAMAM** | `3e60b8f` |
+| T4 — Teslim riski (4 madde) | 🔄 **SIRADA** — 2/4 tamam (T4-2, T4-4) | `5e55407` |
 | T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 114 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 119 başarılı, 0 başarısız.**
 
 ---
 
@@ -87,6 +87,54 @@ Hiçbiri başlanmadı. Öncelik sırası (kullanıcının hissettiği gecikmeye 
 - **T4:** T4-1 (frontend build'i MSBuild'e bağla + `dist/` ignore), T4-3
   (`global.json`, Node sürüm politikası, CI)
 - **T5:** 9 alt bölüm (yapı ve temizlik) — kullanıcı önceliğinde en sonda
+
+---
+
+## 🔖 BÖLÜM DEVİR NOTU — T3 kapandı (6/6)
+**Commit:** `3e60b8f` · **Testler:** 114 → **119**, tamamı yeşil
+
+### Bu commit'te tamamlananlar
+
+| Madde | Ne düzeldi | Kullanıcıya etkisi |
+|---|---|---|
+| T3-1 | Rapor sıcak yoldan çıktı + düğüm verisi indeksleniyor | **Her metraj satırı girişi belirgin biçimde hızlandı** |
+| T3-2 | `flow` ref'e alındı, `loadRevision` kimliği sabit | Açılışta veri iki kez değil bir kez yükleniyor |
+| T3-3 | Sıralama anahtarları önceden hesaplanıyor | Malzeme listesi büyüdükçe takılmıyor |
+| T3-4 | Liste sorguları yalnızca gösterileni çekiyor | Kütüphane ve proje listesi kullanıldıkça yavaşlamıyor |
+| T3-5 | Servis döngü dışında kuruluyor | İlk kurulumdaki hazır katalog daha çabuk yükleniyor |
+| T3-6 | Rapor indirmeleri akıtılıyor | Büyük rapor indirmesi belleği şişirmiyor |
+
+### T3-1'de bilinçli olarak YAPILMAYAN kısım
+İnceleme "yazmadan sonra yalnızca etkilenen veriyi güncelleyin" diyor —
+yani tam yeniden yükleme yerine artımlı güncelleme. **Bu kısım bilerek
+yapılmadı.**
+
+**Gerekçe:** Artımlı güncelleme, kullanıcıya *bayat sayı* gösterme riski
+taşır. Bir ölçüm satırı, fire politikası ve üst kartların özetleri
+birbirine bağlı; hangi düğümlerin etkilendiğini arayüzde yeniden türetmek
+T0 sınıfı bir hataya (yanlış sayı) açık kapı bırakır. Öncelik sırasında
+"yanlış sayı" hissedilen yavaşlığın çok üstünde.
+
+Bunun yerine gecikmenin **asıl kaynağı** alındı: her kayıtta çekilen ve
+hiç gösterilmeyen rapor (kendi içinde veriyi dört serviste yeniden okuyor)
+ile kart sayısı × satır sayısı büyüyen tarama. Tam yeniden yükleme —
+yani doğruluk güvencesi — korundu.
+
+### T3-4'te yakalanan tuzak
+`ListCardsAsync` `AsNoTracking()` projeksiyonuna geçirilince gezinme
+özellikleri kendiliğinden dolmuyor. İlk hâlde `CatalogCardTypeDefinition`
+projeksiyona alınmamıştı; bu, kartların **özel tip adı ve öznitelik
+anahtarlarını sessizce boşaltırdı**. Açıkça projeksiyona eklendi ve
+`ListQueryShapeTests` bunu kilitliyor.
+
+### Sırada — T4 (teslim riski), 2 madde kaldı
+- **T4-1** — Frontend derlemesi MSBuild'in parçası değil. `dist/` hâlâ
+  izleniyor, çünkü build'e bağlanmadan ignore edilmesi temiz checkout'ta
+  **arayüzsüz bir uygulama** üretir. İkisi birlikte yapılacak.
+- **T4-3** — `global.json`, Node sürüm politikası, CI.
+
+Ardından **T5** (9 alt bölüm, yapı ve temizlik) — kullanıcı önceliğinde en
+sonda.
 
 ---
 
