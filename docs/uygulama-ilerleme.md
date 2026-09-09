@@ -20,14 +20,14 @@ oturum tam olarak nerede kalındığını görebilir.
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
 | T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
-| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 Sıradaki bölüm (T2-5, T2-17, T2-18 kısmen) | — |
+| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 10/18 tamam | aşağıda |
 | T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
 | T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 92 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 101 başarılı, 0 başarısız.**
 
 ---
 
@@ -245,21 +245,21 @@ uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 
 | # | Madde | Not |
 |---|---|---|
-| T2-1 | Özet ile hesap önerisi farklı politika çözüyor | Aynı veri, iki farklı sayı |
-| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | `RevisionWastePolicy` deseni uygulanabilir |
-| T2-8 | Ham container parametresi doğrulanıyor | Hata rapor alırken patlıyor |
-| T2-9 | Kural hash'i işletim sistemi diline göre değişiyor | Türkçe Windows'ta canlı |
-| T2-10 | Katalog hash'i taslağı hash'liyor | |
+| T2-1 | Özet ile hesap önerisi farklı politika çözüyor | ✅ `b921b4a` — `ResolveEffectiveCard` |
+| T2-2 | Rapor birden çok anlık görüntüden kuruluyor | 🔄 **Sıradaki** |
+| T2-8 | Ham container parametresi doğrulanıyor | ✅ `8e6cc2a` — `ResolveContentAsync` |
+| T2-9 | Kural hash'i işletim sistemi diline göre değişiyor | ✅ `8e6cc2a` — InvariantCulture |
+| T2-10 | Katalog hash'i taslağı hash'liyor | ✅ `8e6cc2a` — çözülmüş içerik + sıralı kanonik biçim |
 | T2-4 | Geri yükleme sırasında bakım sınırı yok | |
-| T2-5 | Geri yükleme kendi kaynağını budayabilir | Ad benzersizliği T0-2'de yapıldı |
+| T2-5 | Geri yükleme kendi kaynağını budayabilir | ✅ `01c059b` |
 | T2-7 | Sorumluluk benzersiz indeksi garanti vermiyor | |
 | T2-6 | Yeni/yükseltilmiş şema ayrışabiliyor | |
-| T2-13 | Tek-örnek kilidi "oluşturuldu"yu "alındı" sanıyor | Uygulama hiç açılmayabilir |
-| T2-14 | Veritabanı sessizce geçici klasöre düşebiliyor | |
+| T2-13 | Tek-örnek kilidi "oluşturuldu"yu "alındı" sanıyor | ✅ `01c059b` |
+| T2-14 | Veritabanı sessizce geçici klasöre düşebiliyor | ✅ `01c059b` — mevcut veritabanı öncelikli |
 | T2-11 | API/servis doğrulaması düzensiz | |
 | T2-3 | Oku-sonra-yaz eşzamanlılığı | |
 | T2-12 | Bağlantı doğrulaması tüm projeleri yüklüyor | |
-| T2-15 | EF bağlantı dizesi elle birleştiriliyor | |
+| T2-15 | EF bağlantı dizesi elle birleştiriliyor | ✅ `01c059b` |
 | T2-16 | Ondalık temsil sözleşmesi yok | |
 | T2-17 | Frontend tipleri sapmış | Kısmen yapıldı (`cad7317`, `4df4856`) |
 | T2-18 | api.ts başlıkları düşürebilir | ✅ `e5cf2d7`'de yapıldı |
