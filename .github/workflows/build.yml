@@ -1,0 +1,47 @@
+# Temiz bir checkout'un gerçekten derlendiğini ve testlerin geçtiğini doğrular.
+#
+# Bu iş akışının asıl amacı T4-1 ve T4-3'tür: arayüz derlemesi artık build'in
+# parçası (bkz. src/Metraj.Api/Metraj.Api.csproj) ve araç zinciri sabitlendi.
+# Buradaki koşu, "benim makinemde çalışıyor" ile teslim edilen sürüm arasındaki
+# farkı yakalar -- kullanıcının eski arayüzlü bir .exe almasının önündeki tek
+# otomatik engel budur.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    # Masaüstü katmanı WPF; yalnızca Windows'ta derlenir.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET SDK (global.json'a göre)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Node (.nvmrc'ye göre)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/Metraj.Web/package-lock.json
+
+      - name: Arayüz bağımlılıkları
+        working-directory: src/Metraj.Web
+        run: npm ci
+
+      - name: Restore
+        run: dotnet restore Metraj.sln
+
+      # Arayüz derlemesi bu adımın içinde MSBuild tarafından çalıştırılır.
+      - name: Build
+        run: dotnet build Metraj.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test Metraj.sln --no-build -c Release

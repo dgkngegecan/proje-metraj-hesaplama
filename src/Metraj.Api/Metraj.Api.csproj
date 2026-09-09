@@ -12,6 +12,74 @@
   <ItemGroup>
     <EmbeddedResource Include="..\..\tests\Metraj.Tests\TestData\Phase0\CleanWater\fixtures\measurements.csv" LogicalName="Metraj.Api.SampleData.CleanWaterSynthetic.csv" />
     <EmbeddedResource Include="..\Metraj.Desktop\Assets\metraj.ico" LogicalName="Metraj.Api.Web.favicon.ico" />
-    <EmbeddedResource Include="..\Metraj.Web\dist\**\*" LogicalName="Metraj.Api.Web.%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!--
+    ARAYÜZ DERLEMESİ ARTIK BUILD'İN PARÇASI.
+
+    Önceden `dist/` elle üretiliyordu ve gömülen varlıklar bir joker
+    ifadeyle alınıyordu: klasör yoksa ARAYÜZSÜZ, bayatsa ESKİ ARAYÜZLÜ bir
+    .exe çıkıyordu. Kullanıcı, düzeltildiğini sandığı bir hatayı taşıyan
+    bir uygulama alıyordu ve bunu teşhis etmenin bir yolu yoktu.
+
+    Arka uç döngülerini yavaşlatmamak için hedef artımlıdır: arayüz kaynağı
+    değişmedikçe npm çalışmaz. `-p:BuildFrontend=false` ile büsbütün
+    atlanabilir; atlansa bile aşağıdaki varlık doğrulaması çalışır, yani
+    arayüzsüz bir çıktı hiçbir koşulda sessizce üretilmez.
+  -->
+  <PropertyGroup>
+    <BuildFrontend Condition="'$(BuildFrontend)' == ''">true</BuildFrontend>
+    <FrontendRoot>$(MSBuildThisFileDirectory)..\Metraj.Web\</FrontendRoot>
+    <FrontendDist>$(FrontendRoot)dist\</FrontendDist>
+    <!-- npm.cmd TIRNAKSIZ çağrılır: tırnak içinde çağrıldığında Windows'ta
+         kendi konumunu (%~dp0) çalışma dizini sanıp npm-cli.js'i bulamıyor. -->
+    <!--
+      npm TIRNAKSIZ çağrılır. Tırnak içinde çağrıldığında Windows'ta npm.cmd
+      kendi konumunu (%~dp0) çalışma dizini sanıyor ve npm-cli.js'i bulamıyor.
+    -->
+    <NpmCommand Condition="'$(NpmCommand)' == '' AND '$(OS)' == 'Windows_NT'">npm.cmd</NpmCommand>
+    <NpmCommand Condition="'$(NpmCommand)' == ''">npm</NpmCommand>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrontendSource Include="$(FrontendRoot)src\**\*" />
+    <FrontendSource Include="$(FrontendRoot)index.html" />
+    <FrontendSource Include="$(FrontendRoot)package.json" />
+    <FrontendSource Include="$(FrontendRoot)package-lock.json" />
+    <FrontendSource Include="$(FrontendRoot)vite.config.ts" />
+    <FrontendSource Include="$(FrontendRoot)tsconfig*.json" />
+  </ItemGroup>
+
+  <Target Name="RestoreFrontendPackages"
+          Condition="'$(BuildFrontend)' == 'true' AND !Exists('$(FrontendRoot)node_modules')">
+    <Message Importance="high" Text="Arayüz bağımlılıkları kuruluyor (npm ci)..." />
+    <Exec Command="$(NpmCommand) ci" WorkingDirectory="$(FrontendRoot)" />
+  </Target>
+
+  <!-- Artımlı: dist/index.html bütün arayüz kaynağından yeniyse npm çalışmaz. -->
+  <Target Name="BuildFrontendAssets"
+          Condition="'$(BuildFrontend)' == 'true'"
+          DependsOnTargets="RestoreFrontendPackages"
+          Inputs="@(FrontendSource)"
+          Outputs="$(FrontendDist)index.html">
+    <Message Importance="high" Text="Arayüz derleniyor (npm run build)..." />
+    <Exec Command="$(NpmCommand) run build" WorkingDirectory="$(FrontendRoot)" />
+  </Target>
+
+  <Target Name="EmbedFrontendAssets"
+          DependsOnTargets="BuildFrontendAssets"
+          BeforeTargets="AssignTargetPaths">
+    <ItemGroup>
+      <FrontendAsset Include="$(FrontendDist)**\*" />
+    </ItemGroup>
+
+    <Error Condition="!Exists('$(FrontendDist)index.html')"
+           Text="Arayüz çıktısı eksik: $(FrontendDist)index.html bulunamadı. Arayüzsüz bir uygulama üretmektense build durduruldu. Çözüm: src/Metraj.Web içinde 'npm ci &amp;&amp; npm run build' çalıştırın ya da -p:BuildFrontend=true ile derleyin." />
+    <Error Condition="'@(FrontendAsset)' == ''"
+           Text="Arayüz çıktısı boş: $(FrontendDist) altında gömülecek dosya yok. Build durduruldu." />
+
+    <ItemGroup>
+      <EmbeddedResource Include="@(FrontendAsset)" LogicalName="Metraj.Api.Web.%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+  </Target>
 </Project>

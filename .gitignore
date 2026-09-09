@@ -28,3 +28,8 @@ TestResults/
 
 # Review harness scratch
 tmp/review-probes/
+
+# Arayüz derleme çıktısı. T4-1'den beri MSBuild bunu kendisi üretiyor
+# (src/Metraj.Api/Metraj.Api.csproj), bu yüzden artık izlenmiyor. Klasör
+# eksikse build sessizce arayüzsüz bir uygulama üretmek yerine durur.
+src/Metraj.Web/dist/
