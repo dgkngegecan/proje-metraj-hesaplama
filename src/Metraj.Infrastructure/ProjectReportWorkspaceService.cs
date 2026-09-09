@@ -230,12 +230,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         mainPart.Document = new W.Document(new W.Body());
         W.Body body = mainPart.Document.Body!;
 
-        body.Append(CreateWordParagraph("Proje Metraj Özeti", 34, bold: true, color: "1F4E78"));
+        body.Append(CreateWordParagraph("Proje Metraj Özeti", 34, bold: true, color: ReportPalette.Heading));
         body.Append(CreateWordParagraph(
             $"{report.ProjectCode} — {report.ProjectName} | {report.RevisionCode} | Üretim (UTC): {report.GeneratedAtUtc:yyyy-MM-dd HH:mm:ss}",
             18,
             bold: false,
-            color: "4B5563"));
+            color: ReportPalette.MutedText));
 
         AddWordTable(body, "Malzeme özeti",
             ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Satır", "Birim", "Net", "Fireli", "Satın alma"],
@@ -306,7 +306,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IEnumerable<IReadOnlyList<string?>> rows,
         bool pageBreakBefore = false)
     {
-        W.Paragraph titleParagraph = CreateWordParagraph(title, 26, bold: true, color: "1F4E78");
+        W.Paragraph titleParagraph = CreateWordParagraph(title, 26, bold: true, color: ReportPalette.Heading);
         if (pageBreakBefore)
         {
             titleParagraph.ParagraphProperties!.InsertAt(new W.PageBreakBefore(), 0);
@@ -366,7 +366,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         var properties = new W.TableCellProperties();
         if (header)
         {
-            properties.Append(new W.Shading { Fill = "1F4E78", Val = W.ShadingPatternValues.Clear });
+            properties.Append(new W.Shading { Fill = ReportPalette.Heading, Val = W.ShadingPatternValues.Clear });
         }
 
         properties.Append(
@@ -882,14 +882,14 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IXLRange title = sheet.Range(1, 1, 1, finalColumn);
         title.Style.Font.Bold = true;
         title.Style.Font.FontSize = 15;
-        title.Style.Fill.BackgroundColor = XLColor.FromHtml("1F4E78");
+        title.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportPalette.Heading);
         title.Style.Font.FontColor = XLColor.White;
         title.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         sheet.Row(1).Height = 25;
         IXLRange header = sheet.Range(headerRow, 1, headerRow, finalColumn);
         header.Style.Font.Bold = true;
-        header.Style.Font.FontColor = XLColor.FromHtml("17324D");
-        header.Style.Fill.BackgroundColor = XLColor.FromHtml("D9EAF7");
+        header.Style.Font.FontColor = XLColor.FromHtml(ReportPalette.HeaderText);
+        header.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportPalette.HeaderFill);
         header.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         header.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         header.Style.Alignment.WrapText = true;
@@ -906,7 +906,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             {
                 if ((row - headerRow) % 2 == 0)
                 {
-                    sheet.Range(row, 1, row, finalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml("F4F8FB");
+                    sheet.Range(row, 1, row, finalColumn).Style.Fill.BackgroundColor = XLColor.FromHtml(ReportPalette.BandedRow);
                 }
             }
             for (int row = headerRow + 1; row <= finalRow; row++)
@@ -1246,6 +1246,37 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     /// 3, PDF ve Word 6 ondalık gösteriyordu; 0,0004 gibi küçük ama geçerli bir
     /// miktar ekranda ve Excel'de 0 görünüp PDF'te görünüyordu.
     /// </summary>
+    /// <summary>
+    /// Rapor çıktılarının ortak renkleri.
+    /// </summary>
+    /// <remarks>
+    /// Aynı altı basamaklı kodlar Excel, PDF ve Word yazıcılarında ayrı ayrı
+    /// yazılıydı (yalnızca başlık mavisi üç yerde). Bir rengi değiştirmek üç
+    /// biçimin ayrışmasına yol açıyordu.
+    ///
+    /// Arayüz paleti (`styles.css`) ve masaüstü kabuğu (`MainWindow.xaml`)
+    /// bilerek AYRI tutuluyor: ekran teması ile basılı belge paleti farklı
+    /// kısıtlara tabi (kontrast, mürekkep, kurumsal şablon) ve birini
+    /// değiştirmek ötekini değiştirmemeli.
+    /// </remarks>
+    private static class ReportPalette
+    {
+        /// <summary>Başlık ve tablo başlığı zemini.</summary>
+        public const string Heading = "1F4E78";
+
+        /// <summary>Sütun başlığı yazı rengi.</summary>
+        public const string HeaderText = "17324D";
+
+        /// <summary>Sütun başlığı zemini.</summary>
+        public const string HeaderFill = "D9EAF7";
+
+        /// <summary>Şeritli satır zemini.</summary>
+        public const string BandedRow = "F4F8FB";
+
+        /// <summary>İkincil/ayrıntı metni.</summary>
+        public const string MutedText = "4B5563";
+    }
+
     internal const string QuantityNumberFormat = "#,##0.######";
 
     private static string FormatQuantity(decimal value) => value.ToString("0.######", CultureInfo.InvariantCulture);
