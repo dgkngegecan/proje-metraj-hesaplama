@@ -435,7 +435,25 @@ uygulamaya ulaşmaz. **Bu, T4-1'de MSBuild'e bağlanacak.**
 
 ---
 
-## ⛔ ORTAM ENGELİ — Kaspersky yanlış pozitifi (sonraki oturumun İLK işi)
+## ✅ ÇÖZÜLDÜ — Kaspersky yanlış pozitifi
+
+> **9 Eylül 2026:** Kullanıcı proje klasörünü Kaspersky'nin **istisna
+> listesine ekledi.** Engel kalktı; doğrulandı:
+> `dotnet build` ~5 saniye, `dotnet test` ~39 saniye, 122 test yeşil.
+> Aşağıdaki bekleme/yeniden deneme yordamına **artık gerek yok** —
+> `dotnet build Metraj.sln` ve `dotnet test Metraj.sln` doğrudan çalışır.
+>
+> Kaspersky bu süre boyunca yalnızca **derleme çıktısını** (`obj/`, `bin/`
+> altındaki `Metraj.Infrastructure.dll`) sildi; hiçbir kaynak dosya
+> kaybedilmedi. Bütünlük denetimi yapıldı: 161 izlenen dosyanın tamamı
+> yerinde, hiçbiri boş değil, `git fsck` temiz.
+>
+> Bu olay T4-1'deki bir boşluğu ortaya çıkardı ve kapatıldı: koruma yalnızca
+> `index.html` varlığını denetliyordu; virüs koruması JavaScript paketini
+> silip `index.html`'i bıraksaydı **boş pencere açan** bir uygulama
+> paketlenirdi. Artık paketin varlığı da denetleniyor.
+
+### Geçmiş kayıt — sorunun teşhisi
 
 **Kök neden bulundu:** Makinede **Kaspersky** kurulu ve etkin (Windows Defender
 bu yüzden devre dışı). Kaspersky, derlenen `Metraj.Infrastructure.dll`
