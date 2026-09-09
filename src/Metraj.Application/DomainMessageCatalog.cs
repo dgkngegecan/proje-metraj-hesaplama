@@ -23,6 +23,7 @@ public static class DomainMessageCatalog
         ["backup.not-metraj"] = "Seçilen dosya bir Proje Metraj yedeği değil. Yedek klasöründeki bir yedeği seçin.",
         ["backup.newer-schema"] = "Bu yedek daha yeni bir Proje Metraj sürümüyle alınmış. Güncel sürümle geri yükleyin.",
         ["backup.broken-relations"] = "Yedekteki kayıtlar tutarsız; bu dosya güvenle geri yüklenemez.",
+        ["backup.outside-folder"] = "Yalnızca uygulamanın yedek klasöründeki .db yedekleri geri yüklenebilir.",
 
         // Miktar kuralları
         ["quantity.non-negative"] = "Miktar negatif olamaz.",

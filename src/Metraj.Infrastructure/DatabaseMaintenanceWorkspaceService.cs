@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.Data.Sqlite;
@@ -39,7 +39,19 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
     }
 
     /// <inheritdoc />
-    public async Task<DatabaseBackupListItem> CreateBackupAsync(DatabaseBackupReason reason = DatabaseBackupReason.Manual, CancellationToken cancellationToken = default)
+    public Task<DatabaseBackupListItem> CreateBackupAsync(DatabaseBackupReason reason = DatabaseBackupReason.Manual, CancellationToken cancellationToken = default) =>
+        CreateBackupAsync(reason, protectedBackupPath: null, cancellationToken);
+
+    /// <summary>
+    /// Yedek alır; <paramref name="protectedBackupPath"/> verildiğinde o dosya
+    /// budamadan muaf tutulur.
+    /// </summary>
+    /// <remarks>
+    /// Geri yükleme önce bir BeforeRestore yedeği alır ve bu budamayı tetikler.
+    /// Saklama sınırındayken, geri yüklemek için seçilen EN ESKİ yedek daha
+    /// kopyalanmadan silinebiliyordu.
+    /// </remarks>
+    private async Task<DatabaseBackupListItem> CreateBackupAsync(DatabaseBackupReason reason, string? protectedBackupPath, CancellationToken cancellationToken)
     {
         string databasePath = GetDatabasePath();
         if (!File.Exists(databasePath))
@@ -65,7 +77,7 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
             // validation connection. Release it before the atomic rename on Windows.
             SqliteConnection.ClearAllPools();
             File.Move(temporaryPath, finalPath, overwrite: false);
-            PruneOldBackups();
+            PruneOldBackups(protectedBackupPath);
             return ToListItem(finalPath, reason);
         }
         finally
@@ -86,7 +98,9 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
         string databasePath = GetDatabasePath();
         if (File.Exists(databasePath))
         {
-            await CreateBackupAsync(DatabaseBackupReason.BeforeRestore, cancellationToken);
+            // Geri yüklenecek yedek, güvenlik yedeğinin tetiklediği budamada
+            // silinmemeli; aksi hâlde kaynağı okumadan kaybediyorduk.
+            await CreateBackupAsync(DatabaseBackupReason.BeforeRestore, trustedBackupPath, cancellationToken);
         }
 
         string restoreTemporaryPath = $"{databasePath}.restore-{Guid.NewGuid():N}.tmp";
@@ -247,7 +261,9 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
             !string.Equals(Path.GetExtension(fullPath), ".db", StringComparison.OrdinalIgnoreCase) ||
             !File.Exists(fullPath))
         {
-            throw new InvalidOperationException("Yalnızca uygulamanın yedek klasöründeki .db yedekleri geri yüklenebilir.");
+            throw new DomainRuleViolationException(
+                "backup.outside-folder",
+                "Yalnızca uygulamanın yedek klasöründeki .db yedekleri geri yüklenebilir.");
         }
 
         return fullPath;
@@ -281,12 +297,14 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
     /// Otomatik ve kullanıcı kaynaklı yedekleri ayrı kotalarda budar. Böylece
     /// açılış yedekleri hiçbir zaman kullanıcının sakladığı bir yedeği düşüremez.
     /// </summary>
-    private void PruneOldBackups()
+    private void PruneOldBackups(string? protectedBackupPath = null)
     {
         // FileInfo bir kez oluşturulur: önceki sürüm her karşılaştırmada
         // File.GetCreationTimeUtc çağırarak dosya sistemine gidiyordu.
         IEnumerable<IGrouping<bool, FileInfo>> groups = Directory
             .EnumerateFiles(backupDirectory, "metraj-*.db", SearchOption.TopDirectoryOnly)
+            .Where(path => protectedBackupPath is null ||
+                !string.Equals(Path.GetFullPath(path), protectedBackupPath, StringComparison.OrdinalIgnoreCase))
             .Select(path => new FileInfo(path))
             .GroupBy(file => ParseReason(file.Name) == DatabaseBackupReason.BeforeMigration);
 
