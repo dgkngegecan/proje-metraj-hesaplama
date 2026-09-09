@@ -23,11 +23,19 @@ oturum tam olarak nerede kalındığını görebilir.
 | T2 — Gizli doğruluk boşlukları (18 madde) | ✅ **18/18 TAMAM** | aşağıda |
 | T3 — Hissedilen yavaşlık (6 madde) | ✅ **6/6 TAMAM** | `3e60b8f` |
 | T4 — Teslim riski (4 madde) | ✅ **4/4 TAMAM** | `5e55407`, `5acbe6c` |
-| T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 **SIRADA** — kısmen (aşağıya bak) | — |
+| T5 — Yapı ve temizlik (9 alt bölüm) | ✅ **9/9 TAMAM** | aşağıda |
+
+> ## ✅ BÜTÜN BÖLÜMLER TAMAMLANDI
+>
+> `docs/kod-inceleme-ux-oncelikli.md` içindeki altı katmanın (T0–T5) tamamı
+> uygulandı. Test tabanı **68 → 124**; her koşuda hepsi yeşil.
+>
+> Uygulanmayan maddeler tek tek gerekçelendirildi ve ilgili bölüm devir
+> notunda yazılı — hiçbiri sessizce atlanmadı.
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 119 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 124 başarılı, 0 başarısız.**
 
 ---
 
@@ -197,6 +205,64 @@ Kullanıcı önceliğinde en sonda; hiçbiri kullanıcıya görünmüyor.
 
 **Kural:** T5 davranış değiştirmez. Her adımda 119 testin yeşil kalması
 tek kabul ölçütüdür; test sayısı düşerse bir şey yanlış gitmiştir.
+
+---
+
+## 🔖 BÖLÜM DEVİR NOTU — T5 kapandı (9/9) · **BÜTÜN BÖLÜMLER TAMAM**
+**Testler:** 119 → **124**, tamamı yeşil
+
+| Alt bölüm | Commit | Ne yapıldı |
+|---|---|---|
+| 5.1 Build yapılandırması | `fd263d1` | Tekrarlar `Directory.Build.props`'a, merkezi paket sürümleri, .editorconfig TS bölümü, çözüm klasörleri |
+| 5.2 Domain katmanı | `96e26d5` | `static class`, işaretçi sınıflar silindi, ölçek sabitleri tek kaynağa bağlandı, `JsonStore`, gölgelenen değişken |
+| 5.3 Şema göçü | `952433a` | On kopya preamble + sekiz komut bloğu birleşti, `SafeIdentifier`, tutarlı `ConfigureAwait` |
+| 5.4 Servis tekrarı | `61be0fe` | `TextRules`, dokuz birincil kurucu, öznitelik kataloğunda tahsis kaldırıldı |
+| 5.5 Rapor servisi | `4eacf85` | Altı dışa aktarım tek çekirdeğe, `ExcelColumn`, yedi başlık döngüsü birleşti |
+| 5.6 API katmanı | `d8b8582` | 185 satırlık metot on bir alana, tek DI fabrikası, gömülü varlık sözlüğü |
+| 5.7 Frontend | `d8b8582`, `f104d90`, `e72bc75`, `be64095` | Çevrim koruması, sıkı tsconfig, Prettier, `App.tsx` 4.268 → 1.548 satır |
+| 5.8 Testler | `91022d2`, `1514962`, `07e0d27` | 37 test fixture'a taşındı (net −333 satır), havuz temizliği daraltıldı |
+| 5.9 Dokümantasyon | `2b60c23` | `docs/arsiv/` ayrımı ve `docs/README.md` indeksi |
+
+### T5'te ölçülerek verilen kararlar
+
+Bu bölümde incelemenin üç önerisi **denendi ve uygulanmadı**. Üçü de
+gerekçesiyle kodda yazılı:
+
+1. **Test paralelleştirme** (5.8) — denendi, süre 35 sn → 21 sn düştü, ama
+   beş koşunun beşinde de farklı testler kırmızıya döndü. Sebep bağlantı
+   havuzu değil: testler `METRAJ_DATA_DIRECTORY` ortam değişkenini ve
+   tek-örnek mutex'ini değiştiriyor; ikisi de süreç geneli. Geri alındı.
+2. **Excel/PDF sütun sıralarının birleştirilmesi** (5.5) — ikisi gerçekten
+   ayrışmış, ama tek tabloya indirgemek çıktının görünümünü değiştirirdi.
+   Ortak olan (sütunun ne taşıdığı, nasıl biçimlendiği) paylaşıldı; sıra
+   her yazıcının kendi kararı kaldı.
+3. **Rapor alt servislerinin enjekte edilmesi** (5.5) — bu servisler
+   `contextFactory` ile değil, T2-2'deki `ReadSnapshotScope`'un anlık
+   görüntü fabrikasıyla kuruluyor. DI'dan gelen örnekler raporun tek
+   tutarlı anlık görüntüden okunması güvencesini geri alırdı.
+
+### T5'te kapatılamayan tek şey
+
+**ESLint kurulamadı.** `typescript-eslint` TypeScript 7.0'ı desteklemiyor
+ve açıkça reddediyor (upstream: `typescript-eslint#10940`). Projenin
+TypeScript sürümünü linter'a uydurmak için düşürmek de, bozuk bir `lint`
+script'i bırakmak da doğru olmazdı. Yerine `tsconfig` sıkılaştırıldı
+(`noUnusedLocals`, `noUnusedParameters`, `noUncheckedIndexedAccess`) ve
+çıkan **on iki gerçek hata** düzeltildi. `typescript-eslint` TS 7'yi
+desteklediğinde `eslint-plugin-react-hooks` eklenmeli: T3-2 tam olarak
+onun yakalayacağı bir hataydı.
+
+### App bileşeninin kendisi neden bölünmedi
+
+`App.tsx` 4.268 → 1.548 satıra indi; kalan kısım durum yönetimi.
+İncelemenin önerdiği `FlowPage`/`SettingsPage`/`ControlPage` ayrımı ve
+`useProjectData`/`useRevisionData` hook'ları 40+ birbirine bağlı state'i
+yeniden sahiplendirmeyi gerektirir. **Frontend'de hiç test yok**, yani
+böyle bir değişikliği doğrulamanın yolu da yok: bayat bir kapanış ya da
+sırası değişmiş bir efekt kullanıcıya sessizce yanlış sayı gösterebilir.
+
+Bunu güvenli kılacak ön koşul bellidir: önce frontend testi. Modüllere
+ayrılmış bugünkü yapı o testleri yazmayı da kolaylaştırıyor.
 
 ---
 
