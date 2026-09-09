@@ -93,8 +93,15 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
         }
 
         var parentByPlacement = placements.Values.ToDictionary(x => x.Id, x => x.ParentPlacementId);
+        // Derinlik hesabı ebeveyn zincirini yürür. OrderBy sıralama anahtarını
+        // HER KARŞILAŞTIRMADA yeniden ister; aynı kart için aynı yürüyüş
+        // defalarca yapılıyordu. Önbellek + anahtarların önceden hesaplanması
+        // aynı sırayı üretir, işi öğe başına bire indirir.
+        var depthByPlacement = new Dictionary<Guid, int>();
         int Depth(Guid placementId)
         {
+            if (depthByPlacement.TryGetValue(placementId, out int cached)) return cached;
+
             int depth = 0;
             Guid? cursor = parentByPlacement.TryGetValue(placementId, out Guid? parent) ? parent : null;
             while (cursor is Guid parentId && depth < 64)
@@ -102,20 +109,32 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
                 depth++;
                 cursor = parentByPlacement.TryGetValue(parentId, out Guid? next) ? next : null;
             }
+
+            depthByPlacement[placementId] = depth;
             return depth;
         }
         static decimal VariantSize(string? value)
         {
             if (string.IsNullOrWhiteSpace(value)) return 0m;
-            string token = new string(value.SkipWhile(ch => !char.IsDigit(ch)).TakeWhile(char.IsDigit).ToArray());
-            return decimal.TryParse(token, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out decimal size) ? size : 0m;
+
+            // İlk rakam öbeğini tahsis etmeden oku.
+            ReadOnlySpan<char> span = value;
+            int start = 0;
+            while (start < span.Length && !char.IsDigit(span[start])) start++;
+            int end = start;
+            while (end < span.Length && char.IsDigit(span[end])) end++;
+            if (end == start) return 0m;
+
+            return decimal.TryParse(span[start..end], System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out decimal size) ? size : 0m;
         }
         return summaries
-            .OrderBy(x => Depth(x.PlacementId))
-            .ThenByDescending(x => VariantSize(x.Variant))
-            .ThenBy(x => x.PlacementName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.Variant, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(x => x.SecondaryVariant, StringComparer.OrdinalIgnoreCase)
+            .Select(x => (Summary: x, Depth: Depth(x.PlacementId), VariantSize: VariantSize(x.Variant)))
+            .OrderBy(x => x.Depth)
+            .ThenByDescending(x => x.VariantSize)
+            .ThenBy(x => x.Summary.PlacementName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Summary.Variant, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Summary.SecondaryVariant, StringComparer.OrdinalIgnoreCase)
+            .Select(x => x.Summary)
             .ToList();
     }
 

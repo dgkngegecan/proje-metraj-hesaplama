@@ -396,31 +396,84 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         CancellationToken cancellationToken)
     {
         string temporaryPath = Path.Combine(Path.GetTempPath(), $"metraj-{revisionId:N}-{Guid.NewGuid():N}{extension}");
-        try
-        {
-            ProjectReportExportResult exportResult = await export(revisionId, temporaryPath, cancellationToken);
-            byte[] content = await File.ReadAllBytesAsync(exportResult.OutputPath, cancellationToken);
-            return Results.File(content, contentType, Path.GetFileName(exportResult.OutputPath));
-        }
-        finally
-        {
-            if (File.Exists(temporaryPath))
-            {
-                File.Delete(temporaryPath);
-            }
-        }
+        return await StreamExportAsync(
+            temporaryPath,
+            contentType,
+            (path, token) => export(revisionId, path, token),
+            cancellationToken);
     }
 
     private static async Task<IResult> CreateSubtreeDownloadAsync(Guid revisionId, Guid rootPlacementId, string extension, string contentType,
         Func<Guid, Guid, string, CancellationToken, Task<ProjectReportExportResult>> exporter, CancellationToken cancellationToken)
     {
         string temporaryPath = Path.Combine(Path.GetTempPath(), $"metraj-{revisionId:N}-{rootPlacementId:N}-{Guid.NewGuid():N}{extension}");
+        return await StreamExportAsync(
+            temporaryPath,
+            contentType,
+            (path, token) => exporter(revisionId, rootPlacementId, path, token),
+            cancellationToken);
+    }
+
+    /// <summary>Üretilen belgeyi belleğe almadan akıtır ve ardından temizler.</summary>
+    /// <remarks>
+    /// Önceki hâl belgeyi diske yazıp <c>File.ReadAllBytesAsync</c> ile
+    /// tamamını ikinci bir <c>byte[]</c>'e kopyalıyordu: büyük bir projenin
+    /// raporu için indirme başlamadan önce belgenin tamamının hem diske hem
+    /// belleğe sığması gerekiyordu. <c>DeleteOnClose</c> sayesinde geçici
+    /// dosya, yanıt tamamlandığında kendini siler.
+    /// </remarks>
+    private static async Task<IResult> StreamExportAsync(
+        string temporaryPath,
+        string contentType,
+        Func<string, CancellationToken, Task<ProjectReportExportResult>> export,
+        CancellationToken cancellationToken)
+    {
+        ProjectReportExportResult result;
         try
         {
-            ProjectReportExportResult result = await exporter(revisionId, rootPlacementId, temporaryPath, cancellationToken);
-            return Results.File(await File.ReadAllBytesAsync(result.OutputPath, cancellationToken), contentType, Path.GetFileName(result.OutputPath));
+            result = await export(temporaryPath, cancellationToken);
         }
-        finally { if (File.Exists(temporaryPath)) File.Delete(temporaryPath); }
+        catch
+        {
+            TryDeleteTemporaryFile(temporaryPath);
+            throw;
+        }
+
+        try
+        {
+            var content = new FileStream(
+                result.OutputPath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.Read,
+                bufferSize: 64 * 1024,
+                FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+            return Results.File(content, contentType, Path.GetFileName(result.OutputPath));
+        }
+        catch
+        {
+            TryDeleteTemporaryFile(result.OutputPath);
+            TryDeleteTemporaryFile(temporaryPath);
+            throw;
+        }
+    }
+
+    private static void TryDeleteTemporaryFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (IOException)
+        {
+            // Geçici dosyayı silememek indirmeyi bozmamalı.
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     /// <summary>Kaynak üreteçli günlük iletileri (analizörler çalışma zamanı biçimlendirmesini yasaklıyor).</summary>

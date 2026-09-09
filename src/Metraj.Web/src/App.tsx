@@ -266,6 +266,9 @@ export default function App() {
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [summaries, setSummaries] = useState<MeasurementSummary[]>([]);
   const [report, setReport] = useState<ReportData | null>(null);
+  // Rapor artık tembel yükleniyor (T3-1). Bu sayaç her veri değişiminde artar;
+  // çıktı ekranı açıkken raporun tazelenmesini tetikleyen tek sinyal budur.
+  const [dataVersion, setDataVersion] = useState(0);
   const [rules, setRules] = useState<CalculationRule[]>([]);
   const [calculationResults, setCalculationResults] = useState<CalculationResult[]>([]);
   const [responsibilities, setResponsibilities] = useState<ResponsibilityData | null>(null);
@@ -278,6 +281,11 @@ export default function App() {
   const [nodes, setNodes] = useState<PlacementNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [flow, setFlow] = useState<ReactFlowInstance<PlacementNode, Edge> | null>(null);
+  // ReactFlow mount olduğunda `flow` set ediliyor. Bu değer bir callback'in
+  // bağımlılığı olursa callback'in kimliği değişir ve ona bağlı useEffect
+  // yeniden tetiklenir -- yani açılışta bütün veri iki kez yüklenirdi.
+  const flowRef = useRef<ReactFlowInstance<PlacementNode, Edge> | null>(null);
+  flowRef.current = flow;
   const viewportNudgeTimers = useRef<number[]>([]);
   // Kullanıcının sürüklediği konumlar yerleşim kimliğine göre hatırlanır.
   // Önceden her loadRevision buildFlow ile konumları sıfırdan üretiyordu: bir
@@ -408,26 +416,39 @@ export default function App() {
     const requestSequence = ++revisionLoadSequence.current;
     if (!revisionId) return;
     try {
-      const [nextPlacements, nextMeasurements, nextSummaries, nextReport] = await Promise.all([
+      // Rapor bilerek burada YOK. Kendi içinde bu verinin çoğunu dört ayrı
+      // servisle yeniden okur ve yalnızca "Metraj çıktısı" ekranında görünür.
+      // Her ölçüm kaydında onu da beklemek, uygulamanın ana vaadi olan hızlı
+      // metraj girişini her satırda yavaşlatıyordu. Artık ihtiyaç anında yükleniyor.
+      const [nextPlacements, nextMeasurements, nextSummaries] = await Promise.all([
         api.get<Placement[]>(`/revisions/${revisionId}/placements`),
         api.get<Measurement[]>(`/revisions/${revisionId}/measurements`),
         api.get<MeasurementSummary[]>(`/revisions/${revisionId}/measurement-summaries`),
-        api.get<ReportData>(`/revisions/${revisionId}/report`),
       ]);
       // Geç kalmış bir önceki proje/sürüm yanıtı, aktif görünümü ezmemelidir.
       if (requestSequence !== revisionLoadSequence.current) return;
       setPlacements(nextPlacements);
       setMeasurements(nextMeasurements);
       setSummaries(nextSummaries);
-      setReport(nextReport);
+      // Görünen rapor artık bayat; çıktı ekranı açıksa/açılırsa yenilenecek.
+      setDataVersion((current) => current + 1);
       const nextFlow = buildFlow(nextPlacements);
       // Silinmiş kartların konumlarını taşımaya gerek yok.
       const liveIds = new Set(nextPlacements.map((item) => item.id));
       nodePositions.current = new Map([...nodePositions.current].filter(([id]) => liveIds.has(id)));
+      // Her düğüm için bütün listeleri taramak yerine bir kez indeksle:
+      // kart sayısı x satır sayısı yerine kart sayısı + satır sayısı iş.
+      const summaryByPlacement = new Map<string, MeasurementSummary>();
+      nextSummaries.forEach((item) => { if (!summaryByPlacement.has(item.placementId)) summaryByPlacement.set(item.placementId, item); });
+      const measurementsByPlacement = new Map<string, Measurement[]>();
+      nextMeasurements.forEach((item) => {
+        const bucket = measurementsByPlacement.get(item.placementId);
+        if (bucket) bucket.push(item); else measurementsByPlacement.set(item.placementId, [item]);
+      });
       nextFlow.nodes = nextFlow.nodes.map((node) => {
-        const itemSummary = nextSummaries.find((item) => item.placementId === node.id);
+        const itemSummary = summaryByPlacement.get(node.id);
         const groups = new Map<string, FlowBreakdown>();
-        nextMeasurements.filter((item) => item.placementId === node.id).forEach((item) => {
+        (measurementsByPlacement.get(node.id) ?? []).forEach((item) => {
           const label = [item.variant, item.secondaryVariant].filter(Boolean).join(' · ') || measurementLabel(item.notes);
           const existing = groups.get(label);
           const entry = { id: item.id, quantity: item.inputQuantity, createdAtUtc: item.createdAtUtc, notes: item.notes };
@@ -452,9 +473,26 @@ export default function App() {
       setNodes(nextFlow.nodes);
       setEdges(nextFlow.edges);
       setSelectedPlacementId((current) => nextPlacements.some((item) => item.id === current) ? current : nextPlacements[0]?.id ?? null);
-      window.setTimeout(() => flow?.fitView({ padding: 0.24, duration: 420 }), 80);
+      window.setTimeout(() => flowRef.current?.fitView({ padding: 0.24, duration: 420 }), 80);
     } catch (error) { fail(error); }
-  }, [flow]);
+  }, []);
+
+  // Rapor yalnızca "Metraj çıktısı" ekranında görünür; oraya girildiğinde ve
+  // veri değiştiğinde yüklenir. Yarış koruması loadRevision'daki ile aynı
+  // mantıkta: geç gelen bir önceki revizyonun raporu aktif olanı ezmemeli.
+  const reportLoadSequence = useRef(0);
+  useEffect(() => {
+    if (view !== 'control' || !selectedRevisionId) return;
+    const revisionId = selectedRevisionId;
+    const requestSequence = ++reportLoadSequence.current;
+    void (async () => {
+      try {
+        const nextReport = await api.get<ReportData>(`/revisions/${revisionId}/report`);
+        if (requestSequence !== reportLoadSequence.current) return;
+        setReport(nextReport);
+      } catch (error) { fail(error); }
+    })();
+  }, [view, selectedRevisionId, dataVersion]);
 
   const loadAdvanced = useCallback(async () => {
     if (!selectedRevisionId) return;
@@ -1042,7 +1080,7 @@ export default function App() {
             onCreateBackup={createBackup} onCheckIntegrity={checkIntegrity} onRestoreBackup={restoreBackup}
           /></section>}
 
-          {view === 'control' && <section className="control-page"><div className="page-intro"><div><span className="eyebrow">METRAJ ÇIKTISI</span><h2>{reportScopeId ? `${placements.find((item) => item.id === reportScopeId)?.displayName ?? 'Seçili kart'} ve altı` : 'Bütün proje'}</h2><p>Net, fireli ve satın alma miktarlarını kontrol et; sonra çıktını al.</p></div><div className="intro-actions">{reportScopeId && <button onClick={() => setReportScopeId(null)}>Bütün projeyi göster</button>}<a className="download" href={`/api/revisions/${selectedRevisionId}/report/excel${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}>Excel al</a><a className="download" href={`/api/revisions/${selectedRevisionId}/report/word${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}>Word al</a><a className="primary download" href={`/api/revisions/${selectedRevisionId}/report/pdf${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}>PDF al</a></div></div><div className="stat-grid"><Stat label="Malzeme" value={String(visibleSummaries.length)} /><Stat label="Kaynak satırı" value={String(visibleMeasurements.length)} /><Stat label="Bekleyen hesap" value={String(report?.calculationChecks.filter((item) => item.status === 'PendingReview').length ?? 0)} /></div><SummaryTable summaries={visibleSummaries} measurements={visibleMeasurements} placements={placements} /></section>}
+          {view === 'control' && <section className="control-page"><div className="page-intro"><div><span className="eyebrow">METRAJ ÇIKTISI</span><h2>{reportScopeId ? `${placements.find((item) => item.id === reportScopeId)?.displayName ?? 'Seçili kart'} ve altı` : 'Bütün proje'}</h2><p>Net, fireli ve satın alma miktarlarını kontrol et; sonra çıktını al.</p></div><div className="intro-actions">{reportScopeId && <button onClick={() => setReportScopeId(null)}>Bütün projeyi göster</button>}<a className="download" href={`/api/revisions/${selectedRevisionId}/report/excel${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}>Excel al</a><a className="download" href={`/api/revisions/${selectedRevisionId}/report/word${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}>Word al</a><a className="primary download" href={`/api/revisions/${selectedRevisionId}/report/pdf${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}>PDF al</a></div></div><div className="stat-grid"><Stat label="Malzeme" value={String(visibleSummaries.length)} /><Stat label="Kaynak satırı" value={String(visibleMeasurements.length)} /><Stat label="Bekleyen hesap" value={report ? String(report.calculationChecks.filter((item) => item.status === 'PendingReview').length) : '…'} /></div><SummaryTable summaries={visibleSummaries} measurements={visibleMeasurements} placements={placements} /></section>}
         </>}
       </section>
 
@@ -1628,9 +1666,28 @@ function CardShelf({ cards, onAdd, compact = false, onCreate, onDelete, onEdit }
 }
 
 function SummaryTable({ summaries, measurements, placements = [] }: { summaries: MeasurementSummary[]; measurements: Measurement[]; placements?: Placement[] }) {
-  const depthOf = (id: string) => { let depth = 0; let current = placements.find((item) => item.id === id); while (current?.parentPlacementId && depth < 12) { depth += 1; current = placements.find((item) => item.id === current?.parentPlacementId); } return depth; };
+  // Derinlik ve boyut, sıralama KARŞILAŞTIRMASININ içinde hesaplanıyordu:
+  // her karşılaştırmada `placements` baştan taranıyor, üstelik zincir boyunca
+  // tekrar tekrar. Malzeme listesi büyüdükçe tablo gözle görülür yavaşlıyordu.
+  // Anahtarlar artık satır başına bir kez, sıralamadan önce hesaplanıyor.
+  const depthOf = useMemo(() => {
+    const parentById = new Map(placements.map((item) => [item.id, item.parentPlacementId ?? null]));
+    const depths = new Map<string, number>();
+    return (id: string) => {
+      const cached = depths.get(id);
+      if (cached !== undefined) return cached;
+      let depth = 0;
+      let cursor = parentById.get(id) ?? null;
+      while (cursor && depth < 12) { depth += 1; cursor = parentById.get(cursor) ?? null; }
+      depths.set(id, depth);
+      return depth;
+    };
+  }, [placements]);
   const sizeOf = (name: string) => Number(name.match(/(?:DN\s*|\b)(\d+(?:[.,]\d+)?)/i)?.[1]?.replace(',', '.')) || 0;
-  const sorted = [...summaries].sort((a, b) => depthOf(a.placementId) - depthOf(b.placementId) || sizeOf(b.variant ?? b.placementName) - sizeOf(a.variant ?? a.placementName) || a.placementName.localeCompare(b.placementName, 'tr') || (a.variant ?? '').localeCompare(b.variant ?? '', 'tr'));
+  const sorted = useMemo(() => summaries
+    .map((summary) => ({ summary, depth: depthOf(summary.placementId), size: sizeOf(summary.variant ?? summary.placementName) }))
+    .sort((a, b) => a.depth - b.depth || b.size - a.size || a.summary.placementName.localeCompare(b.summary.placementName, 'tr') || (a.summary.variant ?? '').localeCompare(b.summary.variant ?? '', 'tr'))
+    .map((row) => row.summary), [summaries, depthOf]);
   return <section className="summary-section"><div className="summary-heading"><div><span className="eyebrow">DÜZENLİ METRAJ</span><h3>Malzeme listesi</h3></div><span>{measurements.length} kaynak satırı</span></div>{sorted.length ? <div className="summary-list">{sorted.map((summary) => <div className="summary-row" key={`${summary.placementId}:${summary.variant ?? ''}:${summary.secondaryVariant ?? ''}`} style={{ '--tree-depth': depthOf(summary.placementId) } as React.CSSProperties}><div><strong>{summary.placementName}</strong><small>{[summary.variant, summary.secondaryVariant].filter(Boolean).join(' · ') || 'Standart'} · {summary.measurementCount} giriş · {summary.unit}</small></div><div><span>Net</span><b>{quantity(summary.netQuantity)}</b></div><div><span>Fireli</span><b>{quantity(summary.withWasteQuantity)}</b></div><div><span>Satın alma</span><b>{quantity(summary.purchaseQuantity)} {purchaseUnit(summary)}</b></div></div>)}</div> : <div className="empty-table">Henüz metraj yok. Haritada bir malzeme seçip miktarı yazın.</div>}</section>;
 }
 

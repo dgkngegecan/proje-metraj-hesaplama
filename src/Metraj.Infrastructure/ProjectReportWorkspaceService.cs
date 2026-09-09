@@ -139,7 +139,11 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         } while (changed);
         IReadOnlyList<MeasurementListItem> sources = full.SourceMeasurements.Where(x => ids.Contains(x.PlacementId)).ToList();
         IReadOnlyList<MeasurementSummaryItem> summaries = full.Summaries.Where(x => ids.Contains(x.PlacementId)).ToList();
-        IReadOnlyList<PlacementListItem> selectedPlacements = placements.Where(x => ids.Contains(x.Id) || IsAncestorOfSelected(x.Id, ids, placements)).ToList();
+        // Seçilenlerin bütün üst kartları bir kez toplanıyor. Önceki hâl bunu
+        // her yerleşim için yeniden hesaplıyor ve her çağrıda placements'ın
+        // tamamından yeni bir sözlük kuruyordu.
+        HashSet<Guid> ancestorsOfSelected = CollectAncestors(ids, placements);
+        IReadOnlyList<PlacementListItem> selectedPlacements = placements.Where(x => ids.Contains(x.Id) || ancestorsOfSelected.Contains(x.Id)).ToList();
         return full with
         {
             SourceMeasurements = sources,
@@ -191,19 +195,24 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         return ToExportResult(report, path);
     }
 
-    private static bool IsAncestorOfSelected(Guid candidate, HashSet<Guid> selected, IReadOnlyList<PlacementListItem> placements)
+    /// <summary>Seçili yerleşimlerin bütün üst kartlarını tek geçişte toplar.</summary>
+    private static HashSet<Guid> CollectAncestors(HashSet<Guid> selected, IReadOnlyList<PlacementListItem> placements)
     {
-        var byId = placements.ToDictionary(x => x.Id);
+        var parentById = placements.ToDictionary(x => x.Id, x => x.ParentPlacementId);
+        var ancestors = new HashSet<Guid>();
         foreach (Guid id in selected)
         {
-            Guid? cursor = byId.GetValueOrDefault(id)?.ParentPlacementId;
-            while (cursor is Guid parent)
+            Guid? cursor = parentById.GetValueOrDefault(id);
+            // `ancestors`'a ekleyemediğimiz an ya zaten yürüdüğümüz bir zincire
+            // girmişizdir ya da bozuk veri bir döngü oluşturmuştur; ikisinde de
+            // durmak doğru. Önceki hâlde döngü korumasi yoktu.
+            while (cursor is Guid parent && ancestors.Add(parent))
             {
-                if (parent == candidate) return true;
-                cursor = byId.GetValueOrDefault(parent)?.ParentPlacementId;
+                cursor = parentById.GetValueOrDefault(parent);
             }
         }
-        return false;
+
+        return ancestors;
     }
 
     private static void WriteDocx(string path, ProjectReportData report)

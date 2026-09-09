@@ -21,17 +21,45 @@ public sealed class CatalogWorkspaceService : ICatalogWorkspace
     public async Task<IReadOnlyList<CatalogCardListItem>> ListCardsAsync(CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = contextFactory();
-        var definitions = await context.CatalogCardDefinitions
-            .AsNoTracking()
-            .Include(x => x.Versions)
-            .ThenInclude(x => x.CatalogCardTypeDefinition)
-            .ToListAsync(cancellationToken);
-        return definitions
-            .Where(x => x.Versions.Count > 0)
-            .Select(x =>
+        return await ProjectLatestVersionsAsync(context.CatalogCardDefinitions.AsNoTracking(), cancellationToken);
+    }
+
+    /// <summary>
+    /// Verilen kart kümesinin yalnızca EN SON sürümlerini listeye çevirir.
+    /// </summary>
+    /// <remarks>
+    /// Önceki hâl her kartın bütün sürüm geçmişini belleğe alıp seçimi orada
+    /// yapıyordu; sürümleme bu modelin amacı olduğu için o küme kullanıldıkça
+    /// büyüyordu. Kaynak sorgusu dışarıdan geldiği için çağıranlar süzmeyi
+    /// veritabanında yapabiliyor.
+    /// </remarks>
+    private static async Task<IReadOnlyList<CatalogCardListItem>> ProjectLatestVersionsAsync(
+        IQueryable<CatalogCardDefinition> source,
+        CancellationToken cancellationToken)
+    {
+        var rows = await source
+            .Select(definition => new
             {
-                CatalogCardVersion latest = x.Versions.MaxBy(version => version.VersionNumber)!;
-                return ToListItem(x, latest);
+                Definition = definition,
+                Latest = definition.Versions
+                    .OrderByDescending(version => version.VersionNumber)
+                    .FirstOrDefault(),
+                // ToListItem kart tipini de okuyor. AsNoTracking projeksiyonunda
+                // gezinme özellikleri kendiliğinden dolmaz; açıkça çekilmezse
+                // özel tip adı ve öznitelik anahtarları sessizce boşalırdı.
+                LatestType = definition.Versions
+                    .OrderByDescending(version => version.VersionNumber)
+                    .Select(version => version.CatalogCardTypeDefinition)
+                    .FirstOrDefault()
+            })
+            .Where(row => row.Latest != null)
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Select(row =>
+            {
+                row.Latest!.CatalogCardTypeDefinition = row.LatestType;
+                return ToListItem(row.Definition, row.Latest);
             })
             .OrderBy(x => x.Code)
             .ToList();
@@ -141,8 +169,18 @@ public sealed class CatalogWorkspaceService : ICatalogWorkspace
             .Where(x => x.ProjectPlacementId == pipePlacementId && x.Variant != null)
             .Select(x => x.Variant!).Distinct().ToListAsync(cancellationToken))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        IReadOnlyList<CatalogCardListItem> cards = await ListCardsAsync(cancellationToken);
-        return cards.Where(x => x.IsActive && x.CardType == CardType.Accessory)
+        // Aktiflik ve kart tipi süzgeci artık veritabanında uygulanıyor; önceki
+        // hâl BÜTÜN kartları listeye çevirip sonra bellekte eliyordu.
+        IQueryable<CatalogCardDefinition> accessories = context.CatalogCardDefinitions
+            .AsNoTracking()
+            .Where(definition => definition.IsActive)
+            .Where(definition => definition.Versions
+                .OrderByDescending(version => version.VersionNumber)
+                .First().CardType == CardType.Accessory);
+
+        IReadOnlyList<CatalogCardListItem> cards = await ProjectLatestVersionsAsync(accessories, cancellationToken);
+        // Uyumlu çaplar JSON içinde saklandığı için bu süzgeç bellekte kalıyor.
+        return cards
             .Where(x => enteredDiameters.Count == 0 || x.CompatibleDiameters is null || x.CompatibleDiameters.Count == 0 ||
                 x.CompatibleDiameters.Any(enteredDiameters.Contains))
             .ToList();

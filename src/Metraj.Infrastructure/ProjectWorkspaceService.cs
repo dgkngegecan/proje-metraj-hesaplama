@@ -17,16 +17,29 @@ public sealed class ProjectWorkspaceService : IProjectWorkspace
     public async Task<IReadOnlyList<ProjectListItem>> ListProjectsAsync(CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = contextFactory();
-        var projects = await context.Projects
+        // Listede yalnızca revizyon SAYISI ve en son revizyonun kimliği
+        // görünüyor; önceki hâl bunun için her projenin bütün revizyonlarını
+        // belleğe alıyordu.
+        var rows = await context.Projects
             .AsNoTracking()
-            .Include(x => x.Revisions)
             .OrderBy(x => x.Code)
+            .Select(x => new
+            {
+                x.Id,
+                x.Code,
+                x.Name,
+                x.CreatedAtUtc,
+                RevisionCount = x.Revisions.Count,
+                LatestRevisionId = x.Revisions
+                    .OrderByDescending(revision => revision.RevisionNumber)
+                    .Select(revision => revision.Id)
+                    .FirstOrDefault()
+            })
             .ToListAsync(cancellationToken);
-        return projects.Select(x =>
-        {
-            ProjectRevision latest = x.Revisions.MaxBy(revision => revision.RevisionNumber)!;
-            return new ProjectListItem(x.Id, x.Code, x.Name, x.Revisions.Count, latest.Id, x.CreatedAtUtc);
-        }).ToList();
+
+        return rows
+            .Select(x => new ProjectListItem(x.Id, x.Code, x.Name, x.RevisionCount, x.LatestRevisionId, x.CreatedAtUtc))
+            .ToList();
     }
 
     public async Task<ProjectListItem> CreateProjectAsync(string code, string name, string? description = null, CancellationToken cancellationToken = default)

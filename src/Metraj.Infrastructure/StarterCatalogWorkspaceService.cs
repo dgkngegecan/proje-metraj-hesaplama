@@ -25,6 +25,9 @@ public sealed class StarterCatalogWorkspaceService : IStarterCatalogWorkspace
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         var added = new List<string>();
+        // Servis döngünün dışında bir kez kuruluyor: içeride kurulduğunda ~60
+        // kart için ~60 örnek yaratılıyordu.
+        var catalog = new CatalogWorkspaceService(contextFactory);
         foreach (StarterCard card in Cards)
         {
             if (!existing.Add(card.Code))
@@ -32,7 +35,6 @@ public sealed class StarterCatalogWorkspaceService : IStarterCatalogWorkspace
                 continue;
             }
 
-            var catalog = new CatalogWorkspaceService(contextFactory);
             await catalog.CreateCardAsync(new CatalogCardDraft(
                 card.Code,
                 card.Name,
