@@ -147,66 +147,46 @@ public static class ApplicationSchemaMigrator
 
     private static async Task EnsureVariantAndMaterialPolicyAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "MaterialType", "TEXT NULL", cancellationToken);
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "CompatibleDiametersJson", "TEXT NOT NULL DEFAULT '[]'", cancellationToken);
         await EnsureColumnAsync(connection, transaction, "Measurements", "Variant", "TEXT NULL", cancellationToken);
         await EnsureColumnAsync(connection, transaction, "Measurements", "SecondaryVariant", "TEXT NULL", cancellationToken);
-        await using DbCommand create = connection.CreateCommand();
-        create.Transaction = transaction.GetDbTransaction();
-        create.CommandText =
-            "CREATE TABLE IF NOT EXISTS \"MaterialTypeWasteSettings\" (\"Id\" TEXT NOT NULL CONSTRAINT \"PK_MaterialTypeWasteSettings\" PRIMARY KEY, \"MaterialType\" TEXT NOT NULL, \"WasteRatePct\" INTEGER NOT NULL, \"UpdatedAtUtc\" TEXT NOT NULL);";
-        await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        await using DbCommand index = connection.CreateCommand();
-        index.Transaction = transaction.GetDbTransaction();
-        index.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_MaterialTypeWasteSettings_MaterialType\" ON \"MaterialTypeWasteSettings\" (\"MaterialType\");";
-        await index.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE TABLE IF NOT EXISTS \"MaterialTypeWasteSettings\" (\"Id\" TEXT NOT NULL CONSTRAINT \"PK_MaterialTypeWasteSettings\" PRIMARY KEY, \"MaterialType\" TEXT NOT NULL, \"WasteRatePct\" INTEGER NOT NULL, \"UpdatedAtUtc\" TEXT NOT NULL);",
+            cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_MaterialTypeWasteSettings_MaterialType\" ON \"MaterialTypeWasteSettings\" (\"MaterialType\");",
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task EnsureConfigurableCatalogTypesAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
-        await using DbCommand create = connection.CreateCommand();
-        create.Transaction = transaction.GetDbTransaction();
-        create.CommandText =
-            "CREATE TABLE IF NOT EXISTS \"CatalogCardTypeDefinitions\" (\"Id\" TEXT NOT NULL CONSTRAINT \"PK_CatalogCardTypeDefinitions\" PRIMARY KEY, \"Code\" TEXT NOT NULL, \"Name\" TEXT NOT NULL, \"Description\" TEXT NULL, \"BaseCardType\" TEXT NOT NULL, \"AllowedParentCardIdsJson\" TEXT NOT NULL DEFAULT '[]', \"AllowedChildCardIdsJson\" TEXT NOT NULL DEFAULT '[]', \"AttributeKeysJson\" TEXT NOT NULL DEFAULT '[]', \"IsActive\" INTEGER NOT NULL DEFAULT 1, \"CreatedAtUtc\" TEXT NOT NULL);";
-        await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE TABLE IF NOT EXISTS \"CatalogCardTypeDefinitions\" (\"Id\" TEXT NOT NULL CONSTRAINT \"PK_CatalogCardTypeDefinitions\" PRIMARY KEY, \"Code\" TEXT NOT NULL, \"Name\" TEXT NOT NULL, \"Description\" TEXT NULL, \"BaseCardType\" TEXT NOT NULL, \"AllowedParentCardIdsJson\" TEXT NOT NULL DEFAULT '[]', \"AllowedChildCardIdsJson\" TEXT NOT NULL DEFAULT '[]', \"AttributeKeysJson\" TEXT NOT NULL DEFAULT '[]', \"IsActive\" INTEGER NOT NULL DEFAULT 1, \"CreatedAtUtc\" TEXT NOT NULL);",
+            cancellationToken).ConfigureAwait(false);
 
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "CatalogCardTypeDefinitionId", "TEXT NULL", cancellationToken).ConfigureAwait(false);
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "AttributeValuesJson", "TEXT NOT NULL DEFAULT '{}'", cancellationToken).ConfigureAwait(false);
 
-        await using DbCommand index = connection.CreateCommand();
-        index.Transaction = transaction.GetDbTransaction();
-        index.CommandText = "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_CatalogCardTypeDefinitions_Code\" ON \"CatalogCardTypeDefinitions\" (\"Code\");";
-        await index.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE UNIQUE INDEX IF NOT EXISTS \"IX_CatalogCardTypeDefinitions_Code\" ON \"CatalogCardTypeDefinitions\" (\"Code\");",
+            cancellationToken).ConfigureAwait(false);
 
         // Yükseltme yolu bu ilişki indeksini oluşturmuyordu; yeni bir veritabanı
         // EF modelinden ürettiği için ONDA vardı. Aynı uygulamanın iki kurulumu
         // farklı indekslere sahip olabiliyor, sorgular farklı davranabiliyordu.
-        await using DbCommand relation = connection.CreateCommand();
-        relation.Transaction = transaction.GetDbTransaction();
-        relation.CommandText =
-            "CREATE INDEX IF NOT EXISTS \"IX_CatalogCardVersions_CatalogCardTypeDefinitionId\" ON \"CatalogCardVersions\" (\"CatalogCardTypeDefinitionId\");";
-        await relation.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE INDEX IF NOT EXISTS \"IX_CatalogCardVersions_CatalogCardTypeDefinitionId\" ON \"CatalogCardVersions\" (\"CatalogCardTypeDefinitionId\");",
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task EnsureCatalogVariantProfilesAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "VariantMode", "TEXT NOT NULL DEFAULT 'None'", cancellationToken).ConfigureAwait(false);
         await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "VariantDefinitionsJson", "TEXT NOT NULL DEFAULT '[]'", cancellationToken).ConfigureAwait(false);
@@ -220,11 +200,7 @@ public static class ApplicationSchemaMigrator
     /// </summary>
     private static async Task EnsureMaterialWasteCaseInsensitiveAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
         await using (DbCommand probe = connection.CreateCommand())
         {
@@ -272,10 +248,7 @@ public static class ApplicationSchemaMigrator
 
         foreach (string statement in statements)
         {
-            await using DbCommand command = connection.CreateCommand();
-            command.Transaction = transaction.GetDbTransaction();
-            command.CommandText = statement;
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            await ExecuteAsync(connection, transaction, statement, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -286,11 +259,7 @@ public static class ApplicationSchemaMigrator
     /// </summary>
     private static async Task EnsureRevisionEffectivePolicyAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
         await EnsureColumnAsync(connection, transaction, "ProjectRevisions", "EffectivePolicyJson", "TEXT NULL", cancellationToken).ConfigureAwait(false);
     }
@@ -298,17 +267,11 @@ public static class ApplicationSchemaMigrator
     /// <summary>Arayüzün kalıcı taslak ve tercih tablosunu oluşturur.</summary>
     private static async Task EnsureUiStateAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
-        await using DbCommand create = connection.CreateCommand();
-        create.Transaction = transaction.GetDbTransaction();
-        create.CommandText =
-            "CREATE TABLE IF NOT EXISTS \"UiStates\" (\"Key\" TEXT NOT NULL CONSTRAINT \"PK_UiStates\" PRIMARY KEY, \"ValueJson\" TEXT NOT NULL, \"UpdatedAtUtc\" TEXT NOT NULL);";
-        await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE TABLE IF NOT EXISTS \"UiStates\" (\"Key\" TEXT NOT NULL CONSTRAINT \"PK_UiStates\" PRIMARY KEY, \"ValueJson\" TEXT NOT NULL, \"UpdatedAtUtc\" TEXT NOT NULL);",
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -322,11 +285,7 @@ public static class ApplicationSchemaMigrator
     /// </remarks>
     private static async Task EnsureResponsibilityScopedIndexesAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
         string[] statements =
         [
@@ -360,102 +319,110 @@ public static class ApplicationSchemaMigrator
 
         foreach (string statement in statements)
         {
-            await using DbCommand command = connection.CreateCommand();
-            command.Transaction = transaction.GetDbTransaction();
-            command.CommandText = statement;
-            await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            await ExecuteAsync(connection, transaction, statement, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private static async Task EnsureColumnAsync(DbConnection connection, IDbContextTransaction transaction, string table, string column, string definition, CancellationToken cancellationToken)
+    /// <summary>Bağlantıyı açık hâlde döndürür.</summary>
+    /// <remarks>
+    /// Bu dört satır dosyadaki her göç adımının başında tekrar ediyordu (on kopya).
+    /// </remarks>
+    private static async Task<DbConnection> GetOpenConnectionAsync(MetrajDbContext context, CancellationToken cancellationToken)
     {
-        await using DbCommand probe = connection.CreateCommand();
-        probe.Transaction = transaction.GetDbTransaction();
-        probe.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = $name";
-        DbParameter parameter = probe.CreateParameter();
-        parameter.ParameterName = "$name";
-        parameter.Value = column;
-        probe.Parameters.Add(parameter);
-        bool exists = Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) == 1L;
-        if (exists) return;
-        await using DbCommand alter = connection.CreateCommand();
-        alter.Transaction = transaction.GetDbTransaction();
-        alter.CommandText = $"ALTER TABLE \"{table}\" ADD COLUMN \"{column}\" {definition};";
-        await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private static async Task EnsureCalculationQuantityColumnsAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
-    {
-        string[] columns = ["NetQuantity", "WithWasteQuantity", "PurchaseQuantity", "RemainderQuantity"];
         DbConnection connection = context.Database.GetDbConnection();
         if (connection.State != System.Data.ConnectionState.Open)
         {
             await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        foreach (string column in columns)
+        return connection;
+    }
+
+    /// <summary>Göçü yürüten transaction içinde tek bir ifade çalıştırır.</summary>
+    private static async Task ExecuteAsync(DbConnection connection, IDbContextTransaction transaction, string sql, CancellationToken cancellationToken)
+    {
+        await using DbCommand command = connection.CreateCommand();
+        command.Transaction = transaction.GetDbTransaction();
+        command.CommandText = sql;
+        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>SQL metnine doğrudan yazılacak bir tablo/sütun adını doğrular.</summary>
+    /// <remarks>
+    /// Tablo ve sütun adları SQL'de parametre olarak bağlanamaz, bu yüzden metne
+    /// gömülmek zorundalar; oysa aynı metotta iki satır aşağıda sütun ADI düzgün
+    /// bind ediliyordu. Bugün bütün çağrılar sabit metin geçtiği için güvenli,
+    /// ama tutarsızlık dinamik bir çağıran eklendiğinde güvenli olmaktan çıkar.
+    /// </remarks>
+    private static string SafeIdentifier(string identifier)
+    {
+        foreach (char character in identifier)
         {
-            await using DbCommand probe = connection.CreateCommand();
+            if (!char.IsAsciiLetterOrDigit(character) && character != '_')
+            {
+                throw new InvalidOperationException($"Şema tanımlayıcısı beklenen biçimde değil: '{identifier}'.");
+            }
+        }
+
+        return identifier;
+    }
+
+    private static async Task EnsureColumnAsync(DbConnection connection, IDbContextTransaction transaction, string table, string column, string definition, CancellationToken cancellationToken)
+    {
+        string safeTable = SafeIdentifier(table);
+        string safeColumn = SafeIdentifier(column);
+
+        bool exists;
+        await using (DbCommand probe = connection.CreateCommand())
+        {
             probe.Transaction = transaction.GetDbTransaction();
-            probe.CommandText = "SELECT COUNT(*) FROM pragma_table_info('CalculationResults') WHERE name = $name";
+            probe.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{safeTable}') WHERE name = $name";
             DbParameter parameter = probe.CreateParameter();
             parameter.ParameterName = "$name";
-            parameter.Value = column;
+            parameter.Value = safeColumn;
             probe.Parameters.Add(parameter);
-            bool exists = Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) == 1L;
-            if (!exists)
-            {
-                await using DbCommand alter = connection.CreateCommand();
-                alter.Transaction = transaction.GetDbTransaction();
-                alter.CommandText = $"ALTER TABLE \"CalculationResults\" ADD COLUMN \"{column}\" INTEGER NOT NULL DEFAULT 0;";
-                await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            exists = Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) == 1L;
+        }
+
+        if (exists)
+        {
+            return;
+        }
+
+        await ExecuteAsync(connection, transaction,
+            $"ALTER TABLE \"{safeTable}\" ADD COLUMN \"{safeColumn}\" {definition};",
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private static async Task EnsureCalculationQuantityColumnsAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
+        foreach (string column in new[] { "NetQuantity", "WithWasteQuantity", "PurchaseQuantity", "RemainderQuantity" })
+        {
+            await EnsureColumnAsync(connection, transaction, "CalculationResults", column, "INTEGER NOT NULL DEFAULT 0", cancellationToken).ConfigureAwait(false);
         }
     }
 
     private static async Task EnsureCardVersionNameColumnAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
-        await using DbCommand probe = connection.CreateCommand();
-        probe.Transaction = transaction.GetDbTransaction();
-        probe.CommandText = "SELECT COUNT(*) FROM pragma_table_info('CatalogCardVersions') WHERE name = 'Name'";
-        bool exists = Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) == 1L;
-        if (!exists)
-        {
-            await using DbCommand alter = connection.CreateCommand();
-            alter.Transaction = transaction.GetDbTransaction();
-            alter.CommandText = "ALTER TABLE \"CatalogCardVersions\" ADD COLUMN \"Name\" TEXT NOT NULL DEFAULT '';";
-            await alter.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        await using DbCommand backfill = connection.CreateCommand();
-        backfill.Transaction = transaction.GetDbTransaction();
-        backfill.CommandText =
-            "UPDATE \"CatalogCardVersions\" SET \"Name\" = (SELECT \"Name\" FROM \"CatalogCardDefinitions\" WHERE \"CatalogCardDefinitions\".\"Id\" = \"CatalogCardVersions\".\"CatalogCardDefinitionId\") WHERE \"Name\" = '';";
-        await backfill.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await EnsureColumnAsync(connection, transaction, "CatalogCardVersions", "Name", "TEXT NOT NULL DEFAULT ''", cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "UPDATE \"CatalogCardVersions\" SET \"Name\" = (SELECT \"Name\" FROM \"CatalogCardDefinitions\" WHERE \"CatalogCardDefinitions\".\"Id\" = \"CatalogCardVersions\".\"CatalogCardDefinitionId\") WHERE \"Name\" = '';",
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task EnsureCalculationResultSnapshotIndexAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
     {
-        DbConnection connection = context.Database.GetDbConnection();
-        if (connection.State != System.Data.ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        }
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
 
-        await using DbCommand drop = connection.CreateCommand();
-        drop.Transaction = transaction.GetDbTransaction();
-        drop.CommandText = "DROP INDEX IF EXISTS \"IX_CalculationResults_ProjectRevisionId_InputHash\";";
-        await drop.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "DROP INDEX IF EXISTS \"IX_CalculationResults_ProjectRevisionId_InputHash\";",
+            cancellationToken).ConfigureAwait(false);
 
-        await using DbCommand create = connection.CreateCommand();
-        create.Transaction = transaction.GetDbTransaction();
-        create.CommandText = "CREATE INDEX IF NOT EXISTS \"IX_CalculationResults_ProjectRevisionId_InputHash\" ON \"CalculationResults\" (\"ProjectRevisionId\", \"InputHash\");";
-        await create.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            "CREATE INDEX IF NOT EXISTS \"IX_CalculationResults_ProjectRevisionId_InputHash\" ON \"CalculationResults\" (\"ProjectRevisionId\", \"InputHash\");",
+            cancellationToken).ConfigureAwait(false);
     }
 }
