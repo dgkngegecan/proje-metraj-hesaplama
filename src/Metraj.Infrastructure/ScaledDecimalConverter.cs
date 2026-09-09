@@ -1,20 +1,25 @@
+using Metraj.Domain;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Metraj.Infrastructure;
 
-/// <summary>Stores six-decimal quantities as exact SQLite INTEGER values.</summary>
+/// <summary>Miktarları SQLite INTEGER olarak TAM saklar (altı ondalık).</summary>
+/// <remarks>
+/// Çarpan <see cref="QuantityRules.ScaleFactor"/>'dan gelir. Önceden burada
+/// dört kez sabit yazılıydı ve alan katmanındaki ölçek sabitinden habersizdi;
+/// ayrıca kullanılmayan ikinci bir <c>Scale</c> sabiti taşıyordu.
+/// </remarks>
 public sealed class ScaledDecimalConverter() : ValueConverter<decimal, long>(
-    value => checked((long)decimal.Round(value * 1_000_000m, 0, MidpointRounding.AwayFromZero)),
-    value => value / 1_000_000m)
+    value => checked((long)decimal.Round(value * QuantityRules.ScaleFactor, 0, MidpointRounding.AwayFromZero)),
+    value => value / QuantityRules.ScaleFactor)
 {
-    public const int Scale = 6;
 }
 
-/// <summary>Nullable counterpart of the six-decimal quantity converter.</summary>
+/// <summary>Aynı dönüştürücünün null kabul eden karşılığı.</summary>
 public sealed class NullableScaledDecimalConverter() : ValueConverter<decimal?, long?>(
     value => value.HasValue
-        ? checked((long?)decimal.Round(value.Value * 1_000_000m, 0, MidpointRounding.AwayFromZero))
+        ? checked((long?)decimal.Round(value.Value * QuantityRules.ScaleFactor, 0, MidpointRounding.AwayFromZero))
         : null,
-    value => value.HasValue ? value.Value / 1_000_000m : null)
+    value => value.HasValue ? value.Value / QuantityRules.ScaleFactor : null)
 {
 }

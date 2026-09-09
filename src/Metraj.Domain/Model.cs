@@ -36,6 +36,13 @@ public enum ReportBehavior
 {
     Folder,
     Measurable,
+
+    // ERTELENMİŞ KAPSAM -- bu iki değer hiçbir yerde ÜRETİLMİYOR.
+    // Faz 0 sözleşmesinde tanımlılar; arayüz yalnızca Folder/Measurable
+    // sunuyor. Silinmediler çünkü enum'lar veritabanına METİN olarak
+    // yazılıyor: elle düzenlenmiş ya da ileride yazılmış bir satır,
+    // değer kaldırılırsa okunamaz hâle gelir. Kod temizliği, veri
+    // okunabilirliğinden önce gelmez.
     Auxiliary,
     Reference
 }
@@ -52,11 +59,15 @@ public enum ProjectRevisionStatus
 {
     Draft,
     Approved,
+
+    // ERTELENMİŞ KAPSAM -- arşivleme akışı gerçekleşmedi, bu değer hiçbir
+    // yerde üretilmiyor. Bkz. ReportBehavior'daki not.
     Archived
 }
 
 public enum SemanticLinkType
 {
+    // ERTELENMİŞ KAPSAM -- ComponentOf hiçbir yerde üretilmiyor.
     ComponentOf,
     CalculatedFrom,
     Reference
@@ -94,7 +105,7 @@ public sealed class CatalogCardDefinition
     public string? Description { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-    public ICollection<CatalogCardVersion> Versions { get; set; } = new List<CatalogCardVersion>();
+    public ICollection<CatalogCardVersion> Versions { get; } = new List<CatalogCardVersion>();
 }
 
 /// <summary>
@@ -117,7 +128,7 @@ public sealed class CatalogCardTypeDefinition
     public string AttributeKeysJson { get; set; } = "[]";
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-    public ICollection<CatalogCardVersion> CardVersions { get; set; } = new List<CatalogCardVersion>();
+    public ICollection<CatalogCardVersion> CardVersions { get; } = new List<CatalogCardVersion>();
 }
 
 public sealed class CatalogCardVersion
@@ -149,6 +160,13 @@ public sealed class CatalogCardVersion
     /// <summary>Values captured for the optional attributes enabled by the card type template.</summary>
     public string AttributeValuesJson { get; set; } = "{}";
     public string ContentHash { get; set; } = string.Empty;
+    /// <summary>
+    /// ERTELENMİŞ KAPSAM: taslak/yayınlanmış sürüm ayrımı gerçekleşmedi.
+    /// </summary>
+    /// <remarks>
+    /// Her yerde <c>true</c> atanıyor, hiçbir sorguda süzgeç olarak
+    /// kullanılmıyor. Sürüm yayınlama akışı eklenirse anlam kazanır.
+    /// </remarks>
     public bool IsPublished { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public CatalogCardDefinition? CatalogCardDefinition { get; set; }
@@ -162,7 +180,7 @@ public sealed class Project
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
-    public ICollection<ProjectRevision> Revisions { get; set; } = new List<ProjectRevision>();
+    public ICollection<ProjectRevision> Revisions { get; } = new List<ProjectRevision>();
 }
 
 public sealed class ProjectRevision
@@ -184,12 +202,12 @@ public sealed class ProjectRevision
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime? ApprovedAtUtc { get; set; }
     public Project? Project { get; set; }
-    public ICollection<ProjectPlacement> Placements { get; set; } = new List<ProjectPlacement>();
-    public ICollection<Measurement> Measurements { get; set; } = new List<Measurement>();
-    public ICollection<ResponsibilityDimension> ResponsibilityDimensions { get; set; } = new List<ResponsibilityDimension>();
-    public ICollection<ResponsibilityParty> ResponsibilityParties { get; set; } = new List<ResponsibilityParty>();
-    public ICollection<CalculationRuleVersion> CalculationRules { get; set; } = new List<CalculationRuleVersion>();
-    public ICollection<CalculationResult> CalculationResults { get; set; } = new List<CalculationResult>();
+    public ICollection<ProjectPlacement> Placements { get; } = new List<ProjectPlacement>();
+    public ICollection<Measurement> Measurements { get; } = new List<Measurement>();
+    public ICollection<ResponsibilityDimension> ResponsibilityDimensions { get; } = new List<ResponsibilityDimension>();
+    public ICollection<ResponsibilityParty> ResponsibilityParties { get; } = new List<ResponsibilityParty>();
+    public ICollection<CalculationRuleVersion> CalculationRules { get; } = new List<CalculationRuleVersion>();
+    public ICollection<CalculationResult> CalculationResults { get; } = new List<CalculationResult>();
 }
 
 public sealed class ProjectPlacement
@@ -201,14 +219,23 @@ public sealed class ProjectPlacement
     public string? DisplayNameOverride { get; set; }
     public string? Notes { get; set; }
     public string? ProcurementScope { get; set; }
+    /// <summary>
+    /// ERTELENMİŞ KAPSAM: tedarik havuzlaması gerçekleşmedi.
+    /// </summary>
+    /// <remarks>
+    /// Bu alan YAZILIYOR ama hiçbir yerde OKUNMUYOR. Faz 0 sözleşmesindeki
+    /// havuzlama kapsamı uygulanmadığı için bugün hiçbir hesabı etkilemiyor.
+    /// Kaldırılmadı çünkü kullanıcı verisinde zaten saklı; açık bir boşluk
+    /// notu, sessizce kaybolmasından iyidir.
+    /// </remarks>
     public bool NoPool { get; set; }
     public ProjectRevision? ProjectRevision { get; set; }
     public CatalogCardVersion? CatalogCardVersion { get; set; }
     public ProjectPlacement? ParentPlacement { get; set; }
-    public ICollection<ProjectPlacement> Children { get; set; } = new List<ProjectPlacement>();
-    public ICollection<Measurement> Measurements { get; set; } = new List<Measurement>();
-    public ICollection<PlacementLink> SourceLinks { get; set; } = new List<PlacementLink>();
-    public ICollection<PlacementLink> TargetLinks { get; set; } = new List<PlacementLink>();
+    public ICollection<ProjectPlacement> Children { get; } = new List<ProjectPlacement>();
+    public ICollection<Measurement> Measurements { get; } = new List<Measurement>();
+    public ICollection<PlacementLink> SourceLinks { get; } = new List<PlacementLink>();
+    public ICollection<PlacementLink> TargetLinks { get; } = new List<PlacementLink>();
 }
 
 public sealed class PlacementLink
@@ -266,7 +293,7 @@ public sealed class ResponsibilityDimension
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
     public ProjectRevision? ProjectRevision { get; set; }
-    public ICollection<ResponsibilityAssignment> Assignments { get; set; } = new List<ResponsibilityAssignment>();
+    public ICollection<ResponsibilityAssignment> Assignments { get; } = new List<ResponsibilityAssignment>();
 }
 
 public sealed class ResponsibilityParty

@@ -13,9 +13,11 @@ public sealed class ArchitectureSmokeTests
     [Fact]
     public void AllInitialLayersAreLoadable()
     {
-        Assert.NotNull(typeof(Metraj.Domain.AssemblyMarker).Assembly);
-        Assert.NotNull(typeof(Metraj.Application.AssemblyMarker).Assembly);
-        Assert.NotNull(typeof(Metraj.Infrastructure.AssemblyMarker).Assembly);
+        // Boş işaretçi sınıflar yerine katmanların GERÇEK tipleri kullanılıyor:
+        // katman gerçekten yüklenebiliyorsa bu tipler de yüklenebilir.
+        Assert.NotNull(typeof(Metraj.Domain.CatalogCardDefinition).Assembly);
+        Assert.NotNull(typeof(Metraj.Application.CalculationEngine).Assembly);
+        Assert.NotNull(typeof(Metraj.Infrastructure.MetrajDbContext).Assembly);
     }
 
     /// <summary>Ensures the domain assembly has no UI or persistence dependency.</summary>
@@ -23,7 +25,7 @@ public sealed class ArchitectureSmokeTests
     public void DomainAssemblyDoesNotReferenceUiOrSqlite()
     {
         string[] forbidden = ["PresentationFramework", "PresentationCore", "Microsoft.Data.Sqlite"];
-        var references = typeof(Metraj.Domain.AssemblyMarker).Assembly
+        var references = typeof(Metraj.Domain.CatalogCardDefinition).Assembly
             .GetReferencedAssemblies()
             .Select(static assembly => assembly.Name)
             .OfType<string>()

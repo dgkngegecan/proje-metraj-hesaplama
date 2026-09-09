@@ -385,32 +385,16 @@ public sealed class CatalogWorkspaceService : ICatalogWorkspace
         (values ?? []).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray();
 
-    private static string[] DeserializeDiameters(string json)
-    {
-        try { return JsonSerializer.Deserialize<string[]>(json) ?? []; }
-        catch (JsonException) { return []; }
-    }
+    private static string[] DeserializeDiameters(string json) => JsonStore.Read<string[]>(json, []);
 
     private static IReadOnlyList<string> ParseAttributeKeys(string? json)
     {
-        if (string.IsNullOrWhiteSpace(json)) return [];
-        try { return CatalogCardAttributeCatalog.NormalizeKeys(JsonSerializer.Deserialize<string[]>(json)); }
-        catch (JsonException) { return []; }
+        string[]? keys = JsonStore.Read<string[]?>(json, null);
+        return keys is null ? [] : CatalogCardAttributeCatalog.NormalizeKeys(keys);
     }
 
-    private static Dictionary<string, string> DeserializeAttributeValues(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        try
-        {
-            return JsonSerializer.Deserialize<Dictionary<string, string>>(json)
-                ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
-    }
+    private static Dictionary<string, string> DeserializeAttributeValues(string? json) =>
+        JsonStore.Read(json, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
 
     private static string SerializeAttributeValues(IReadOnlyDictionary<string, string> values) =>
         JsonSerializer.Serialize(values

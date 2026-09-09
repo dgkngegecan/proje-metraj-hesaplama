@@ -1,6 +1,4 @@
-using System.Text.Json;
-
-namespace Metraj.Domain;
+﻿namespace Metraj.Domain;
 
 /// <summary>Raised when an aggregate would violate an invariant.</summary>
 public sealed class DomainRuleViolationException(string rule, string message) : InvalidOperationException(message)
@@ -11,6 +9,23 @@ public sealed class DomainRuleViolationException(string rule, string message) : 
 public static class QuantityRules
 {
     public const int DecimalScale = 6;
+
+    /// <summary>10^<see cref="DecimalScale"/>. Ölçekli INTEGER saklamanın çarpanı.</summary>
+    /// <remarks>
+    /// Bu çarpan önceden <c>ScaledDecimalConverter</c> içinde dört kez sabit
+    /// yazılıydı ve ölçek sabitinden habersizdi; ikisi ayrışırsa saklanan her
+    /// miktar sessizce yanlış ölçeklenirdi.
+    /// </remarks>
+    public const decimal ScaleFactor = 1_000_000m;
+
+    /// <summary>
+    /// Saklanabilecek en büyük miktar: <c>long.MaxValue / ScaleFactor</c>.
+    /// </summary>
+    /// <remarks>
+    /// Ölçekli değer bir SQLite INTEGER'ına (Int64) sığmak zorunda olduğu için
+    /// sınır buradan gelir. İlişki <c>QuantityScaleContractTests</c> ile
+    /// kilitlidir; sabitlerden biri değişirse test kırılır.
+    /// </remarks>
     public const decimal MaximumQuantity = 9_223_372_036_854.775807m;
 
     public static void EnsureValid(decimal value, string fieldName = "quantity")
@@ -121,7 +136,7 @@ public static class ProjectTreeRules
         CatalogCardTypeDefinition? childType = child.CatalogCardTypeDefinition;
         if (childType is not null)
         {
-            Guid[] allowedParents = ParseIds(childType.AllowedParentCardIdsJson);
+            Guid[] allowedParents = JsonStore.ReadIds(childType.AllowedParentCardIdsJson);
             if (allowedParents.Length > 0 && !allowedParents.Contains(parent.CatalogCardDefinitionId))
             {
                 throw new DomainRuleViolationException(
@@ -133,7 +148,7 @@ public static class ProjectTreeRules
         CatalogCardTypeDefinition? parentType = parent.CatalogCardTypeDefinition;
         if (parentType is not null)
         {
-            Guid[] allowedChildren = ParseIds(parentType.AllowedChildCardIdsJson);
+            Guid[] allowedChildren = JsonStore.ReadIds(parentType.AllowedChildCardIdsJson);
             if (allowedChildren.Length > 0 && !allowedChildren.Contains(child.CatalogCardDefinitionId))
             {
                 throw new DomainRuleViolationException(
@@ -172,7 +187,7 @@ public static class ProjectTreeRules
         var targetsBySource = existingLinks
             .Where(x => x.Id != link.Id && x.LinkType == SemanticLinkType.CalculatedFrom)
             .GroupBy(x => x.SourcePlacementId)
-            .ToDictionary(x => x.Key, x => x.Select(link => link.TargetPlacementId).ToArray());
+            .ToDictionary(x => x.Key, x => x.Select(dependency => dependency.TargetPlacementId).ToArray());
         var pending = new Stack<Guid>();
         var visited = new HashSet<Guid>();
         pending.Push(link.TargetPlacementId);
@@ -198,19 +213,4 @@ public static class ProjectTreeRules
         }
     }
 
-    private static Guid[] ParseIds(string json)
-    {
-        try
-        {
-            return (JsonSerializer.Deserialize<Guid[]>(json) ?? [])
-                .Distinct()
-                .ToArray();
-        }
-        catch (JsonException)
-        {
-            // A malformed optional template should not make an otherwise valid
-            // legacy tree uneditable; the template service never writes malformed JSON.
-            return [];
-        }
-    }
 }

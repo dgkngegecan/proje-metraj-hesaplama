@@ -83,8 +83,8 @@ public sealed class CatalogCardTypeWorkspaceService : ICatalogCardTypeWorkspace
         definition.Code,
         definition.Name,
         definition.BaseCardType,
-        ParseIds(definition.AllowedParentCardIdsJson),
-        ParseIds(definition.AllowedChildCardIdsJson),
+        JsonStore.ReadIds(definition.AllowedParentCardIdsJson),
+        JsonStore.ReadIds(definition.AllowedChildCardIdsJson),
         ParseAttributes(definition.AttributeKeysJson),
         definition.IsActive,
         definition.Description);
@@ -151,15 +151,9 @@ public sealed class CatalogCardTypeWorkspaceService : ICatalogCardTypeWorkspace
         return ids;
     }
 
-    private static Guid[] ParseIds(string json)
-    {
-        try { return (JsonSerializer.Deserialize<Guid[]>(json) ?? []).Distinct().ToArray(); }
-        catch (JsonException) { return []; }
-    }
-
     private static IReadOnlyList<string> ParseAttributes(string json)
     {
-        try { return CatalogCardAttributeCatalog.NormalizeKeys(JsonSerializer.Deserialize<string[]>(json)); }
-        catch (JsonException) { return RequiredAttributeKeys; }
+        string[]? keys = JsonStore.Read<string[]?>(json, null);
+        return keys is null ? RequiredAttributeKeys : CatalogCardAttributeCatalog.NormalizeKeys(keys);
     }
 }

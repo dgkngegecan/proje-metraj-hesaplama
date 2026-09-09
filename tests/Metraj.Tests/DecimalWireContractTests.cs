@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Metraj.Domain;
+using Metraj.Infrastructure;
 using Xunit;
 
 namespace Metraj.Tests;
@@ -60,5 +61,42 @@ public sealed class DecimalWireContractTests
         // Uygulamada karşılaşılan büyüklükler bu tavanın çok altında olduğu için
         // açık teoriktir; yine de sınırın nerede olduğu burada yazılıdır.
         Assert.True(QuantityRules.MaximumQuantity > 9_007_199_254m / 1_000_000m);
+    }
+}
+
+/// <summary>
+/// Ölçek sabitleri birbirinden türer. Önceden üç ayrı yerde, birbirinden
+/// habersiz duruyorlardı; biri değişirse saklanan her miktar sessizce
+/// yanlış ölçeklenirdi. Bu testler ilişkiyi kilitler.
+/// </summary>
+public sealed class QuantityScaleContractTests
+{
+    [Fact]
+    public void TheScaleFactorIsTenToThePowerOfTheDecimalScale()
+    {
+        decimal expected = 1m;
+        for (int i = 0; i < QuantityRules.DecimalScale; i++)
+        {
+            expected *= 10m;
+        }
+
+        Assert.Equal(QuantityRules.ScaleFactor, expected);
+    }
+
+    [Fact]
+    public void TheMaximumQuantityIsExactlyWhatAnInt64CanHoldAtThatScale()
+    {
+        Assert.Equal(long.MaxValue / QuantityRules.ScaleFactor, QuantityRules.MaximumQuantity);
+    }
+
+    [Fact]
+    public void TheConverterUsesTheSameScaleAsTheDomainRule()
+    {
+        var converter = new ScaledDecimalConverter();
+        var toStore = (Func<decimal, long>)converter.ConvertToProviderExpression.Compile();
+        var fromStore = (Func<long, decimal>)converter.ConvertFromProviderExpression.Compile();
+
+        Assert.Equal(1L, toStore(1m / QuantityRules.ScaleFactor));
+        Assert.Equal(QuantityRules.MaximumQuantity, fromStore(long.MaxValue));
     }
 }

@@ -10,7 +10,7 @@ public sealed record CalculationOutput(
     SalesConversion Conversion);
 
 /// <summary>Deterministic, deliberately limited calculation engine for catalog quantities.</summary>
-public sealed class CalculationEngine
+public static class CalculationEngine
 {
     public static CalculationOutput Calculate(CatalogCardVersion card, decimal inputQuantity)
     {
