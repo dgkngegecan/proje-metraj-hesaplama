@@ -22,8 +22,8 @@ oturum tam olarak nerede kalındığını görebilir.
 | T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
 | T2 — Gizli doğruluk boşlukları (18 madde) | ✅ **18/18 TAMAM** | aşağıda |
 | T3 — Hissedilen yavaşlık (6 madde) | ✅ **6/6 TAMAM** | `3e60b8f` |
-| T4 — Teslim riski (4 madde) | 🔄 **SIRADA** — 2/4 tamam (T4-2, T4-4) | `5e55407` |
-| T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
+| T4 — Teslim riski (4 madde) | ✅ **4/4 TAMAM** | `5e55407`, `5acbe6c` |
+| T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 **SIRADA** — kısmen (aşağıya bak) | — |
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
@@ -135,6 +135,68 @@ anahtarlarını sessizce boşaltırdı**. Açıkça projeksiyona eklendi ve
 
 Ardından **T5** (9 alt bölüm, yapı ve temizlik) — kullanıcı önceliğinde en
 sonda.
+
+---
+
+## 🔖 BÖLÜM DEVİR NOTU — T4 kapandı (4/4)
+**Commit:** `5acbe6c` · **Testler:** 119, tamamı yeşil
+
+### Bu commit'te tamamlananlar
+
+| Madde | Ne düzeldi | Kullanıcıya etkisi |
+|---|---|---|
+| T4-1 | Arayüz derlemesi build'in parçası | **Eski arayüzlü ya da arayüzsüz bir .exe artık üretilemiyor** |
+| T4-2 (kalan yarısı) | `dist/` artık izlenmiyor | — (depo temizliği) |
+| T4-3 | `global.json`, `.nvmrc`, `engines`, CI | Farklı bir SDK/Node build'i sessizce değiştiremiyor |
+
+### T4-1 nasıl doğrulandı
+Üç davranışın üçü de ayrı ayrı denendi:
+
+1. **Artımlı atlama** — arayüz kaynağı değişmemişken `dotnet build` npm'i
+   hiç çalıştırmıyor (arka uç döngüsü yavaşlamıyor).
+2. **Kaynak değişince yeniden derleme** — `App.tsx`'e dokunulduğunda
+   `npm run build` çalışıyor ve yeni bundle gömülüyor.
+3. **Eksik çıktıda açık hata** — `dist/` taşındığında build şu iletiyle
+   duruyor:
+   > Arayüz çıktısı eksik: …\dist\index.html bulunamadı. Arayüzsüz bir
+   > uygulama üretmektense build durduruldu.
+
+Ayrıca **gerçek bir temiz checkout** (ayrı bir `git worktree`, `dist/` ve
+`node_modules/` yok) denendi: MSBuild `npm ci` (44 paket) ve
+`npm run build` adımlarını kendisi çalıştırdı, `dist/` üretildi.
+O kopyada derleme, aşağıdaki ortam engeli (Kaspersky) yüzünden
+tamamlanamadı — arayüz zinciriyle ilgisi yok, ana depoda aynı commit
+sorunsuz derleniyor.
+
+Gömülen kaynak adları değişmedi:
+`Metraj.Api.Web.index.html`, `Metraj.Api.Web.assets\index-*.js/css`,
+`Metraj.Api.Web.favicon.ico`.
+
+### Dikkat: `-p:BuildFrontend=false` ne yapar, ne yapmaz
+**Yapar:** arayüzü yeniden üretmeyi atlar (arka uç döngüsü için).
+**Yapmaz:** varlık doğrulamasını atlamaz. `dist/` yoksa build yine durur.
+Yani bu bayrak hiçbir koşulda arayüzsüz bir çıktı üretmez.
+
+### Windows tuzağı
+`npm.cmd` MSBuild `Exec` içinde **tırnaksız** çağrılmalı. Tırnak içinde
+çağrıldığında `%~dp0` kendi konumu yerine çalışma dizinine çözülüyor ve
+npm `npm-cli.js`'i bulamıyor.
+
+### Sırada — T5 (yapı ve temizlik, 9 alt bölüm)
+Kullanıcı önceliğinde en sonda; hiçbiri kullanıcıya görünmüyor.
+
+1. 5.1 Build yapılandırması
+2. 5.2 Domain katmanı
+3. 5.3 `ApplicationSchemaMigrator`
+4. 5.4 Servislerdeki tekrar
+5. 5.5 `ProjectReportWorkspaceService` (1.148 satır) ayrıştırması
+6. 5.6 API katmanı
+7. 5.7 Frontend yapısı
+8. 5.8 Testler (kararsız duvar-saati performans testi dahil)
+9. 5.9 Dokümantasyon
+
+**Kural:** T5 davranış değiştirmez. Her adımda 119 testin yeşil kalması
+tek kabul ölçütüdür; test sayısı düşerse bir şey yanlış gitmiştir.
 
 ---
 
