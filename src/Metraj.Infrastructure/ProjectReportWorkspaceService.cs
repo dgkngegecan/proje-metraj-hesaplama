@@ -80,48 +80,16 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     }
 
     /// <inheritdoc />
-    public async Task<ProjectReportExportResult> ExportExcelAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default)
-    {
-        ProjectReportData report = await BuildReportDataAsync(revisionId, cancellationToken);
-        string path = ValidateOutputPath(outputPath, ".xlsx");
-        using var workbook = new XLWorkbook();
-        WriteSummaryWorksheet(workbook, report);
-        WriteClassificationWorksheet(workbook, report);
-        WriteContextWorksheet(workbook, report);
-        WriteSourceWorksheet(workbook, report);
-        WritePurchaseWorksheet(workbook, report);
-        WriteResponsibilityWorksheet(workbook, report);
-        WriteCalculationCheckWorksheet(workbook, report);
-        workbook.SaveAs(path);
-        await AddExportAuditAsync(report, path, "Excel", cancellationToken);
-        return ToExportResult(report, path);
-    }
+    public async Task<ProjectReportExportResult> ExportExcelAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default) =>
+        await ExportAsync(await BuildReportDataAsync(revisionId, cancellationToken), outputPath, ReportFormat.Excel, "Excel", cancellationToken);
 
     /// <inheritdoc />
-    public async Task<ProjectReportExportResult> ExportPdfAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default)
-    {
-        ProjectReportData report = await BuildReportDataAsync(revisionId, cancellationToken);
-        string path = ValidateOutputPath(outputPath, ".pdf");
-        EnsurePdfFontsConfigured();
-        Document document = BuildPdfDocument(report);
-        var renderer = new PdfDocumentRenderer
-        {
-            Document = document
-        };
-        renderer.RenderDocument();
-        renderer.PdfDocument.Save(path);
-        await AddExportAuditAsync(report, path, "PDF", cancellationToken);
-        return ToExportResult(report, path);
-    }
+    public async Task<ProjectReportExportResult> ExportPdfAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default) =>
+        await ExportAsync(await BuildReportDataAsync(revisionId, cancellationToken), outputPath, ReportFormat.Pdf, "PDF", cancellationToken);
 
-    public async Task<ProjectReportExportResult> ExportWordAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default)
-    {
-        ProjectReportData report = await BuildReportDataAsync(revisionId, cancellationToken);
-        string path = ValidateOutputPath(outputPath, ".docx");
-        WriteDocx(path, report);
-        await AddExportAuditAsync(report, path, "Word", cancellationToken);
-        return ToExportResult(report, path);
-    }
+    /// <inheritdoc />
+    public async Task<ProjectReportExportResult> ExportWordAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default) =>
+        await ExportAsync(await BuildReportDataAsync(revisionId, cancellationToken), outputPath, ReportFormat.Word, "Word", cancellationToken);
 
     public async Task<ProjectReportData> BuildSubtreeReportDataAsync(Guid revisionId, Guid rootPlacementId, CancellationToken cancellationToken = default)
     {
@@ -156,10 +124,64 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         };
     }
 
-    public async Task<ProjectReportExportResult> ExportSubtreeExcelAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public async Task<ProjectReportExportResult> ExportSubtreeExcelAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
+        await ExportAsync(await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken), outputPath, ReportFormat.Excel, "Excel-Subtree", cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<ProjectReportExportResult> ExportSubtreePdfAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
+        await ExportAsync(await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken), outputPath, ReportFormat.Pdf, "PDF-Subtree", cancellationToken);
+
+    /// <inheritdoc />
+    public async Task<ProjectReportExportResult> ExportSubtreeWordAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
+        await ExportAsync(await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken), outputPath, ReportFormat.Word, "Word-Subtree", cancellationToken);
+
+    private enum ReportFormat
     {
-        ProjectReportData report = await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken);
-        string path = ValidateOutputPath(outputPath, ".xlsx");
+        Excel,
+        Pdf,
+        Word
+    }
+
+    /// <summary>Altı dışa aktarım yolunun ortak gövdesi.</summary>
+    /// <remarks>
+    /// Bu altı metot birbirinin kopyasıydı; yalnızca hangi yazıcıyı çağırdıkları
+    /// ve denetim kaydındaki etiket farklıydı. Üstelik ikisi aynı işi iki farklı
+    /// yazım stilinde yapıyordu.
+    /// </remarks>
+    private async Task<ProjectReportExportResult> ExportAsync(
+        ProjectReportData report,
+        string outputPath,
+        ReportFormat format,
+        string auditLabel,
+        CancellationToken cancellationToken)
+    {
+        string path = ValidateOutputPath(outputPath, format switch
+        {
+            ReportFormat.Excel => ".xlsx",
+            ReportFormat.Pdf => ".pdf",
+            _ => ".docx"
+        });
+
+        switch (format)
+        {
+            case ReportFormat.Excel:
+                WriteWorkbook(path, report);
+                break;
+            case ReportFormat.Pdf:
+                WritePdf(path, report);
+                break;
+            default:
+                WriteDocx(path, report);
+                break;
+        }
+
+        await AddExportAuditAsync(report, path, auditLabel, cancellationToken);
+        return ToExportResult(report, path);
+    }
+
+    private static void WriteWorkbook(string path, ProjectReportData report)
+    {
         using var workbook = new XLWorkbook();
         WriteSummaryWorksheet(workbook, report);
         WriteClassificationWorksheet(workbook, report);
@@ -169,30 +191,14 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         WriteResponsibilityWorksheet(workbook, report);
         WriteCalculationCheckWorksheet(workbook, report);
         workbook.SaveAs(path);
-        await AddExportAuditAsync(report, path, "Excel-Subtree", cancellationToken);
-        return ToExportResult(report, path);
     }
 
-    public async Task<ProjectReportExportResult> ExportSubtreePdfAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default)
+    private static void WritePdf(string path, ProjectReportData report)
     {
-        ProjectReportData report = await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken);
-        string path = ValidateOutputPath(outputPath, ".pdf");
         EnsurePdfFontsConfigured();
-        Document document = BuildPdfDocument(report);
-        var renderer = new PdfDocumentRenderer { Document = document };
+        var renderer = new PdfDocumentRenderer { Document = BuildPdfDocument(report) };
         renderer.RenderDocument();
         renderer.PdfDocument.Save(path);
-        await AddExportAuditAsync(report, path, "PDF-Subtree", cancellationToken);
-        return ToExportResult(report, path);
-    }
-
-    public async Task<ProjectReportExportResult> ExportSubtreeWordAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default)
-    {
-        ProjectReportData report = await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken);
-        string path = ValidateOutputPath(outputPath, ".docx");
-        WriteDocx(path, report);
-        await AddExportAuditAsync(report, path, "Word-Subtree", cancellationToken);
-        return ToExportResult(report, path);
     }
 
     /// <summary>Seçili yerleşimlerin bütün üst kartlarını tek geçişte toplar.</summary>
@@ -570,11 +576,19 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         sheet.Cell(4, 2).Value = report.GeneratedAtUtc;
         sheet.Cell(4, 2).Style.DateFormat.Format = "yyyy-MM-dd HH:mm:ss";
 
-        string[] headers = ["Malzeme", "Kod", "Satır", "Birim", "Net", "Fireli", "Satın alma (boy/adet)", "Çap / Boyut", "Çeşit"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(6, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Malzeme", 32),
+            Text("Kod", 19),
+            Quantity("Satır", 11),
+            Text("Birim", 11),
+            Quantity("Net", 14),
+            Quantity("Fireli", 14),
+            Quantity("Satın alma (boy/adet)", 14),
+            Text("Çap / Boyut", 17),
+            Text("Çeşit", 17)
+        ];
+        WriteHeaderRow(sheet, 6, columns);
 
         int row = 7;
         foreach (MeasurementSummaryItem item in report.Summaries)
@@ -591,7 +605,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 6, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 6, row - 1, columns);
     }
 
     private static void EnsurePdfFontsConfigured()
@@ -618,11 +632,22 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IXLWorksheet sheet = workbook.Worksheets.Add("Sistem-Kategori");
         sheet.Cell(1, 1).Value = "Sistem ve Kategori Özeti";
         sheet.Range(1, 1, 1, 12).Merge();
-        string[] headers = ["Kategori", "Sistem", "Poz", "Kod", "Malzeme", "Satır", "Birim", "Net", "Fireli", "Satın alma", "Çap / Boyut", "Çeşit"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(3, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Kategori", 22),
+            Text("Sistem", 22),
+            Text("Poz", 14),
+            Text("Kod", 19),
+            Text("Malzeme", 32),
+            Quantity("Satır", 11),
+            Text("Birim", 11),
+            Quantity("Net", 14),
+            Quantity("Fireli", 14),
+            Quantity("Satın alma", 14),
+            Text("Çap / Boyut", 17),
+            Text("Çeşit", 17)
+        ];
+        WriteHeaderRow(sheet, 3, columns);
 
         int row = 4;
         foreach (ReportClassificationSummaryItem item in report.ClassificationSummaries)
@@ -642,7 +667,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 3, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
     }
 
     private static void WriteContextWorksheet(XLWorkbook workbook, ProjectReportData report)
@@ -650,11 +675,22 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IXLWorksheet sheet = workbook.Worksheets.Add("Kat-Mahal");
         sheet.Cell(1, 1).Value = "Kat ve Mahal Metraj Özeti";
         sheet.Range(1, 1, 1, 12).Merge();
-        string[] headers = ["Blok", "Kat", "Mahal", "Bölge", "Pafta", "Çizim rev.", "Poz", "Kod", "Malzeme", "Satır", "Birim", "Net"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(3, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Blok", 14),
+            Text("Kat", 14),
+            Text("Mahal", 14),
+            Text("Bölge", 14),
+            Text("Pafta", 14),
+            Text("Çizim rev.", 14),
+            Text("Poz", 14),
+            Text("Kod", 19),
+            Text("Malzeme", 32),
+            Quantity("Satır", 11),
+            Text("Birim", 11),
+            Quantity("Net", 14)
+        ];
+        WriteHeaderRow(sheet, 3, columns);
 
         int row = 4;
         foreach (ReportContextSummaryItem item in report.ContextSummaries)
@@ -674,7 +710,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 3, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
     }
 
     private static void WriteSourceWorksheet(XLWorkbook workbook, ProjectReportData report)
@@ -685,11 +721,24 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         // Çap ve çeşit, bu uygulamanın metrajındaki temel ayrımdır; denetim için
         // kaynak satırlarını çıkaran kullanıcı hangi satırın hangi çapa ait
         // olduğunu göremiyordu (Word'de vardı, PDF ve Excel'de yoktu).
-        string[] headers = ["Malzeme", "Kod", "Çap / Boyut", "Çeşit", "Kaynak", "Miktar", "Birim", "Blok", "Kat", "Mahal", "Bölge", "Pafta", "Çizim rev.", "Not"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(3, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Malzeme", 32),
+            Text("Kod", 19),
+            Text("Çap / Boyut", 17),
+            Text("Çeşit", 17),
+            Text("Kaynak", 18),
+            Quantity("Miktar", 14),
+            Text("Birim", 11),
+            Text("Blok", 14),
+            Text("Kat", 14),
+            Text("Mahal", 14),
+            Text("Bölge", 14),
+            Text("Pafta", 14),
+            Text("Çizim rev.", 14),
+            Text("Not", 28)
+        ];
+        WriteHeaderRow(sheet, 3, columns);
 
         int row = 4;
         foreach (MeasurementListItem item in report.SourceMeasurements)
@@ -711,7 +760,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 3, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
     }
 
     private static void WritePurchaseWorksheet(XLWorkbook workbook, ProjectReportData report)
@@ -719,11 +768,22 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IXLWorksheet sheet = workbook.Worksheets.Add("Satın Alma");
         sheet.Cell(1, 1).Value = "Satın Alma Listesi";
         sheet.Range(1, 1, 1, 12).Merge();
-        string[] headers = ["Malzeme", "Kod", "Kaynak", "Kural", "Birim", "Net", "Fireli", "Satın alma", "Satın alma birimi", "Kullanılan", "Çap / Boyut", "Çeşit"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(3, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Malzeme", 32),
+            Text("Kod", 19),
+            Text("Kaynak", 18),
+            Text("Kural", 18),
+            Text("Birim", 11),
+            Quantity("Net", 14),
+            Quantity("Fireli", 14),
+            Quantity("Satın alma", 14),
+            Text("Satın alma birimi", 15),
+            Quantity("Kullanılan", 14),
+            Text("Çap / Boyut", 17),
+            Text("Çeşit", 17)
+        ];
+        WriteHeaderRow(sheet, 3, columns);
 
         int row = 4;
         foreach (ReportPurchaseItem item in report.PurchaseItems)
@@ -743,7 +803,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 3, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
     }
 
     private static void WriteResponsibilityWorksheet(XLWorkbook workbook, ProjectReportData report)
@@ -751,11 +811,17 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IXLWorksheet sheet = workbook.Worksheets.Add("Sorumluluk");
         sheet.Cell(1, 1).Value = "Sorumluluk Özeti";
         sheet.Range(1, 1, 1, 7).Merge();
-        string[] headers = ["Boyut", "Yerleşim", "Taraf", "Durum", "Kaynak", "Kalıtılmış", "Not"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(3, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Boyut", 14),
+            Text("Yerleşim", 22),
+            Text("Taraf", 14),
+            Text("Durum", 11),
+            Text("Kaynak", 18),
+            Text("Kalıtılmış", 14),
+            Text("Not", 28)
+        ];
+        WriteHeaderRow(sheet, 3, columns);
 
         int row = 4;
         foreach (ResponsibilityAssignmentListItem item in report.Responsibilities)
@@ -770,7 +836,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 3, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
     }
 
     private static void WriteCalculationCheckWorksheet(XLWorkbook workbook, ProjectReportData report)
@@ -778,11 +844,19 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         IXLWorksheet sheet = workbook.Worksheets.Add("Hesap Kontrol");
         sheet.Cell(1, 1).Value = "Hesap Önerisi ve Kontrol Listesi";
         sheet.Range(1, 1, 1, 9).Merge();
-        string[] headers = ["Hedef", "Kod", "Kural", "Sürüm", "Durum", "Öneri", "Satın alma", "Kullanılan", "Gerekçe"];
-        for (int column = 0; column < headers.Length; column++)
-        {
-            sheet.Cell(3, column + 1).Value = headers[column];
-        }
+        ExcelColumn[] columns =
+        [
+            Text("Hedef", 32),
+            Text("Kod", 19),
+            Text("Kural", 18),
+            Text("Sürüm", 11),
+            Text("Durum", 11),
+            Text("Öneri", 14),
+            Quantity("Satın alma", 14),
+            Quantity("Kullanılan", 14),
+            Text("Gerekçe", 28)
+        ];
+        WriteHeaderRow(sheet, 3, columns);
 
         int row = 4;
         foreach (ReportCalculationCheckItem item in report.CalculationChecks)
@@ -799,11 +873,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             row++;
         }
 
-        ApplyWorksheetStyle(sheet, 3, row - 1, headers.Length);
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
     }
 
-    private static void ApplyWorksheetStyle(IXLWorksheet sheet, int headerRow, int finalRow, int finalColumn)
+    private static void ApplyWorksheetStyle(IXLWorksheet sheet, int headerRow, int finalRow, IReadOnlyList<ExcelColumn> columns)
     {
+        int finalColumn = columns.Count;
         IXLRange title = sheet.Range(1, 1, 1, finalColumn);
         title.Style.Font.Bold = true;
         title.Style.Font.FontSize = 15;
@@ -857,29 +932,51 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         // İçeriğe göre ayarla ama uzun ad/not sütunlarının tüm sayfayı
         // büyütmesine izin verme; çıktı ekranda ve baskıda dengeli kalır.
         sheet.Columns(1, finalColumn).AdjustToContents(1, Math.Max(finalRow, headerRow), 8, 46);
+        // Sayı biçimi ve genişlik artık BAŞLIK METNİNDEN çıkarılmıyor. Önceden
+        // bir başlığı yeniden adlandırmak, o sütunun sayı biçimini sessizce
+        // düşürüyordu -- ve "Satın alma birimi" bir metin sütunu olduğu için
+        // kuralın içinde ayrıca bir istisna taşınıyordu.
         for (int column = 1; column <= finalColumn; column++)
         {
-            string headerText = sheet.Cell(headerRow, column).GetString();
-            // "Satın alma birimi" bir metin sütunudur; sayı biçimi uygulanmamalı.
-            if (headerText is "Satır" or "Net" or "Fireli" or "Kullanılan" or "Miktar"
-                || (headerText.StartsWith("Satın alma", StringComparison.Ordinal) && headerText != "Satın alma birimi"))
+            ExcelColumn descriptor = columns[column - 1];
+            if (descriptor.Kind == ExcelColumnKind.Quantity)
             {
                 sheet.Column(column).Style.NumberFormat.Format = QuantityNumberFormat;
                 sheet.Column(column).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             }
-            double preferred = headerText switch
-            {
-                "Malzeme" or "Hedef" => 32,
-                "Kod" => 19,
-                "Not" or "Gerekçe" => 28,
-                "Kategori" or "Sistem" or "Yerleşim" => 22,
-                "Çap / Boyut" or "Çeşit" => 17,
-                "Kaynak" or "Kural" or "Atama kaynağı" => 18,
-                "Satın alma birimi" => 15,
-                "Birim" or "Satır" or "Sürüm" or "Durum" => 11,
-                _ => 14,
-            };
-            sheet.Column(column).Width = Math.Clamp(Math.Max(sheet.Column(column).Width, preferred), 9d, 46d);
+
+            sheet.Column(column).Width = Math.Clamp(Math.Max(sheet.Column(column).Width, descriptor.PreferredWidth), 9d, 46d);
+        }
+    }
+
+    /// <summary>Excel sütununun ne taşıdığı: biçimlendirmeyi bu belirler.</summary>
+    private enum ExcelColumnKind
+    {
+        Text,
+        Quantity
+    }
+
+    /// <summary>Bir Excel sütununun başlığı, türü ve tercih edilen genişliği.</summary>
+    /// <remarks>
+    /// Sütun tanımları önceden yalnızca <c>string[] headers</c> idi; tür ve
+    /// genişlik <c>ApplyWorksheetStyle</c> içinde başlık metnine bakılarak
+    /// tahmin ediliyordu. Aynı bilgi böylece iki yerde duruyor ve bir başlık
+    /// değiştiğinde sessizce ayrışıyordu.
+    /// </remarks>
+    private sealed record ExcelColumn(string Header, ExcelColumnKind Kind, double PreferredWidth);
+
+    private static ExcelColumn Text(string header, double preferredWidth) =>
+        new(header, ExcelColumnKind.Text, preferredWidth);
+
+    private static ExcelColumn Quantity(string header, double preferredWidth) =>
+        new(header, ExcelColumnKind.Quantity, preferredWidth);
+
+    /// <summary>Başlık satırını yazar. Bu döngü yedi sayfada tekrar ediyordu.</summary>
+    private static void WriteHeaderRow(IXLWorksheet sheet, int headerRow, IReadOnlyList<ExcelColumn> columns)
+    {
+        for (int column = 0; column < columns.Count; column++)
+        {
+            sheet.Cell(headerRow, column + 1).Value = columns[column].Header;
         }
     }
 
@@ -1181,6 +1278,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         return path;
     }
 
+    /// <summary>Hücre metnini Excel formülü olarak yorumlanmaktan korur.</summary>
+    /// <remarks>
+    /// Kullanıcının yazdığı bir kart adı <c>=</c>, <c>+</c>, <c>-</c> veya
+    /// <c>@</c> ile başlıyorsa Excel onu FORMÜL sayar (CSV/formül enjeksiyonu).
+    /// Tek tırnak ön eki, hücreyi metin olarak işaretler ve ekranda görünmez.
+    /// </remarks>
     private static string SafeCellText(string? value)
     {
         if (string.IsNullOrEmpty(value))
