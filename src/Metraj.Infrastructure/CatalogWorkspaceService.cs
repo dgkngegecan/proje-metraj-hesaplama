@@ -9,14 +9,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Metraj.Infrastructure;
 
 /// <summary>Catalog operations that preserve immutable card versions.</summary>
-public sealed class CatalogWorkspaceService : ICatalogWorkspace
+public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory) : ICatalogWorkspace
 {
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    public CatalogWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     public async Task<IReadOnlyList<CatalogCardListItem>> ListCardsAsync(CancellationToken cancellationToken = default)
     {
@@ -437,8 +433,7 @@ public sealed class CatalogWorkspaceService : ICatalogWorkspace
         var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach ((string key, string value) in values)
         {
-            string canonical = CatalogCardAttributeCatalog.All
-                .FirstOrDefault(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase))?.Key
+            string canonical = CatalogCardAttributeCatalog.Canonical(key)
                 ?? throw new DomainRuleViolationException("catalog-type.attribute-key", $"Unknown card attribute '{key}'.");
             if (allowed is not null && !allowed.Contains(canonical))
             {
@@ -482,14 +477,6 @@ public sealed class CatalogWorkspaceService : ICatalogWorkspace
             : value.Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
-    private static string? NormalizeOptionalText(string? value, int maximumLength, string fieldName)
-    {
-        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        if (normalized?.Length > maximumLength)
-        {
-            throw new DomainRuleViolationException("catalog.optional-text", $"{fieldName} must not exceed {maximumLength} characters.");
-        }
-
-        return normalized;
-    }
+    private static string? NormalizeOptionalText(string? value, int maximumLength, string fieldName) =>
+        TextRules.Optional(value, maximumLength, "catalog.optional-text", $"{fieldName} must not exceed {maximumLength} characters.");
 }

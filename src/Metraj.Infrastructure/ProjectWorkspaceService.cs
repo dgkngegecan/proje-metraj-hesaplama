@@ -5,14 +5,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Metraj.Infrastructure;
 
 /// <summary>Persistence-backed project workspace operations used by the desktop shell.</summary>
-public sealed class ProjectWorkspaceService : IProjectWorkspace
+public sealed class ProjectWorkspaceService(Func<MetrajDbContext> contextFactory) : IProjectWorkspace
 {
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    public ProjectWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     public async Task<IReadOnlyList<ProjectListItem>> ListProjectsAsync(CancellationToken cancellationToken = default)
     {

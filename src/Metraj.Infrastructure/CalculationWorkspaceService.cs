@@ -10,19 +10,15 @@ using Microsoft.EntityFrameworkCore;
 namespace Metraj.Infrastructure;
 
 /// <summary>Creates immutable calculation-rule versions and reviewable result snapshots without executing user code.</summary>
-public sealed class CalculationWorkspaceService : ICalculationWorkspace
+public sealed class CalculationWorkspaceService(Func<MetrajDbContext> contextFactory) : ICalculationWorkspace
 {
     private const string SnapshotContractVersion = "CALC-SNAPSHOT-v1";
     private static readonly JsonSerializerOptions SnapshotJsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter() }
     };
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    public CalculationWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<CalculationRuleListItem>> ListRulesAsync(Guid revisionId, CancellationToken cancellationToken = default)

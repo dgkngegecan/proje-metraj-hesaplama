@@ -8,14 +8,10 @@ namespace Metraj.Infrastructure;
 /// Idempotent starter vocabulary for common Turkish field terms and their global equivalents.
 /// The pack is deliberately a catalog only: it creates no projects or placements.
 /// </summary>
-public sealed class StarterCatalogWorkspaceService : IStarterCatalogWorkspace
+public sealed class StarterCatalogWorkspaceService(Func<MetrajDbContext> contextFactory) : IStarterCatalogWorkspace
 {
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    public StarterCatalogWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     public async Task<StarterCatalogSeedResult> SeedAsync(CancellationToken cancellationToken = default)
     {

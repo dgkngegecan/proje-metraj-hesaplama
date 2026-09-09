@@ -5,15 +5,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Metraj.Infrastructure;
 
 /// <summary>Persists source measurements and derives deterministic placement summaries.</summary>
-public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
+public sealed class MeasurementWorkspaceService(Func<MetrajDbContext> contextFactory) : IMeasurementWorkspace
 {
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    /// <summary>Creates the workspace with a short-lived database context factory.</summary>
-    public MeasurementWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     /// <inheritdoc />
     public async Task<IReadOnlyList<MeasurementListItem>> ListMeasurementsAsync(Guid revisionId, CancellationToken cancellationToken = default)
@@ -371,30 +366,11 @@ public sealed class MeasurementWorkspaceService : IMeasurementWorkspace
             
     }
 
-    private static string NormalizeRequired(string value, int maxLength, string rule)
-    {
-        string normalized = value.Trim();
-        if (normalized.Length == 0 || normalized.Length > maxLength)
-        {
-            throw new DomainRuleViolationException(rule, $"Value must contain 1 to {maxLength} characters.");
-        }
+    private static string NormalizeRequired(string value, int maxLength, string rule) =>
+        TextRules.Required(value, maxLength, rule, $"Value must contain 1 to {maxLength} characters.");
 
-        return normalized;
-    }
-
-    private static string? NormalizeOptional(string? value, int maxLength, string rule)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        string normalized = value.Trim();
-        if (normalized.Length > maxLength)
-        {
-            throw new DomainRuleViolationException(rule, $"Value must not exceed {maxLength} characters.");
-        }
-
-        return normalized;
-    }
+    // Gövde TextRules'ta; kural kodu ve ileti buradan geliyor ki arayüzün
+    // dallandığı kod sözleşmesi değişmesin.
+    private static string? NormalizeOptional(string? value, int maxLength, string rule) =>
+        TextRules.Optional(value, maxLength, rule, $"Value must not exceed {maxLength} characters.");
 }

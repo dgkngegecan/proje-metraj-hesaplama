@@ -33,11 +33,26 @@ public static class CatalogCardAttributeCatalog
         new("CompatibleDiameters", "Uyumlu çaplar", "Fitting veya adaptörün bağlanabildiği nominal çaplar.")
     ];
 
-    private static readonly HashSet<string> KnownKeys = All
-        .Select(x => x.Key)
-        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    /// <summary>Anahtardan kanonik yazımına ve katalogdaki sırasına.</summary>
+    /// <remarks>
+    /// Sıralama anahtarı önceden <c>Array.FindIndex(All.ToArray(), ...)</c> ile
+    /// hesaplanıyordu: OrderBy anahtarı her karşılaştırmada istediği için
+    /// ELEMAN BAŞINA tam bir dizi tahsisi ve lineer tarama demekti. Aynı
+    /// sözlük, <c>Canonical</c> ile birlikte doğrulamada da kullanılıyor;
+    /// orada da anahtar başına lineer tarama vardı.
+    /// </remarks>
+    private static readonly Dictionary<string, (string Canonical, int Order)> KeyIndex = All
+        .Select((descriptor, order) => (descriptor.Key, order))
+        .ToDictionary(x => x.Key, x => (x.Key, x.order), StringComparer.OrdinalIgnoreCase);
 
-    public static bool IsKnown(string key) => !string.IsNullOrWhiteSpace(key) && KnownKeys.Contains(key);
+    public static bool IsKnown(string key) => !string.IsNullOrWhiteSpace(key) && KeyIndex.ContainsKey(key);
+
+    /// <summary>Bilinen bir anahtarın katalogdaki kanonik yazımı; bilinmiyorsa null.</summary>
+    /// <param name="key">Aranan anahtar (büyük/küçük harf duyarsız).</param>
+    public static string? Canonical(string key) =>
+        !string.IsNullOrWhiteSpace(key) && KeyIndex.TryGetValue(key.Trim(), out (string Canonical, int Order) entry)
+            ? entry.Canonical
+            : null;
 
     public static IReadOnlyList<string> NormalizeKeys(IEnumerable<string>? keys)
     {
@@ -45,7 +60,7 @@ public static class CatalogCardAttributeCatalog
             .Where(IsKnown)
             .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(x => Array.FindIndex(All.ToArray(), descriptor => descriptor.Key.Equals(x, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(x => KeyIndex[x].Order)
             .ToArray();
     }
 }

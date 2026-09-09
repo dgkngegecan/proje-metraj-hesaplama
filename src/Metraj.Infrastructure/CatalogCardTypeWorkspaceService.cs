@@ -6,15 +6,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Metraj.Infrastructure;
 
 /// <summary>Persists global, safe card-type templates used by every project.</summary>
-public sealed class CatalogCardTypeWorkspaceService : ICatalogCardTypeWorkspace
+public sealed class CatalogCardTypeWorkspaceService(Func<MetrajDbContext> contextFactory) : ICatalogCardTypeWorkspace
 {
     private static readonly string[] RequiredAttributeKeys = ["Code", "Name", "Unit"];
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    public CatalogCardTypeWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     public async Task<IReadOnlyList<CatalogCardTypeListItem>> ListTypesAsync(CancellationToken cancellationToken = default)
     {
@@ -89,35 +85,16 @@ public sealed class CatalogCardTypeWorkspaceService : ICatalogCardTypeWorkspace
         definition.IsActive,
         definition.Description);
 
-    private static string NormalizeCode(string value)
-    {
-        string code = value.Trim().ToUpperInvariant();
-        if (code.Length is 0 or > 64)
-        {
-            throw new DomainRuleViolationException("catalog-type.code", "Type code must be filled and at most 64 characters.");
-        }
-        return code;
-    }
+    // Bu servis kural kodunu sabit tutup alan adını iletiye gömüyor; gövde
+    // TextRules'ta ama sözleşme (kural kodları) burada korunuyor.
+    private static string NormalizeCode(string value) =>
+        TextRules.Code(value, 64, "catalog-type.code", "Type code must be filled and at most 64 characters.");
 
-    private static string NormalizeRequired(string value, int maximumLength, string fieldName)
-    {
-        string normalized = value.Trim();
-        if (normalized.Length == 0 || normalized.Length > maximumLength)
-        {
-            throw new DomainRuleViolationException("catalog-type.required", $"{fieldName} must be filled within its supported length.");
-        }
-        return normalized;
-    }
+    private static string NormalizeRequired(string value, int maximumLength, string fieldName) =>
+        TextRules.Required(value, maximumLength, "catalog-type.required", $"{fieldName} must be filled within its supported length.");
 
-    private static string? NormalizeOptional(string? value, int maximumLength, string fieldName)
-    {
-        string? normalized = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-        if (normalized?.Length > maximumLength)
-        {
-            throw new DomainRuleViolationException("catalog-type.optional", $"{fieldName} must not exceed {maximumLength} characters.");
-        }
-        return normalized;
-    }
+    private static string? NormalizeOptional(string? value, int maximumLength, string fieldName) =>
+        TextRules.Optional(value, maximumLength, "catalog-type.optional", $"{fieldName} must not exceed {maximumLength} characters.");
 
     private static string[] NormalizeAttributeKeys(IEnumerable<string>? keys)
     {

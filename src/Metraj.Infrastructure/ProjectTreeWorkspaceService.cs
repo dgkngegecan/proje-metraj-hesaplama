@@ -5,14 +5,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Metraj.Infrastructure;
 
 /// <summary>Project placement and semantic-link operations with invariant checks.</summary>
-public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
+public sealed class ProjectTreeWorkspaceService(Func<MetrajDbContext> contextFactory) : IProjectTreeWorkspace
 {
-    private readonly Func<MetrajDbContext> contextFactory;
-
-    public ProjectTreeWorkspaceService(Func<MetrajDbContext> contextFactory)
-    {
-        this.contextFactory = contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
-    }
+    private readonly Func<MetrajDbContext> contextFactory =
+        contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
     public async Task<IReadOnlyList<PlacementListItem>> ListPlacementsAsync(Guid revisionId, CancellationToken cancellationToken = default)
     {
@@ -231,21 +227,10 @@ public sealed class ProjectTreeWorkspaceService : IProjectTreeWorkspace
         return depth;
     }
 
-    private static string? NormalizeOptional(string? value, int maxLength, string rule)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        string normalized = value.Trim();
-        if (normalized.Length > maxLength)
-        {
-            throw new DomainRuleViolationException(rule, $"Value must not exceed {maxLength} characters.");
-        }
-
-        return normalized;
-    }
+    // Gövde TextRules'ta; kural kodu ve ileti buradan geliyor ki arayüzün
+    // dallandığı kod sözleşmesi değişmesin.
+    private static string? NormalizeOptional(string? value, int maxLength, string rule) =>
+        TextRules.Optional(value, maxLength, rule, $"Value must not exceed {maxLength} characters.");
 
     private static PlacementListItem ToListItem(ProjectPlacement placement)
     {
