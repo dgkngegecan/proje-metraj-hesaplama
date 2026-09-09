@@ -20,14 +20,73 @@ oturum tam olarak nerede kalındığını görebilir.
 | Hazırlık: kaynak baseline + .gitignore | ✅ Tamam | `5e55407` |
 | T0 — Emek kaybı / yanlış sayı (10 madde) | ✅ **10/10 TAMAM** | aşağıda |
 | T1 — Şaşırtıcı/engelleyici (21 madde) | ✅ **21/21 TAMAM** | aşağıda |
-| T2 — Gizli doğruluk boşlukları (18 madde) | 🔄 12/18 tamam | aşağıda |
-| T3 — Hissedilen yavaşlık (6 madde) | ⬜ Bekliyor | — |
+| T2 — Gizli doğruluk boşlukları (18 madde) | ✅ **18/18 TAMAM** | aşağıda |
+| T3 — Hissedilen yavaşlık (6 madde) | 🔄 **SIRADA** | — |
 | T4 — Teslim riski (4 madde) | 🔄 2/4 tamam (T4-2, T4-4) | `5e55407` |
 | T5 — Yapı ve temizlik (9 alt bölüm) | 🔄 Kısmen (aşağıya bak) | — |
 
 **Test tabanı:** Değişiklik öncesi `dotnet test Metraj.sln` → **68 başarılı, 0 başarısız**.
 Her bölüm sonunda bu sayının artması (yeni regresyon testleri) ve hiç
-başarısız olmaması beklenir. **Güncel: 104 başarılı, 0 başarısız.**
+başarısız olmaması beklenir. **Güncel: 114 başarılı, 0 başarısız.**
+
+---
+
+## 🔖 BÖLÜM DEVİR NOTU — T2 kapandı (18/18)
+**Commit:** `226a616` · **Testler:** 104 → **114**, tamamı yeşil
+
+### Bu commit'te tamamlananlar
+
+| Madde | Ne düzeldi | Kullanıcıya etkisi |
+|---|---|---|
+| T2-3 | Onay ve inceleme kararları koşullu güncelleme ile alınıyor | İki eşzamanlı istek aynı revizyonu/sonucu iki kez onaylayamıyor |
+| T2-4 | `ApplicationDatabaseGate` — bakım ile sıradan işlem ayrımı | Geri yükleme sırasında gelen istek yarım yazılmış veritabanı görmüyor |
+| T2-6 | Yükseltme yolundaki eksik indeks eklendi | Yükseltilen kurulum ile yeni kurulum aynı davranıyor |
+| T2-11 | Serbest metin normalize + sınırlı, enum'lar doğrulanıyor | Bozuk/aşırı uzun girdi sessizce kaydedilmiyor |
+| T2-12 | `AddLinkAsync` yalnızca güncel revizyonun bağlantılarını yüklüyor | Başka revizyondaki bağlantı yanlış çakışma üretmiyor |
+| T2-16 | Bilinçli erteleme + sınır testi (aşağıda) | — (teorik açık kayda geçti) |
+
+### T2-6 nasıl doğrulandı
+`SchemaConsistencyTests`, yükseltilmiş bir veritabanının yeni kurulmuş
+bir veritabanıyla **aynı indeks ve sütun kümesine** sahip olmasını
+karşılaştırır. Düzeltme geçici olarak kaldırılıp testin gerçekten
+kırmızıya döndüğü doğrulandı:
+
+```
+Yükseltilmiş veritabanında eksik indeksler:
+  IX_CatalogCardVersions_CatalogCardTypeDefinitionId
+```
+
+### T2-16 — bilinçli erteleme (gerekçesiyle)
+İnceleme dokümanının kendisi bu maddeyi ayrı tutmayı öneriyor: tel
+formatını ondalık-string'e çevirmek uyumluluk testi isteyen bir kırıcı
+değişiklik. Öncelik sırasına göre bu, **bugün kullanıcıya görünür bir
+faydası olmayan bir kararlılık riski**.
+
+Bunun yerine `DecimalWireContractTests` güvenli aralığın nerede bittiğini
+sabitledi:
+- Gerçek metraj büyüklükleri (`0.000001` … `99999999.123456`) tel
+  üzerinden **tam** geçiyor.
+- Güvenli tavan: ölçeklenmiş değer 2^53'ün altında kaldığı sürece tam —
+  yani `9_007_199_254.740992`.
+- Alan sınırı (`MaximumQuantity = 9_223_372_036_854.775807`) bu tavanın
+  **üstünde**; açık teorik olarak gerçek. Test bunu kayda geçiriyor ve
+  ileride tel formatı değişirse ya da alan sınırı düşerse **bilerek
+  kırılıyor**.
+
+### Sırada — T3 (hissedilen yavaşlık, 6 madde)
+Hiçbiri başlanmadı. Öncelik sırası (kullanıcının hissettiği gecikmeye göre):
+
+1. **T3-1** — Her ölçüm kaydından sonra revizyonun tamamı yeniden yükleniyor
+2. **T3-2** — `loadRevision` açılışta iki kez çalışıyor (`flow` bağımlılığı)
+3. **T3-4** — Liste sorguları gereğinden fazla veri çekiyor
+4. **T3-3** — Karşılaştırıcıların içinde ağaç dolaşımı
+5. **T3-5** — `StarterCatalogWorkspaceService` döngü içinde servis kuruyor
+6. **T3-6** — Rapor indirmeleri belgeyi tümüyle belleğe alıyor
+
+### Kalan bölümler
+- **T4:** T4-1 (frontend build'i MSBuild'e bağla + `dist/` ignore), T4-3
+  (`global.json`, Node sürüm politikası, CI)
+- **T5:** 9 alt bölüm (yapı ve temizlik) — kullanıcı önceliğinde en sonda
 
 ---
 
