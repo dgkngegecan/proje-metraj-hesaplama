@@ -1,0 +1,24 @@
+import type { Node } from '@xyflow/react';
+
+import type { CardType, Placement } from '../types';
+
+/** Uygulamanın dört ana ekranı. */
+export type View = 'flow' | 'catalog' | 'settings' | 'control';
+
+/** Proje haritasındaki bir kart düğümü. */
+export type PlacementNode = Node<Placement, 'placement'>;
+
+/** Kart üzerinde gösterilen tek bir ölçüm satırı. */
+export type FlowBreakdownEntry = { id: string; quantity: number; createdAtUtc: string; notes?: string | null };
+
+/** Kart üzerinde aynı etiket altında toplanan ölçümler. */
+export type FlowBreakdown = { label: string; quantity: number; entries: FlowBreakdownEntry[] };
+
+/** Kart tipinin görünen adı, rengi ve simgesi. */
+export const TYPE_META: Record<CardType, { label: string; color: string; icon: string }> = {
+  Category: { label: 'Kategori', color: '#b58cff', icon: '◆' },
+  Scope: { label: 'Kapsam', color: '#ffc65b', icon: '◈' },
+  System: { label: 'Sistem', color: '#50caff', icon: '◉' },
+  Material: { label: 'Malzeme', color: '#62e3ad', icon: '●' },
+  Accessory: { label: 'Ek parça', color: '#ff86aa', icon: '✦' },
+};

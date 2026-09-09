@@ -1,22 +1,16 @@
-import { useCallback, useEffect, useId, useMemo, useReducer, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
   Controls,
-  Handle,
-  MarkerType,
   MiniMap,
-  Position,
   ReactFlow,
   applyEdgeChanges,
   applyNodeChanges,
   type Connection,
   type Edge,
   type EdgeChange,
-  type Node,
   type NodeChange,
-  type NodeProps,
   type NodeTypes,
   type ReactFlowInstance,
 } from '@xyflow/react';
@@ -24,6 +18,19 @@ import '@xyflow/react/dist/style.css';
 import { api, ApiError } from './api';
 import { AskDialog, useAsk } from './AskDialog';
 import { clearUiState, loadUiState, readUiState, writeUiState, type UiStateMap } from './uiState';
+import { TYPE_META, type FlowBreakdown, type PlacementNode, type View } from './lib/uiTypes';
+import { Stat } from './components/Stat';
+import { FlowCard } from './components/FlowCard';
+import { buildFlow } from './lib/flow';
+import {
+  isRadiatorPlacement,
+  makeCardCode,
+  measurementLabel,
+  measurementVariantOf,
+  parseDecimal,
+  purchaseUnit,
+  quantity,
+} from './lib/format';
 import type {
   CalculationResult,
   CalculationRule,
@@ -46,223 +53,6 @@ import type {
   StarterCatalogSeedResult,
 } from './types';
 
-type View = 'flow' | 'catalog' | 'settings' | 'control';
-type PlacementNode = Node<Placement, 'placement'>;
-type FlowBreakdownEntry = { id: string; quantity: number; createdAtUtc: string; notes?: string | null };
-type FlowBreakdown = { label: string; quantity: number; entries: FlowBreakdownEntry[] };
-
-const TYPE_META: Record<CardType, { label: string; color: string; icon: string }> = {
-  Category: { label: 'Kategori', color: '#b58cff', icon: '◆' },
-  Scope: { label: 'Kapsam', color: '#ffc65b', icon: '◈' },
-  System: { label: 'Sistem', color: '#50caff', icon: '◉' },
-  Material: { label: 'Malzeme', color: '#62e3ad', icon: '●' },
-  Accessory: { label: 'Ek parça', color: '#ff86aa', icon: '✦' },
-};
-
-function BreakdownRow({
-  item,
-  unit,
-  active,
-  displayLabel,
-}: {
-  item: FlowBreakdown;
-  unit: string;
-  active: boolean;
-  displayLabel?: string;
-}) {
-  const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(null);
-  const hoverTimer = useRef<number | null>(null);
-  const rowRef = useRef<HTMLDivElement | null>(null);
-  const tooltipId = useId();
-
-  const cancelTimer = () => {
-    if (hoverTimer.current !== null) {
-      window.clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-  };
-  const scheduleTooltip = () => {
-    if (!active) return;
-    cancelTimer();
-    hoverTimer.current = window.setTimeout(() => {
-      const rect = rowRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const panelWidth = 248;
-      const panelHeightLimit = 280;
-      const gap = 10;
-      const left =
-        rect.right + gap + panelWidth <= window.innerWidth - 12
-          ? rect.right + gap
-          : Math.max(12, rect.left - panelWidth - gap);
-      const top = Math.min(Math.max(12, rect.top - 12), Math.max(12, window.innerHeight - panelHeightLimit - 12));
-      setTooltipPosition({ left, top });
-      hoverTimer.current = null;
-    }, 900);
-  };
-  const closeTooltip = () => {
-    cancelTimer();
-    setTooltipPosition(null);
-  };
-
-  useEffect(() => {
-    if (!active) closeTooltip();
-    return () => cancelTimer();
-  }, [active]);
-
-  return (
-    <>
-      <div
-        ref={rowRef}
-        className="breakdown-summary-row nodrag"
-        tabIndex={active ? 0 : -1}
-        aria-describedby={tooltipPosition ? tooltipId : undefined}
-        onMouseEnter={scheduleTooltip}
-        onMouseLeave={closeTooltip}
-        onFocus={scheduleTooltip}
-        onBlur={closeTooltip}
-      >
-        <span>{displayLabel ?? item.label}</span>
-        <b>
-          {quantity(item.quantity)} {unit}
-        </b>
-      </div>
-      {tooltipPosition &&
-        createPortal(
-          <aside
-            id={tooltipId}
-            role="tooltip"
-            className="measurement-hover-card"
-            style={{ left: tooltipPosition.left, top: tooltipPosition.top }}
-          >
-            <div className="measurement-hover-heading">
-              <span>GİRİŞ GEÇMİŞİ</span>
-              <strong>{item.label}</strong>
-              <small>{item.entries.length} ayrı giriş · kronolojik</small>
-            </div>
-            <div className="measurement-hover-list">
-              {item.entries.map((entry, index) => {
-                const createdAt = Date.parse(entry.createdAtUtc);
-                return (
-                  <div key={entry.id}>
-                    <i>{index + 1}</i>
-                    <b>
-                      {quantity(entry.quantity)} {unit}
-                    </b>
-                    <time>
-                      {Number.isFinite(createdAt)
-                        ? new Date(createdAt).toLocaleString('tr-TR', {
-                            day: '2-digit',
-                            month: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        : '—'}
-                    </time>
-                    {entry.notes && <small>{entry.notes}</small>}
-                  </div>
-                );
-              })}
-            </div>
-            <footer>
-              Toplam{' '}
-              <b>
-                {quantity(item.quantity)} {unit}
-              </b>
-            </footer>
-          </aside>,
-          document.body,
-        )}
-    </>
-  );
-}
-
-function FlowCard({ data, selected }: NodeProps<PlacementNode>) {
-  const meta = TYPE_META[data.cardType];
-  const expanded = Boolean(data.expanded);
-  const nodeSummary = data.uiSummary as MeasurementSummary | undefined;
-  const breakdown = data.uiBreakdown as FlowBreakdown[] | undefined;
-  const placementNote = typeof data.notes === 'string' ? data.notes.trim() : '';
-  // Varyantlı kartlarda (boru, fitting ve radyatör) toplamı kaynak kırılımından
-  // üret. Böylece aynı kartta birden fazla yükseklik/genişlik veya çap varsa
-  // genişletilmiş karttaki toplam bütün girişleri kapsar.
-  const aggregateQuantity = breakdown?.length
-    ? breakdown.reduce((total, item) => total + item.quantity, 0)
-    : nodeSummary?.netQuantity;
-  return (
-    <div
-      className={`flow-card ${selected ? 'selected' : ''} ${expanded ? 'expanded' : ''} ${expanded && data.variantMode === 'Fitting' ? 'fitting-expanded' : ''}`}
-      style={{ '--node-accent': meta.color } as React.CSSProperties}
-    >
-      <Handle type="target" position={Position.Left} className="flow-handle" aria-label="Bu karta bağla" />
-      <div className="flow-card-top">
-        <span className="node-kind">
-          {meta.icon} {meta.label}
-        </span>
-        {data.positionNumber && <span className="node-poz">{data.positionNumber}</span>}
-      </div>
-      <strong>{data.displayName}</strong>
-      <span className="node-code">{data.cardCode}</span>
-      <span className="node-work">{data.isMeasurable ? `Metraj gir · ${data.unit}` : 'Düzenleme kartı'}</span>
-      <div className={`node-summary-shell ${expanded ? 'open' : ''}`} aria-hidden={!expanded}>
-        <div className="node-summary">
-          {placementNote && (
-            <div className="node-card-note">
-              <span>KARTA ÖZEL NOT</span>
-              <p>{placementNote}</p>
-            </div>
-          )}
-          {aggregateQuantity !== undefined ? (
-            <b className="node-summary-total">
-              {quantity(aggregateQuantity)} {nodeSummary?.unit ?? data.unit}
-            </b>
-          ) : data.isMeasurable ? (
-            <b className="node-summary-total">Henüz giriş yok</b>
-          ) : (
-            !placementNote && <small>Bu kartta ölçüm girişi bulunmuyor.</small>
-          )}
-          {data.variantMode === 'Fitting' && breakdown?.length ? (
-            <div className="fitting-summary-grid">
-              {[...new Set(breakdown.map((item) => item.label.split(' · ')[0]))].map((diameter) => (
-                <div className="fitting-summary-tile" key={diameter}>
-                  <strong>{diameter}</strong>
-                  {breakdown
-                    .filter((item) => item.label === diameter || item.label.startsWith(`${diameter} · `))
-                    .map((item) => (
-                      <BreakdownRow
-                        key={item.label}
-                        item={item}
-                        displayLabel={item.label.split(' · ').slice(1).join(' · ') || item.label}
-                        unit={data.unit}
-                        active={expanded}
-                      />
-                    ))}
-                </div>
-              ))}
-            </div>
-          ) : data.variantMode === 'Pipe' && breakdown?.length ? (
-            <div className="pipe-summary-list">
-              {breakdown.map((item) => (
-                <BreakdownRow key={item.label} item={item} unit={data.unit} active={expanded} />
-              ))}
-            </div>
-          ) : breakdown?.length ? (
-            <div className="generic-summary-list">
-              {breakdown.map((item) => (
-                <BreakdownRow key={item.label} item={item} unit={data.unit} active={expanded} />
-              ))}
-            </div>
-          ) : null}
-          <em>
-            {breakdown?.length
-              ? 'Bir satırda bekleyerek tarihli girişleri gör · daraltmak için çift tıkla'
-              : 'Daraltmak için çift tıkla'}
-          </em>
-        </div>
-      </div>
-      <Handle type="source" position={Position.Right} className="flow-handle" aria-label="Bu karttan bağla" />
-    </div>
-  );
-}
 
 const nodeTypes: NodeTypes = { placement: FlowCard };
 
@@ -276,97 +66,6 @@ const nodeTypes: NodeTypes = { placement: FlowCard };
 // yalnızca bu alan eklenmeden ÖNCE yazılmış eski satırlar içindir. Aynı ifade
 // beş ayrı yerde tekrarlanıyordu; biri değiştiğinde ötekiler sessizce geride
 // kalırdı. Eski satırların bilgisi kaybolmasın diye geri düşüş korunuyor.
-function measurementVariantOf(measurement: { variant?: string | null; notes?: string | null }): string {
-  return measurement.variant || measurement.notes?.match(/(?:Çap|Boyut):\s*([^·]+)/i)?.[1]?.trim() || '';
-}
-
-function parseDecimal(input: string): number {
-  return Number(input.replace(',', '.'));
-}
-
-function buildFlow(placements: Placement[]): { nodes: PlacementNode[]; edges: Edge[] } {
-  const children = new Map<string | null, Placement[]>();
-  for (const item of placements) {
-    const key = item.parentPlacementId ?? null;
-    children.set(key, [...(children.get(key) ?? []), item]);
-  }
-  const nodes: PlacementNode[] = [];
-  let leaf = 0;
-  // Bozuk bir ebeveyn zinciri (A'nın çocuğu B, B'nin çocuğu A) bu özyinelemeyi
-  // sonsuza sokar ve sayfa stack overflow ile çöker. Bu kod tabanındaki diğer
-  // her ağaç yürüyüşünde koruma var; burada yoktu.
-  const visited = new Set<string>();
-  const visit = (placement: Placement, depth: number): number => {
-    if (visited.has(placement.id) || depth > 64) return leaf++ * 172;
-    visited.add(placement.id);
-    const ownChildren = children.get(placement.id) ?? [];
-    const childY = ownChildren.map((child) => visit(child, depth + 1));
-    const y = childY.length ? childY.reduce((sum, value) => sum + value, 0) / childY.length : leaf++ * 172;
-    nodes.push({ id: placement.id, type: 'placement', position: { x: depth * 300, y }, data: placement });
-    return y;
-  };
-  (children.get(null) ?? []).forEach((root) => visit(root, 0));
-  // Bir döngü yüzünden hiçbir köke bağlanamayan kartlar da haritada görünmeli;
-  // aksi hâlde kullanıcı var olan bir kartı bulamaz ve düzeltemez.
-  placements.filter((item) => !visited.has(item.id)).forEach((orphan) => visit(orphan, 0));
-  const edges: Edge[] = placements
-    .filter((item) => item.parentPlacementId)
-    .map((item) => ({
-      id: `${item.parentPlacementId}-${item.id}`,
-      source: item.parentPlacementId!,
-      target: item.id,
-      type: 'smoothstep',
-      animated: false,
-      markerEnd: { type: MarkerType.ArrowClosed, color: '#7787a7' },
-      style: { stroke: '#7787a7', strokeWidth: 2 },
-    }));
-  return { nodes, edges };
-}
-
-function quantity(value: number) {
-  // Rapor çıktılarıyla aynı hassasiyet. 3 basamakla sınırlıyken 0,0004 gibi
-  // küçük ama geçerli bir miktar ekranda ve Excel'de 0 görünüyor, PDF'te
-  // görünüyordu; kullanıcı ya sıfır sanıp veriyi siliyor ya da iki çıktının
-  // çeliştiğini görüyordu. Sondaki sıfırlar yine gösterilmez.
-  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 6 }).format(value);
-}
-
-function purchaseUnit(summary: MeasurementSummary) {
-  return summary.purchaseUnit || (summary.unit === 'm' && summary.variant ? 'boy' : summary.unit);
-}
-
-function makeCardCode(name: string) {
-  const stem = name
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .toUpperCase()
-    .slice(0, 18);
-  return `${stem || 'KART'}-${Date.now().toString(36).toUpperCase()}`;
-}
-
-/**
- * Radyatör girişinin açılıp açılmayacağını belirler.
- *
- * Öncelik sırası: kartın malzeme ailesi -> katalog kodu -> (son çare) görünen ad.
- * Ad, kullanıcının serbestçe değiştirebildiği bir alandır; tek ölçüt olarak
- * kullanılması yeniden adlandırmayı davranış değişikliğine dönüştürüyordu.
- */
-function isRadiatorPlacement(placement: Placement) {
-  const family = placement.materialType ?? '';
-  if (/radiator|radyat[öo]r/i.test(family)) return true;
-  if (/(^|-)(RAD|RADYATOR)(-|$)/i.test(placement.cardCode)) return true;
-  return /radyat[öo]r/i.test(placement.displayName);
-}
-
-function measurementLabel(notes?: string | null) {
-  const radiator = notes?.match(/Radyatör:\s*([^·]+)\s*·\s*Yükseklik:\s*([^·]+)\s*·\s*Genişlik:\s*(.+)$/i);
-  if (radiator)
-    return `${(radiator[1] ?? '').trim()} · H${(radiator[2] ?? '').trim()} · W${(radiator[3] ?? '').trim()}`;
-  return notes?.split(' · ')[0]?.trim() || 'Standart';
-}
-
 export default function App() {
   const [view, setView] = useState<View>('flow');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -3816,15 +3515,6 @@ function SummaryTable({
         <div className="empty-table">Henüz metraj yok. Haritada bir malzeme seçip miktarı yazın.</div>
       )}
     </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <article className="stat">
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </article>
   );
 }
 
