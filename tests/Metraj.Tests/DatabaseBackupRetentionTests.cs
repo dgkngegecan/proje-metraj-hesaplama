@@ -41,7 +41,7 @@ public sealed class DatabaseBackupRetentionTests
         }
         finally
         {
-            if (Directory.Exists(backupDirectory)) Directory.Delete(backupDirectory, recursive: true);
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
         }
     }
 
@@ -69,7 +69,7 @@ public sealed class DatabaseBackupRetentionTests
         }
         finally
         {
-            if (Directory.Exists(backupDirectory)) Directory.Delete(backupDirectory, recursive: true);
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
         }
     }
 }

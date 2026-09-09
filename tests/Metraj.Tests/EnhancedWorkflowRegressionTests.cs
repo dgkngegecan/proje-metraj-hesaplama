@@ -1,7 +1,6 @@
 using Metraj.Application;
 using Metraj.Domain;
 using Metraj.Infrastructure;
-using Microsoft.Data.Sqlite;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
@@ -304,7 +303,7 @@ public sealed class EnhancedWorkflowRegressionTests
 
     private static void Cleanup(string databasePath)
     {
-        SqliteConnection.ClearAllPools();
+        TestDatabase.ClearPoolFor(databasePath);
         File.Delete(databasePath);
         File.Delete($"{databasePath}-wal");
         File.Delete($"{databasePath}-shm");

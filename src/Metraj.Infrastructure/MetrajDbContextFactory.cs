@@ -6,20 +6,33 @@ namespace Metraj.Infrastructure;
 /// <summary>Creates EF Core contexts for the single application SQLite database.</summary>
 public static class MetrajDbContextFactory
 {
-    /// <summary>Creates a context configured for a local SQLite database path.</summary>
-    public static MetrajDbContext Create(string databasePath)
+    /// <summary>Bir veritabanı yolu için kullanılan bağlantı dizesini üretir.</summary>
+    /// <remarks>
+    /// Bağlantı dizesi elle birleştirilmez: noktalı virgül bir ayraçtır ve
+    /// yolun içinde geçtiğinde "Data Source" değerini erkenden bitirir.
+    /// Kullanıcının klasör adında noktalı virgül bulunması yeterlidir.
+    ///
+    /// Ayrı bir metot olmasının nedeni, aynı veritabanının bağlantı HAVUZUNU
+    /// hedefleyebilmek: <c>SqliteConnection.ClearPool</c> eşleşmeyi bağlantı
+    /// dizesi üzerinden yapar, dolayısıyla birebir aynı dize gerekir.
+    /// </remarks>
+    /// <param name="databasePath">SQLite dosyasının tam yolu.</param>
+    public static string BuildConnectionString(string databasePath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
-        // Bağlantı dizesi elle birleştirilmez: noktalı virgül bir ayraçtır ve
-        // yolun içinde geçtiğinde "Data Source" değerini erkenden bitirir.
-        // Kullanıcının klasör adında noktalı virgül bulunması yeterlidir.
-        string connectionString = new SqliteConnectionStringBuilder
+        return new SqliteConnectionStringBuilder
         {
             DataSource = databasePath,
             Mode = SqliteOpenMode.ReadWriteCreate,
             ForeignKeys = true,
             Pooling = true
         }.ToString();
+    }
+
+    /// <summary>Creates a context configured for a local SQLite database path.</summary>
+    public static MetrajDbContext Create(string databasePath)
+    {
+        string connectionString = BuildConnectionString(databasePath);
 
         var options = new DbContextOptionsBuilder<MetrajDbContext>()
             .UseSqlite(connectionString)

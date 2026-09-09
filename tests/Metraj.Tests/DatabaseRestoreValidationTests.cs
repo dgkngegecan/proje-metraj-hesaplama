@@ -37,7 +37,7 @@ public sealed class DatabaseRestoreValidationTests
                 command.CommandText = "CREATE TABLE \"Alakasiz\" (\"Id\" INTEGER PRIMARY KEY, \"Deger\" TEXT);";
                 await command.ExecuteNonQueryAsync();
             }
-            SqliteConnection.ClearAllPools();
+            TestDatabase.ClearPoolFor(foreignPath);
 
             var maintenance = new DatabaseMaintenanceWorkspaceService(() => database.Path, backupDirectory);
             DomainRuleViolationException error = await Assert.ThrowsAsync<DomainRuleViolationException>(
@@ -50,8 +50,8 @@ public sealed class DatabaseRestoreValidationTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            if (Directory.Exists(backupDirectory)) Directory.Delete(backupDirectory, recursive: true);
+            // Proje veritabanının havuzunu TestDatabase kendisi boşaltıyor.
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
         }
     }
 
@@ -78,8 +78,8 @@ public sealed class DatabaseRestoreValidationTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            if (Directory.Exists(backupDirectory)) Directory.Delete(backupDirectory, recursive: true);
+            // Proje veritabanının havuzunu TestDatabase kendisi boşaltıyor.
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
         }
     }
 }

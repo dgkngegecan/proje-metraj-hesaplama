@@ -2,7 +2,6 @@ using System.IO.Compression;
 using Metraj.Application;
 using Metraj.Domain;
 using Metraj.Infrastructure;
-using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace Metraj.Tests;
@@ -106,7 +105,7 @@ public sealed class ConfigurableMaterialBackendTests
             Assert.Equal(3m, oneInch.PurchaseQuantity);
             Assert.Equal(10m, oneInch.AppliedWasteRatePct);
         }
-        finally { SqliteConnection.ClearAllPools(); File.Delete(databasePath); }
+        finally { TestDatabase.ClearPoolFor(databasePath); File.Delete(databasePath); }
     }
 
     [Fact]

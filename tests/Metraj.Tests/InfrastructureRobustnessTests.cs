@@ -1,6 +1,5 @@
 using Metraj.Application;
 using Metraj.Infrastructure;
-using Microsoft.Data.Sqlite;
 using Xunit;
 
 namespace Metraj.Tests;
@@ -48,8 +47,8 @@ public sealed class InfrastructureRobustnessTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            if (Directory.Exists(backupDirectory)) Directory.Delete(backupDirectory, recursive: true);
+            // Proje veritabanının havuzunu TestDatabase kendisi boşaltıyor.
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
         }
     }
 
@@ -89,10 +88,12 @@ public sealed class InfrastructureRobustnessTests
         string preferred = Path.Combine(Path.GetTempPath(), $"metraj-pref-{Guid.NewGuid():N}");
         Directory.CreateDirectory(preferred);
         string? originalOverride = Environment.GetEnvironmentVariable("METRAJ_DATA_DIRECTORY");
+        // finally havuzu boşaltabilsin diye kapsam dışında tanımlı.
+        string path = string.Empty;
         try
         {
             Environment.SetEnvironmentVariable("METRAJ_DATA_DIRECTORY", preferred);
-            string path = ApplicationDatabasePaths.GetDatabasePath();
+            path = ApplicationDatabasePaths.GetDatabasePath();
             Assert.Equal(Path.Combine(preferred, "metraj.db"), path);
 
             await using (MetrajDbContext context = MetrajDbContextFactory.Create(path))
@@ -106,8 +107,8 @@ public sealed class InfrastructureRobustnessTests
         finally
         {
             Environment.SetEnvironmentVariable("METRAJ_DATA_DIRECTORY", originalOverride);
-            SqliteConnection.ClearAllPools();
-            if (Directory.Exists(preferred)) Directory.Delete(preferred, recursive: true);
+            if (path.Length > 0) TestDatabase.ClearPoolFor(path);
+            TestDatabase.DeleteDirectoryWithDatabases(preferred);
         }
     }
 
@@ -182,8 +183,8 @@ public sealed class InfrastructureRobustnessTests
         }
         finally
         {
-            SqliteConnection.ClearAllPools();
-            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+            TestDatabase.ClearPoolFor(path);
+            TestDatabase.DeleteDirectoryWithDatabases(directory);
         }
     }
 }

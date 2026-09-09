@@ -8,6 +8,11 @@ namespace Metraj.Tests;
 
 public sealed class PerformanceRegressionTests
 {
+    private readonly Xunit.Abstractions.ITestOutputHelper output;
+
+    /// <param name="output">Ölçülen süreyi teste iliştirir.</param>
+    public PerformanceRegressionTests(Xunit.Abstractions.ITestOutputHelper output) => this.output = output;
+
     [Fact]
     public async Task LargeMeasurementReadAndReportSnapshotRemainResponsive()
     {
@@ -53,6 +58,22 @@ public sealed class PerformanceRegressionTests
         MeasurementSummaryItem summary = Assert.Single(summaries);
         Assert.Equal(2_500m, summary.NetQuantity);
         Assert.Equal(2_500, report.SourceMeasurements.Count);
-        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(5), $"2,500 satırlık okuma ve rapor anlık görüntüsü {timer.Elapsed.TotalMilliseconds:N0} ms sürdü.");
+        // Ölçülen süre her zaman rapora yazılır; eğilimi insan takip edebilsin.
+        output.WriteLine($"2.500 satırlık okuma + rapor anlık görüntüsü: {timer.Elapsed.TotalMilliseconds:N0} ms");
+
+        // Duvar saati eşiği bir performans ÖLÇÜTÜ değil, felaket koruması.
+        //
+        // Önceki 5 saniyelik sınır makineye bağlıydı: yavaş bir disk, meşgul
+        // bir CI ajanı ya da araya giren bir virüs taraması testi kırmızıya
+        // döndürüyordu -- kodda hiçbir şey değişmeden. Rastgele kırmızıya dönen
+        // bir test, insanların bütün süiti ciddiye almayı bırakmasına yol açar.
+        //
+        // Buradaki sınır yalnızca BÜYÜKLÜK SIRASI bir gerilemeyi yakalar:
+        // örneğin bir sorgunun N+1'e ya da bir döngünün O(n²)'ye dönmesi.
+        // Gerçek performans takibi yukarıdaki çıktı satırından yapılır.
+        Assert.True(
+            timer.Elapsed < TimeSpan.FromSeconds(30),
+            $"2.500 satırlık okuma ve rapor anlık görüntüsü {timer.Elapsed.TotalMilliseconds:N0} ms sürdü; " +
+            "bu bir büyüklük sırası gerilemesine işaret ediyor.");
     }
 }

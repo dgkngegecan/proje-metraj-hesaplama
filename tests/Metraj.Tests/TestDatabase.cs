@@ -68,13 +68,65 @@ public sealed class TestDatabase : IAsyncDisposable
         return value is null or DBNull ? default : (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    /// <summary>Yalnızca verilen veritabanının bağlantı havuzunu boşaltır.</summary>
+    /// <remarks>
+    /// <c>SqliteConnection.ClearAllPools()</c> SÜREÇ GENELİNDE bütün havuzları
+    /// boşaltır; paralel çalışan başka bir testin açık yerel tanıtıcısını
+    /// geçersiz kılabilir. Eşleşme bağlantı dizesi üzerinden yapıldığı için
+    /// dize, üretimde kullanılanın birebir aynısı olmalıdır.
+    /// </remarks>
+    /// <param name="databasePath">Havuzu boşaltılacak veritabanının yolu.</param>
+    public static void ClearPoolFor(string databasePath)
+    {
+        using var pooled = new SqliteConnection(MetrajDbContextFactory.BuildConnectionString(databasePath));
+        SqliteConnection.ClearPool(pooled);
+    }
+
+    /// <summary>
+    /// Bir klasördeki bütün SQLite dosyalarının havuzunu boşaltır ve klasörü siler.
+    /// </summary>
+    /// <remarks>
+    /// Yedek klasörleri, ana veritabanından FARKLI bağlantı dizelerine sahip
+    /// dosyalar içerir; onların havuzu ayrıca boşaltılmazsa klasör silinemez
+    /// ("dosya başka bir işlem tarafından kullanılıyor"). Süreç geneli
+    /// <c>ClearAllPools</c> yerine dosya dosya boşaltılır.
+    /// </remarks>
+    /// <param name="directory">Silinecek klasör.</param>
+    public static void DeleteDirectoryWithDatabases(string directory)
+    {
+        if (!Directory.Exists(directory)) return;
+
+        foreach (string file in Directory.EnumerateFiles(directory, "*.db", SearchOption.AllDirectories))
+        {
+            ClearPoolFor(file);
+        }
+
+        try
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // Sızan bir geçici klasör, geçen bir testi başarısız yapmamalı.
+        }
+    }
+
     /// <inheritdoc />
     public ValueTask DisposeAsync()
     {
-        // ClearAllPools süreç genelindedir; test süiti bu yüzden seri çalışır
-        // (bkz. TestAssemblyConfiguration). Yan dosyalar da temizlenmezse
-        // her koşuda %TEMP% altında birikirler.
-        SqliteConnection.ClearAllPools();
+        // Yalnızca BU veritabanının havuzu temizlenir.
+        //
+        // Önceden `ClearAllPools()` çağrılıyordu; o çağrı SÜREÇ GENELİNDE
+        // bütün havuzları boşaltır, yani bir testin temizliği başka bir
+        // testin açık yerel tanıtıcısını geçersiz kılabilir. Süitin tamamının
+        // seri çalışmak zorunda kalmasının nedeni buydu. `ClearPool`
+        // eşleşmeyi bağlantı dizesi üzerinden yaptığı ve her testin dosya
+        // yolu benzersiz olduğu için testler artık birbirini etkilemiyor.
+        //
+        // Havuzun boşaltılması gerekiyor: yerel tanıtıcı açık kaldığı sürece
+        // dosya silinemez ve yan dosyalar %TEMP% altında birikir.
+        ClearPoolFor(Path);
+
         Delete(Path);
         Delete($"{Path}-wal");
         Delete($"{Path}-shm");
