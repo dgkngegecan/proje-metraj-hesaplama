@@ -486,7 +486,11 @@ done
 
 # 2) Test ikilileri serbest kalana kadar bekle (~6-7 dakika sürebilir)
 P="tests/Metraj.Tests/bin/Debug/net10.0/Metraj.Infrastructure.dll"
-until head -c 2 "$P" > /dev/null 2>&1; do sleep 45; done
+# DIKKAT: `head -c 2` YETMIYOR. Kaspersky dosyanin basini okutup
+# gerisini engelleyebiliyor; o durumda test kosusu "Could not load
+# file or assembly ... Erisim engellendi" ile 90 testte cokuyor.
+# Dosyanin TAMAMI okunabilene kadar bekleyin:
+until cat "$P" > /dev/null 2>&1; do sleep 45; done
 
 # 3) YENIDEN DERLEMEDEN test et
 dotnet test Metraj.sln --nologo --no-build
