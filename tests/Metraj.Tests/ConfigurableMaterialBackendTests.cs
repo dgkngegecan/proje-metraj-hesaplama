@@ -12,80 +12,66 @@ public sealed class ConfigurableMaterialBackendTests
     [Fact]
     public async Task PipeProfilesPersistPerDiameterAndSelectTheirOwnStockLength()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-pipe-profile-{Guid.NewGuid():N}.db");
-        try
-        {
-            await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-                await ApplicationSchemaMigrator.MigrateAsync(context);
-            var projects = new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            var catalog = new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            var tree = new ProjectTreeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            var measurements = new MeasurementWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            ProjectListItem project = await projects.CreateProjectAsync("PIPE-PROFILES", "Çap profili testi");
-            CatalogCardListItem pipeCard = await catalog.CreateCardAsync(new CatalogCardDraft(
-                "PIPE-PROFILE", "Siyah çelik boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
-                SalesConversion.StandardLength, ReportBehavior.Measurable, "m", Variants: [
-                    new CatalogCardVariantDraft("DN25", "DN25 / 1\"", 6m),
-                    new CatalogCardVariantDraft("DN40", "DN40 / 1 1/2\"", 12m)
-                ], VariantMode: CatalogVariantMode.Pipe));
-            Assert.Equal(CatalogVariantMode.Pipe, pipeCard.VariantMode);
-            Assert.Equal(2, pipeCard.Variants!.Count);
-            PlacementListItem placement = await tree.AddPlacementAsync(new(project.LatestRevisionId, pipeCard.LatestVersionId));
-            Assert.Equal(CatalogVariantMode.Pipe, placement.VariantMode);
-            await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, placement.Id, 7m, "m", Variant: "DN25"));
-            await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, placement.Id, 7m, "m", Variant: "DN40"));
-            IReadOnlyList<MeasurementSummaryItem> summaries = await measurements.ListSummariesAsync(project.LatestRevisionId);
-            Assert.Equal(2, summaries.Count);
-            Assert.Equal(2m, Assert.Single(summaries, x => x.Variant == "DN25").PurchaseQuantity);
-            Assert.Equal(1m, Assert.Single(summaries, x => x.Variant == "DN40").PurchaseQuantity);
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
-        }
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-pipe-profile");
+        string databasePath = database.Path;
+        await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
+            await ApplicationSchemaMigrator.MigrateAsync(context);
+        var projects = new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        var catalog = new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        var tree = new ProjectTreeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        var measurements = new MeasurementWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        ProjectListItem project = await projects.CreateProjectAsync("PIPE-PROFILES", "Çap profili testi");
+        CatalogCardListItem pipeCard = await catalog.CreateCardAsync(new CatalogCardDraft(
+            "PIPE-PROFILE", "Siyah çelik boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.StandardLength, ReportBehavior.Measurable, "m", Variants: [
+                new CatalogCardVariantDraft("DN25", "DN25 / 1\"", 6m),
+                new CatalogCardVariantDraft("DN40", "DN40 / 1 1/2\"", 12m)
+            ], VariantMode: CatalogVariantMode.Pipe));
+        Assert.Equal(CatalogVariantMode.Pipe, pipeCard.VariantMode);
+        Assert.Equal(2, pipeCard.Variants!.Count);
+        PlacementListItem placement = await tree.AddPlacementAsync(new(project.LatestRevisionId, pipeCard.LatestVersionId));
+        Assert.Equal(CatalogVariantMode.Pipe, placement.VariantMode);
+        await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, placement.Id, 7m, "m", Variant: "DN25"));
+        await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, placement.Id, 7m, "m", Variant: "DN40"));
+        IReadOnlyList<MeasurementSummaryItem> summaries = await measurements.ListSummariesAsync(project.LatestRevisionId);
+        Assert.Equal(2, summaries.Count);
+        Assert.Equal(2m, Assert.Single(summaries, x => x.Variant == "DN25").PurchaseQuantity);
+        Assert.Equal(1m, Assert.Single(summaries, x => x.Variant == "DN40").PurchaseQuantity);
     }
 
     [Fact]
     public async Task FittingProfilesKeepDiameterAndKindAsSeparateSummaryKeys()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-fitting-profile-{Guid.NewGuid():N}.db");
-        try
-        {
-            await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-                await ApplicationSchemaMigrator.MigrateAsync(context);
-            var projects = new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            var catalog = new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            var tree = new ProjectTreeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            var measurements = new MeasurementWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
-            ProjectListItem project = await projects.CreateProjectAsync("FIT-PROFILES", "Fitting profili testi");
-            CatalogCardListItem pipeCard = await catalog.CreateCardAsync(new CatalogCardDraft(
-                "PIPE-PARENT", "Boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
-                SalesConversion.None, ReportBehavior.Measurable, "m", VariantMode: CatalogVariantMode.Pipe,
-                Variants: [new CatalogCardVariantDraft("DN25", "DN25", 6m), new CatalogCardVariantDraft("DN40", "DN40", 6m)]));
-            CatalogCardListItem fittingCard = await catalog.CreateCardAsync(new CatalogCardDraft(
-                "FIT-PROFILE", "Siyah çelik fittings", CardType.Accessory, ItemKind.Material, InputBehavior.Manual,
-                SalesConversion.None, ReportBehavior.Measurable, "adet", VariantMode: CatalogVariantMode.Fitting,
-                CompatibleDiameters: ["DN25", "DN40"], Variants: [
-                    new CatalogCardVariantDraft("ELBOW", "Dirsek", CompatibleDiameters: ["DN25", "DN40"]),
-                    new CatalogCardVariantDraft("TEE", "Te", CompatibleDiameters: ["DN40"])
-                ]));
-            PlacementListItem pipe = await tree.AddPlacementAsync(new(project.LatestRevisionId, pipeCard.LatestVersionId));
-            PlacementListItem fittings = await tree.AddPlacementAsync(new(project.LatestRevisionId, fittingCard.LatestVersionId, pipe.Id));
-            Assert.Equal(CatalogVariantMode.Fitting, fittings.VariantMode);
-            await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, fittings.Id, 7m, "adet", Variant: "DN25", SecondaryVariant: "ELBOW"));
-            await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, fittings.Id, 2m, "adet", Variant: "DN40", SecondaryVariant: "ELBOW"));
-            await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, fittings.Id, 3m, "adet", Variant: "DN40", SecondaryVariant: "TEE"));
-            IReadOnlyList<MeasurementSummaryItem> summaries = await measurements.ListSummariesAsync(project.LatestRevisionId);
-            Assert.Equal(3, summaries.Count);
-            Assert.Equal(7m, Assert.Single(summaries, x => x.Variant == "DN25" && x.SecondaryVariant == "ELBOW").NetQuantity);
-            Assert.Equal(3m, Assert.Single(summaries, x => x.Variant == "DN40" && x.SecondaryVariant == "TEE").NetQuantity);
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
-        }
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-fitting-profile");
+        string databasePath = database.Path;
+        await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
+            await ApplicationSchemaMigrator.MigrateAsync(context);
+        var projects = new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        var catalog = new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        var tree = new ProjectTreeWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        var measurements = new MeasurementWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
+        ProjectListItem project = await projects.CreateProjectAsync("FIT-PROFILES", "Fitting profili testi");
+        CatalogCardListItem pipeCard = await catalog.CreateCardAsync(new CatalogCardDraft(
+            "PIPE-PARENT", "Boru", CardType.Material, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "m", VariantMode: CatalogVariantMode.Pipe,
+            Variants: [new CatalogCardVariantDraft("DN25", "DN25", 6m), new CatalogCardVariantDraft("DN40", "DN40", 6m)]));
+        CatalogCardListItem fittingCard = await catalog.CreateCardAsync(new CatalogCardDraft(
+            "FIT-PROFILE", "Siyah çelik fittings", CardType.Accessory, ItemKind.Material, InputBehavior.Manual,
+            SalesConversion.None, ReportBehavior.Measurable, "adet", VariantMode: CatalogVariantMode.Fitting,
+            CompatibleDiameters: ["DN25", "DN40"], Variants: [
+                new CatalogCardVariantDraft("ELBOW", "Dirsek", CompatibleDiameters: ["DN25", "DN40"]),
+                new CatalogCardVariantDraft("TEE", "Te", CompatibleDiameters: ["DN40"])
+            ]));
+        PlacementListItem pipe = await tree.AddPlacementAsync(new(project.LatestRevisionId, pipeCard.LatestVersionId));
+        PlacementListItem fittings = await tree.AddPlacementAsync(new(project.LatestRevisionId, fittingCard.LatestVersionId, pipe.Id));
+        Assert.Equal(CatalogVariantMode.Fitting, fittings.VariantMode);
+        await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, fittings.Id, 7m, "adet", Variant: "DN25", SecondaryVariant: "ELBOW"));
+        await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, fittings.Id, 2m, "adet", Variant: "DN40", SecondaryVariant: "ELBOW"));
+        await measurements.CreateMeasurementAsync(new(project.LatestRevisionId, fittings.Id, 3m, "adet", Variant: "DN40", SecondaryVariant: "TEE"));
+        IReadOnlyList<MeasurementSummaryItem> summaries = await measurements.ListSummariesAsync(project.LatestRevisionId);
+        Assert.Equal(3, summaries.Count);
+        Assert.Equal(7m, Assert.Single(summaries, x => x.Variant == "DN25" && x.SecondaryVariant == "ELBOW").NetQuantity);
+        Assert.Equal(3m, Assert.Single(summaries, x => x.Variant == "DN40" && x.SecondaryVariant == "TEE").NetQuantity);
     }
 
     [Fact]

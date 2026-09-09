@@ -36,71 +36,53 @@ public sealed class ArchitectureSmokeTests
 
     /// <summary>Opens a temporary SQLite database through the infrastructure boundary.</summary>
     [Fact]
-    public void SqliteConnectionFactoryCanOpenDatabase()
+    public async Task SqliteConnectionFactoryCanOpenDatabase()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-phase1-{Guid.NewGuid():N}.db");
-        try
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-phase1");
+        string databasePath = database.Path;
+        using (SqliteConnection connection = new SqliteConnectionFactory(databasePath).Create())
         {
-            using (SqliteConnection connection = new SqliteConnectionFactory(databasePath).Create())
-            {
-                connection.Open();
-                using SqliteCommand command = connection.CreateCommand();
-                command.CommandText = "SELECT 1";
+            connection.Open();
+            using SqliteCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT 1";
 
-                Assert.Equal(1L, command.ExecuteScalar());
-            }
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
+            Assert.Equal(1L, command.ExecuteScalar());
         }
     }
 
     /// <summary>Ensures the EF Core SQLite context can be created for the application database.</summary>
     [Fact]
-    public void EfCoreContextCanConnectToDatabase()
+    public async Task EfCoreContextCanConnectToDatabase()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-phase1-ef-{Guid.NewGuid():N}.db");
-        try
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-phase1-ef");
+        string databasePath = database.Path;
+        using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
+        using (DbConnection connection = context.Database.GetDbConnection())
         {
-            using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-            using (DbConnection connection = context.Database.GetDbConnection())
-            {
-                connection.Open();
-                Assert.True(context.Database.CanConnect());
-                connection.Close();
-            }
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
+            connection.Open();
+            Assert.True(context.Database.CanConnect());
+            connection.Close();
         }
     }
 
     /// <summary>Verifies that EF creates the quantity column as an exact INTEGER provider type.</summary>
     [Fact]
-    public void EfCoreModelUsesIntegerForQuantities()
+    public async Task EfCoreModelUsesIntegerForQuantities()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-phase2-schema-{Guid.NewGuid():N}.db");
-        try
+        // Bu test veritabanının O AN oluşturulduğunu doğruluyor; bu yüzden
+        // şemayı önceden uygulayan CreateAsync değil, yalnızca yol ayıran
+        // Reserve kullanılıyor.
+        await using var database = TestDatabase.Reserve("metraj-phase2-schema");
+        string databasePath = database.Path;
+        using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
         {
-            using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-            {
-                Assert.True(context.Database.EnsureCreated());
-                using DbConnection connection = context.Database.GetDbConnection();
-                connection.Open();
-                using DbCommand command = connection.CreateCommand();
-                command.CommandText = "SELECT type FROM pragma_table_info('Measurements') WHERE name = 'InputQuantity'";
+            Assert.True(context.Database.EnsureCreated());
+            using DbConnection connection = context.Database.GetDbConnection();
+            connection.Open();
+            using DbCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT type FROM pragma_table_info('Measurements') WHERE name = 'InputQuantity'";
 
-                Assert.Equal("INTEGER", command.ExecuteScalar());
-            }
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
+            Assert.Equal("INTEGER", command.ExecuteScalar());
         }
     }
 
@@ -108,25 +90,18 @@ public sealed class ArchitectureSmokeTests
     [Fact]
     public async Task SchemaMigratorCreatesVersionMarker()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-phase2-migration-{Guid.NewGuid():N}.db");
-        try
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-phase2-migration");
+        string databasePath = database.Path;
+        using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
         {
-            using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-            {
-                await ApplicationSchemaMigrator.MigrateAsync(context);
-                await ApplicationSchemaMigrator.MigrateAsync(context);
-                using DbConnection connection = context.Database.GetDbConnection();
-                await connection.OpenAsync();
-                using DbCommand command = connection.CreateCommand();
-                command.CommandText = "SELECT COUNT(*) FROM \"__AppSchemaVersions\" WHERE \"Version\" IN ('20260830_initial', '20260830_calculation_quantities')";
+            await ApplicationSchemaMigrator.MigrateAsync(context);
+            await ApplicationSchemaMigrator.MigrateAsync(context);
+            using DbConnection connection = context.Database.GetDbConnection();
+            await connection.OpenAsync();
+            using DbCommand command = connection.CreateCommand();
+            command.CommandText = "SELECT COUNT(*) FROM \"__AppSchemaVersions\" WHERE \"Version\" IN ('20260830_initial', '20260830_calculation_quantities')";
 
-                Assert.Equal(2L, await command.ExecuteScalarAsync());
-            }
-        }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
+            Assert.Equal(2L, await command.ExecuteScalarAsync());
         }
     }
 }

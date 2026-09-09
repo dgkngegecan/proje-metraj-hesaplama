@@ -13,95 +13,63 @@ public sealed class DatabaseMaintenanceWorkspaceTests
     [Fact]
     public async Task LegacyCardVersionFixtureMigratesAndBackfillsTheSnapshotName()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-legacy-{Guid.NewGuid():N}.db");
-        try
-        {
-            await CreateDatabaseWithCardAsync(databasePath, "Legacy kart adı");
-            await ExecuteSqlAsync(databasePath, "ALTER TABLE \"CatalogCardVersions\" DROP COLUMN \"Name\";");
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-legacy");
+        string databasePath = database.Path;
+        await CreateDatabaseWithCardAsync(databasePath, "Legacy kart adı");
+        await ExecuteSqlAsync(databasePath, "ALTER TABLE \"CatalogCardVersions\" DROP COLUMN \"Name\";");
 
-            await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-            {
-                await ApplicationSchemaMigrator.MigrateAsync(context);
-            }
-
-            await using MetrajDbContext verification = MetrajDbContextFactory.Create(databasePath);
-            string? snapshotName = await verification.CatalogCardVersions.Select(version => version.Name).SingleAsync();
-            Assert.Equal("Legacy kart adı", snapshotName);
-            Assert.True(await HasColumnAsync(databasePath, "CatalogCardVersions", "Name"));
-        }
-        finally
+        await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
-            File.Delete($"{databasePath}-wal");
-            File.Delete($"{databasePath}-shm");
+            await ApplicationSchemaMigrator.MigrateAsync(context);
         }
+
+        await using MetrajDbContext verification = MetrajDbContextFactory.Create(databasePath);
+        string? snapshotName = await verification.CatalogCardVersions.Select(version => version.Name).SingleAsync();
+        Assert.Equal("Legacy kart adı", snapshotName);
+        Assert.True(await HasColumnAsync(databasePath, "CatalogCardVersions", "Name"));
     }
 
     [Fact]
     public async Task FailedLegacyMigrationRollsBackTheSchemaChange()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-migration-rollback-{Guid.NewGuid():N}.db");
-        try
-        {
-            await CreateDatabaseWithCardAsync(databasePath, "Geri alınacak kart");
-            await ExecuteSqlAsync(databasePath, "ALTER TABLE \"CatalogCardVersions\" DROP COLUMN \"Name\";");
-            await ExecuteSqlAsync(databasePath,
-                "CREATE TRIGGER \"AbortCardVersionBackfill\" BEFORE UPDATE ON \"CatalogCardVersions\" BEGIN SELECT RAISE(ABORT, 'forced migration failure'); END;");
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-migration-rollback");
+        string databasePath = database.Path;
+        await CreateDatabaseWithCardAsync(databasePath, "Geri alınacak kart");
+        await ExecuteSqlAsync(databasePath, "ALTER TABLE \"CatalogCardVersions\" DROP COLUMN \"Name\";");
+        await ExecuteSqlAsync(databasePath,
+            "CREATE TRIGGER \"AbortCardVersionBackfill\" BEFORE UPDATE ON \"CatalogCardVersions\" BEGIN SELECT RAISE(ABORT, 'forced migration failure'); END;");
 
-            await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
-            {
-                await Assert.ThrowsAsync<SqliteException>(() => ApplicationSchemaMigrator.MigrateAsync(context));
-            }
-
-            Assert.False(await HasColumnAsync(databasePath, "CatalogCardVersions", "Name"));
-        }
-        finally
+        await using (MetrajDbContext context = MetrajDbContextFactory.Create(databasePath))
         {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
-            File.Delete($"{databasePath}-wal");
-            File.Delete($"{databasePath}-shm");
+            await Assert.ThrowsAsync<SqliteException>(() => ApplicationSchemaMigrator.MigrateAsync(context));
         }
+
+        Assert.False(await HasColumnAsync(databasePath, "CatalogCardVersions", "Name"));
     }
 
     [Fact]
     public async Task InterruptedUncommittedWriteLeavesTheDatabaseConsistent()
     {
-        string databasePath = Path.Combine(Path.GetTempPath(), $"metraj-interrupted-write-{Guid.NewGuid():N}.db");
-        try
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-interrupted-write");
+        string databasePath = database.Path;
+        await using (MetrajDbContext interrupted = MetrajDbContextFactory.Create(databasePath))
         {
-            await using (MetrajDbContext initialization = MetrajDbContextFactory.Create(databasePath))
+            await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
+                await interrupted.Database.BeginTransactionAsync();
+            interrupted.Projects.Add(new Project
             {
-                await ApplicationSchemaMigrator.MigrateAsync(initialization);
-            }
-
-            await using (MetrajDbContext interrupted = MetrajDbContextFactory.Create(databasePath))
-            {
-                await using Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction =
-                    await interrupted.Database.BeginTransactionAsync();
-                interrupted.Projects.Add(new Project
-                {
-                    Id = Guid.NewGuid(),
-                    Code = "P-INTERRUPTED",
-                    Name = "Yarım kalan yazma"
-                });
-                await interrupted.SaveChangesAsync();
-                // Simulate a process ending before CommitAsync: disposal must roll the write back.
-            }
-
-            await using MetrajDbContext verification = MetrajDbContextFactory.Create(databasePath);
-            Assert.Empty(await verification.Projects.ToListAsync());
-            DatabaseIntegrityCheckResult integrity = await new DatabaseMaintenanceWorkspaceService(() => databasePath).CheckIntegrityAsync();
-            Assert.True(integrity.IsHealthy, integrity.Details);
+                Id = Guid.NewGuid(),
+                Code = "P-INTERRUPTED",
+                Name = "Yarım kalan yazma"
+            });
+            await interrupted.SaveChangesAsync();
+            // Simulate a process ending before CommitAsync: disposal must roll the write back.
         }
-        finally
-        {
-            SqliteConnection.ClearAllPools();
-            File.Delete(databasePath);
-            File.Delete($"{databasePath}-wal");
-            File.Delete($"{databasePath}-shm");
-        }
+
+        await using MetrajDbContext verification = MetrajDbContextFactory.Create(databasePath);
+        Assert.Empty(await verification.Projects.ToListAsync());
+        DatabaseIntegrityCheckResult integrity = await new DatabaseMaintenanceWorkspaceService(() => databasePath).CheckIntegrityAsync();
+        Assert.True(integrity.IsHealthy, integrity.Details);
     }
 
     [Fact]

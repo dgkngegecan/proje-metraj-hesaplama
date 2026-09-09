@@ -19,6 +19,20 @@ public sealed class TestDatabase : IAsyncDisposable
     /// <summary>Servislerin beklediği kısa ömürlü context üreticisi.</summary>
     public Func<MetrajDbContext> ContextFactory => () => MetrajDbContextFactory.Create(Path);
 
+    /// <summary>
+    /// Yalnızca kullanılmamış bir dosya YOLU ayırır; veritabanını oluşturmaz.
+    /// </summary>
+    /// <remarks>
+    /// Bazı testler veritabanının o an oluşturulduğunu doğrular (ör.
+    /// <c>EnsureCreated()</c>'in true dönmesi). <see cref="CreateAsync"/>
+    /// şemayı zaten uyguladığı için o testlerde anlamı bozar. Bu üretici,
+    /// paylaşılan temizliği (havuz boşaltma + WAL/SHM yan dosyaları)
+    /// korurken dosyayı dokunulmamış bırakır.
+    /// </remarks>
+    /// <param name="prefix">Geçici dosya adının ön eki.</param>
+    public static TestDatabase Reserve(string prefix = "metraj-test") =>
+        new(System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"{prefix}-{Guid.NewGuid():N}.db"));
+
     /// <summary>Yeni bir geçici veritabanı oluşturur ve şemayı uygular.</summary>
     public static async Task<TestDatabase> CreateAsync(string prefix = "metraj-test")
     {
@@ -46,8 +60,6 @@ public sealed class TestDatabase : IAsyncDisposable
     public async Task<T?> ScalarAsync<T>(string sql, CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = MetrajDbContextFactory.Create(Path);
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? none = null;
-        _ = none;
         System.Data.Common.DbConnection connection = context.Database.GetDbConnection();
         await connection.OpenAsync(cancellationToken);
         await using System.Data.Common.DbCommand command = connection.CreateCommand();
