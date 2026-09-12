@@ -5,14 +5,19 @@
         Title="Proje Metraj" Height="820" Width="1320" MinHeight="650" MinWidth="1024"
         Background="#080D18" Foreground="#F5F7FF">
     <Grid>
-        <wv2:WebView2 x:Name="MetrajBrowser" />
+        <wv2:WebView2 x:Name="MetrajBrowser" Visibility="Hidden" DefaultBackgroundColor="#080D18" />
         <Border x:Name="LoadingScreen" Background="#080D18">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Width="320">
+            <StackPanel x:Name="LoadingContent" HorizontalAlignment="Center" VerticalAlignment="Center" Width="320">
                 <Border Width="54" Height="54" CornerRadius="16" BorderBrush="#FF5A99" BorderThickness="2" HorizontalAlignment="Center">
                     <TextBlock Text="◇" FontSize="28" Foreground="#FF5A99" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <TextBlock Margin="0,18,0,4" Text="Proje Metraj hazırlanıyor" FontSize="21" FontWeight="SemiBold" TextAlignment="Center" />
                 <TextBlock x:Name="LoadingStatus" Text="Başlatılıyor…" Foreground="#9EACC3" TextAlignment="Center" TextWrapping="Wrap" />
+                <Grid Width="160" Height="3" Margin="0,24,0,0" ClipToBounds="True" Background="#20304A">
+                    <Border x:Name="LoadingSweep" Width="54" HorizontalAlignment="Left" Background="#FF5A99" CornerRadius="2">
+                        <Border.RenderTransform><TranslateTransform X="-54" /></Border.RenderTransform>
+                    </Border>
+                </Grid>
             </StackPanel>
         </Border>
     </Grid>

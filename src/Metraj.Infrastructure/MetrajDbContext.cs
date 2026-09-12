@@ -14,6 +14,7 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<ProjectRevision> ProjectRevisions => Set<ProjectRevision>();
     public DbSet<ProjectPlacement> ProjectPlacements => Set<ProjectPlacement>();
+    public DbSet<PlacementContextNote> PlacementContextNotes => Set<PlacementContextNote>();
     public DbSet<PlacementLink> PlacementLinks => Set<PlacementLink>();
     public DbSet<Measurement> Measurements => Set<Measurement>();
     public DbSet<ResponsibilityDimension> ResponsibilityDimensions => Set<ResponsibilityDimension>();
@@ -111,6 +112,16 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
         placements.HasOne(x => x.ParentPlacement).WithMany(x => x.Children)
             .HasForeignKey(x => x.ParentPlacementId).OnDelete(DeleteBehavior.Restrict);
         placements.HasIndex(x => new { x.ProjectRevisionId, x.ParentPlacementId });
+
+        EntityTypeBuilder<PlacementContextNote> contextNotes = modelBuilder.Entity<PlacementContextNote>();
+        contextNotes.HasKey(x => x.Id);
+        contextNotes.Property(x => x.Block).HasMaxLength(128);
+        contextNotes.Property(x => x.Floor).HasMaxLength(128);
+        contextNotes.Property(x => x.Room).HasMaxLength(256);
+        contextNotes.Property(x => x.Text).HasMaxLength(4_000).IsRequired();
+        contextNotes.HasOne(x => x.Placement).WithMany()
+            .HasForeignKey(x => x.PlacementId).OnDelete(DeleteBehavior.Cascade);
+        contextNotes.HasIndex(x => new { x.PlacementId, x.CreatedAtUtc, x.Id });
 
         EntityTypeBuilder<PlacementLink> links = modelBuilder.Entity<PlacementLink>();
         links.HasKey(x => x.Id);

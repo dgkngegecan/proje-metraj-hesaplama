@@ -121,6 +121,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         services.AddSingleton<ICatalogCardTypeWorkspace, CatalogCardTypeWorkspaceService>();
         services.AddSingleton<IStarterCatalogWorkspace, StarterCatalogWorkspaceService>();
         services.AddSingleton<IProjectTreeWorkspace, ProjectTreeWorkspaceService>();
+        services.AddSingleton<IPlacementContextNoteWorkspace, PlacementContextNoteWorkspaceService>();
         services.AddSingleton<IResponsibilityWorkspace, ResponsibilityWorkspaceService>();
         services.AddSingleton<IMeasurementWorkspace, MeasurementWorkspaceService>();
         services.AddSingleton<ICalculationWorkspace, CalculationWorkspaceService>();
@@ -149,6 +150,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         MapProjectEndpoints(api);
         MapCatalogEndpoints(api);
         MapPlacementEndpoints(api);
+        MapPlacementContextNoteEndpoints(api);
         MapMeasurementEndpoints(api);
         MapCalculationEndpoints(api);
         MapResponsibilityEndpoints(api);
@@ -251,6 +253,21 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         api.MapDelete("/placements/{placementId:guid}", async (Guid placementId, IProjectTreeWorkspace workspace, CancellationToken token) =>
         {
             await workspace.DeletePlacementAsync(placementId, token);
+            return Results.NoContent();
+        });
+    }
+
+    /// <summary>Persistent floor/room exception notes belonging to individual placements.</summary>
+    private static void MapPlacementContextNoteEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/placements/{placementId:guid}/context-notes", async (Guid placementId, IPlacementContextNoteWorkspace workspace, CancellationToken token) =>
+            Results.Ok(await workspace.ListNotesAsync(placementId, token)));
+        api.MapPost("/placements/{placementId:guid}/context-notes", async (Guid placementId, AddPlacementContextNoteRequest request, IPlacementContextNoteWorkspace workspace, CancellationToken token) =>
+            Results.Ok(await workspace.AddNoteAsync(new PlacementContextNoteDraft(
+                placementId, request.Text, request.Block, request.Floor, request.Room), token)));
+        api.MapDelete("/placements/{placementId:guid}/context-notes/{noteId:guid}", async (Guid placementId, Guid noteId, IPlacementContextNoteWorkspace workspace, CancellationToken token) =>
+        {
+            await workspace.DeleteNoteAsync(placementId, noteId, token);
             return Results.NoContent();
         });
     }
@@ -609,6 +626,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         IReadOnlyList<string>? AttributeKeys = null, string? Description = null);
     private sealed record AddPlacementRequest(Guid CardVersionId, Guid? ParentPlacementId, string? DisplayNameOverride, string? ProcurementScope);
     private sealed record UpdatePlacementRequest(string? DisplayNameOverride, string? ProcurementScope, string? Notes);
+    private sealed record AddPlacementContextNoteRequest(string Text, string? Block = null, string? Floor = null, string? Room = null);
     private sealed record MovePlacementRequest(Guid? ParentPlacementId);
     private sealed record AddCalculatedFromRequest(Guid SourcePlacementId, string? Notes);
     private sealed record CreateMeasurementRequest(Guid PlacementId, decimal InputQuantity, string InputUnit, string? Block, string? Floor,

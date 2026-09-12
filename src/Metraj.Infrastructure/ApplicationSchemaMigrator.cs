@@ -19,6 +19,7 @@ public static class ApplicationSchemaMigrator
     private const string RevisionEffectivePolicyVersion = "20260908-revision-effective-policy";
     private const string UiStateVersion = "20260909-ui-state";
     private const string ResponsibilityScopedIndexesVersion = "20260909-responsibility-scoped-indexes";
+    private const string PlacementContextNotesVersion = "20260912-placement-context-notes";
 
     /// <summary>
     /// Bu uygulama sürümünün tanıdığı şema adımları. Geri yükleme doğrulaması da
@@ -37,7 +38,8 @@ public static class ApplicationSchemaMigrator
         MaterialWasteCaseInsensitiveVersion,
         RevisionEffectivePolicyVersion,
         UiStateVersion,
-        ResponsibilityScopedIndexesVersion
+        ResponsibilityScopedIndexesVersion,
+        PlacementContextNotesVersion
     ];
 
     /// <summary>
@@ -53,7 +55,8 @@ public static class ApplicationSchemaMigrator
         "IX_MaterialTypeWasteSettings_MaterialType",
         "IX_Projects_Code",
         "IX_ResponsibilityAssignments_MeasurementScope",
-        "IX_ResponsibilityAssignments_PlacementScope"
+        "IX_ResponsibilityAssignments_PlacementScope",
+        "IX_PlacementContextNotes_PlacementId_CreatedAtUtc_Id"
     ];
 
     /// <summary>Bir Metraj veritabanında bulunması zorunlu çekirdek tablolar.</summary>
@@ -124,6 +127,7 @@ public static class ApplicationSchemaMigrator
         await EnsureRevisionEffectivePolicyAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureUiStateAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureResponsibilityScopedIndexesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
+        await EnsurePlacementContextNotesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "__AppSchemaVersions" (
@@ -321,6 +325,28 @@ public static class ApplicationSchemaMigrator
         {
             await ExecuteAsync(connection, transaction, statement, cancellationToken).ConfigureAwait(false);
         }
+    }
+
+    private static async Task EnsurePlacementContextNotesAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
+        await ExecuteAsync(connection, transaction,
+            """
+            CREATE TABLE IF NOT EXISTS "PlacementContextNotes" (
+                "Id" TEXT NOT NULL CONSTRAINT "PK_PlacementContextNotes" PRIMARY KEY,
+                "PlacementId" TEXT NOT NULL,
+                "Block" TEXT NULL,
+                "Floor" TEXT NULL,
+                "Room" TEXT NULL,
+                "Text" TEXT NOT NULL,
+                "CreatedAtUtc" TEXT NOT NULL,
+                "UpdatedAtUtc" TEXT NULL,
+                CONSTRAINT "FK_PlacementContextNotes_ProjectPlacements_PlacementId"
+                    FOREIGN KEY ("PlacementId") REFERENCES "ProjectPlacements" ("Id") ON DELETE CASCADE
+            );
+            CREATE INDEX IF NOT EXISTS "IX_PlacementContextNotes_PlacementId_CreatedAtUtc_Id"
+                ON "PlacementContextNotes" ("PlacementId", "CreatedAtUtc", "Id");
+            """, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Bağlantıyı açık hâlde döndürür.</summary>

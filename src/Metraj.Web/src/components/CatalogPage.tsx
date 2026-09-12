@@ -1,6 +1,7 @@
+import { useEffect, useId, useRef, useState } from 'react';
 import { CardShelf } from './CardShelf';
 import type { CardDraftState, TypeDraftState } from '../lib/draftTypes';
-import { FITTING_PRESETS, PPRC_DIAMETERS, STEEL_DIAMETERS, visibleCatalogCards } from '../lib/catalogData';
+import { FITTING_PRESETS, PPRC_DIAMETERS, STEEL_DIAMETERS } from '../lib/catalogData';
 import { TYPE_META } from '../lib/uiTypes';
 import { parseDecimal } from '../lib/format';
 import type {
@@ -37,7 +38,26 @@ export function CatalogPage(props: {
   onClose: () => void;
   onBackToFlow: () => void;
 }) {
-  const activeCards = visibleCatalogCards(props.cards);
+  const activeCards = props.cards.filter((card) => card.isActive);
+  const formId = useId();
+  const formToggleRef = useRef<HTMLButtonElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [formExpanded, setFormExpanded] = useState(Boolean(props.editingCardId || props.addNewCardToFlow));
+  useEffect(() => {
+    if (props.editingCardId || props.addNewCardToFlow) setFormExpanded(true);
+  }, [props.editingCardId, props.addNewCardToFlow]);
+  useEffect(() => {
+    if (formExpanded) nameInputRef.current?.focus();
+  }, [formExpanded, props.editingCardId]);
+  const openForm = () => {
+    setFormExpanded(true);
+    if (formExpanded) nameInputRef.current?.focus();
+  };
+  const cancelEdit = () => {
+    props.onCancelEdit();
+    setFormExpanded(false);
+    formToggleRef.current?.focus();
+  };
   const activeTypes = props.catalogTypes.filter((type) => type.isActive);
   const selectedType = activeTypes.find((type) => type.id === props.cardDraft.customTypeId) ?? null;
   const enabledAttributes = selectedType
@@ -174,7 +194,7 @@ export function CatalogPage(props: {
     });
 
   return (
-    <section className="catalog-page">
+    <section className="catalog-page catalog-deck-page">
       <div className="page-intro">
         <div>
           <span className="eyebrow">KÜTÜPHANE · GLOBAL</span>
@@ -196,10 +216,21 @@ export function CatalogPage(props: {
           {props.addNewCardToFlow && <button onClick={props.onBackToFlow}>Haritaya dön</button>}
         </div>
       </div>
-      <div className="create-card catalog-create-card">
+      <button
+        type="button"
+        className="catalog-form-toggle"
+        ref={formToggleRef}
+        aria-expanded={formExpanded}
+        aria-controls={formId}
+        onClick={() => setFormExpanded((expanded) => !expanded)}
+      >
+        <strong>{props.editingCardId ? 'Kartı düzenle' : '+ Yeni kart oluştur'}</strong>
+        <span>{formExpanded ? 'Formu daralt −' : 'Formu aç +'}</span>
+      </button>
+      <div className="create-card catalog-create-card" id={formId} hidden={!formExpanded}>
         <div>
           <span className="card-star">✦</span>
-          <h3>Yeni kart</h3>
+          <h3>{props.editingCardId ? 'Kartı düzenle' : 'Yeni kart'}</h3>
           <p>
             {selectedType
               ? `“${selectedType.name}” türünün seçili alanlarını doldur.`
@@ -219,7 +250,7 @@ export function CatalogPage(props: {
           Ad
           <input
             aria-label="Kart adı"
-            autoFocus
+            ref={nameInputRef}
             placeholder="Örn. Siyah boru"
             value={props.cardDraft.name}
             onChange={(event) => props.onCardDraft({ ...props.cardDraft, name: event.target.value })}
@@ -414,7 +445,7 @@ export function CatalogPage(props: {
             {props.addNewCardToFlow ? 'Kaydet ve altına ekle' : props.editingCardId ? 'Kartı güncelle' : 'Kartı kaydet'}
           </button>
           {props.editingCardId && (
-            <button type="button" disabled={props.busy} onClick={props.onCancelEdit}>
+            <button type="button" disabled={props.busy} onClick={cancelEdit}>
               Düzenlemeyi iptal et
             </button>
           )}
@@ -432,7 +463,17 @@ export function CatalogPage(props: {
             </div>
           )}
       </div>
+      <CardShelf
+        cards={props.cards}
+        compact
+        onAdd={props.onAddCard}
+        onCreate={openForm}
+        onDelete={props.onDeactivateCard}
+        onEdit={(card) => { setFormExpanded(true); props.onEditCard(card); }}
+      />
       {activeTypes.length > 0 && (
+        <details className="catalog-type-disclosure">
+          <summary>Özel kart türlerini yönet · {activeTypes.length} tür</summary>
         <section className="catalog-types">
           <div className="summary-heading">
             <div>
@@ -467,14 +508,8 @@ export function CatalogPage(props: {
             ))}
           </div>
         </section>
+        </details>
       )}
-      <CardShelf
-        cards={props.cards}
-        compact
-        onAdd={props.onAddCard}
-        onDelete={props.onDeactivateCard}
-        onEdit={props.onEditCard}
-      />
       {props.showTypeDialog && (
         <div className="modal-backdrop" onMouseDown={props.onCloseType}>
           <div

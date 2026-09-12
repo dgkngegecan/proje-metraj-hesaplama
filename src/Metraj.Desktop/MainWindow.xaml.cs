@@ -1,6 +1,8 @@
 using Microsoft.Web.WebView2.Core;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace Metraj.Desktop;
 
@@ -36,6 +38,12 @@ public partial class MainWindow : Window
     {
         try
         {
+            if (SystemParameters.ClientAreaAnimation)
+            {
+                LoadingContent.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(280)));
+                ((TranslateTransform)LoadingSweep.RenderTransform).BeginAnimation(TranslateTransform.XProperty,
+                    new DoubleAnimation(-54, 160, TimeSpan.FromSeconds(1.25)) { RepeatBehavior = RepeatBehavior.Forever });
+            }
             string userDataDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "ProjeMetraj",
@@ -50,8 +58,8 @@ public partial class MainWindow : Window
             settings.IsStatusBarEnabled = false;
 
             Uri localApplicationUri = await applicationUri.Task;
+            MetrajBrowser.CoreWebView2.NavigationCompleted += OnNavigationCompleted;
             MetrajBrowser.Source = localApplicationUri;
-            LoadingScreen.Visibility = Visibility.Collapsed;
         }
         catch (Exception exception)
         {
@@ -62,5 +70,18 @@ public partial class MainWindow : Window
                 MessageBoxImage.Error);
             Close();
         }
+    }
+
+    private void OnNavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (!e.IsSuccess)
+        {
+            LoadingStatus.Text = "Arayüz yüklenemedi. Uygulamayı kapatıp yeniden açın.";
+            return;
+        }
+        MetrajBrowser.CoreWebView2.NavigationCompleted -= OnNavigationCompleted;
+        ((TranslateTransform)LoadingSweep.RenderTransform).BeginAnimation(TranslateTransform.XProperty, null);
+        LoadingScreen.Visibility = Visibility.Collapsed;
+        MetrajBrowser.Visibility = Visibility.Visible;
     }
 }

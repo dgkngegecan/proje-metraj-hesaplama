@@ -1,4 +1,5 @@
 import type { MeasurementDraft } from '../lib/draftTypes';
+import { ContextNotes } from './ContextNotes';
 import { FITTING_PRESETS, STEEL_DIAMETERS, variantName } from '../lib/catalogData';
 import { useEffect, useRef, useState } from 'react';
 import { clearUiState, readUiState, writeUiState, type UiStateMap } from '../uiState';
@@ -25,8 +26,6 @@ export function Inspector({
   onDraft,
   onSubmit,
   onSubmitRows,
-  onToggleContext,
-  showContext,
   placementNotes,
   onPlacementNotes,
   onSavePlacementNotes,
@@ -51,8 +50,6 @@ export function Inspector({
   onSubmitRows: (
     rows: Array<{ quantity: number; notes?: string | null; variant?: string | null; secondaryVariant?: string | null }>,
   ) => Promise<boolean>;
-  onToggleContext: () => void;
-  showContext: boolean;
   placementNotes: string;
   onPlacementNotes: (value: string) => void;
   onSavePlacementNotes: () => void;
@@ -957,39 +954,7 @@ export function Inspector({
           </button>
         </div>
       )}
-      {placement.isMeasurable && (
-        <>
-          <button className="details-toggle" aria-expanded={showContext} onClick={onToggleContext}>
-            {showContext ? '− Yer ve notu gizle' : '+ Kat / mahal / not ekle'}
-          </button>
-          <div className={`panel-collapse context-collapse ${showContext ? 'open' : ''}`} aria-hidden={!showContext}>
-            <div className="panel-collapse-inner">
-              <div className="inspector-context">
-                <label>
-                  Blok
-                  <input value={draft.block} onChange={(event) => onDraft({ ...draft, block: event.target.value })} />
-                </label>
-                <label>
-                  Kat
-                  <input value={draft.floor} onChange={(event) => onDraft({ ...draft, floor: event.target.value })} />
-                </label>
-                <label>
-                  Mahal
-                  <input value={draft.room} onChange={(event) => onDraft({ ...draft, room: event.target.value })} />
-                </label>
-                <label>
-                  Pafta
-                  <input value={draft.sheet} onChange={(event) => onDraft({ ...draft, sheet: event.target.value })} />
-                </label>
-                <label className="wide">
-                  Not
-                  <input value={draft.notes} onChange={(event) => onDraft({ ...draft, notes: event.target.value })} />
-                </label>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <ContextNotes key={placement.id} placementId={placement.id} canEdit={canEdit && !busy} />
       <div className="inspector-actions">
         <button className="full add-child" disabled={!canEdit || busy} onClick={onAdd}>
           + Bunun altına kart ekle

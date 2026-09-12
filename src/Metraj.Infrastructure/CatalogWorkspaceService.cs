@@ -97,6 +97,14 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
         return ToListItem(definition, version);
     }
 
+    // The seed owns the transaction and flushes once; it uses the same normalization, validation and hash as user cards.
+    internal static async Task AddSeedCardAsync(MetrajDbContext context, CatalogCardDraft draft, CancellationToken cancellationToken)
+    {
+        ResolvedCardContent content = await ResolveContentAsync(context, draft, draft.Code, draft.Name, draft.Unit, draft.PositionNumber, cancellationToken);
+        var definition = new CatalogCardDefinition { Id = Guid.NewGuid(), Code = draft.Code, Name = draft.Name, Description = content.Description };
+        context.AddRange(definition, content.ToVersion(definition.Id, 1));
+    }
+
     public async Task<CatalogCardListItem> CreateVersionAsync(Guid definitionId, CatalogCardDraft draft, CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = contextFactory();
@@ -433,9 +441,9 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
         var normalized = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach ((string key, string value) in values)
         {
-            string canonical = CatalogCardAttributeCatalog.Canonical(key)
+            string canonical = (CatalogFamilyMetadata.IsKnown(key) ? key : CatalogCardAttributeCatalog.Canonical(key))
                 ?? throw new DomainRuleViolationException("catalog-type.attribute-key", $"Unknown card attribute '{key}'.");
-            if (allowed is not null && !allowed.Contains(canonical))
+            if (allowed is not null && !allowed.Contains(canonical) && !CatalogFamilyMetadata.IsKnown(canonical))
             {
                 throw new DomainRuleViolationException("catalog-type.attribute-not-enabled", $"Attribute '{canonical}' is not enabled for this card type.");
             }

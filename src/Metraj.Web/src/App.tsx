@@ -28,7 +28,7 @@ import { CatalogPage } from './components/CatalogPage';
 import { AdvancedControls } from './components/AdvancedControls';
 import { Inspector } from './components/Inspector';
 import type { CardDraftState } from './lib/draftTypes';
-import { buildFlow } from './lib/flow';
+import { arrangeFlowNodes, buildFlow } from './lib/flow';
 import { makeCardCode, measurementLabel, parseDecimal, quantity } from './lib/format';
 import type {
   CalculationResult,
@@ -63,6 +63,7 @@ const nodeTypes: NodeTypes = { placement: FlowCard };
 // beş ayrı yerde tekrarlanıyordu; biri değiştiğinde ötekiler sessizce geride
 // kalırdı. Eski satırların bilgisi kaybolmasın diye geri düşüş korunuyor.
 export default function App() {
+  const [starting, setStarting] = useState(true);
   const [view, setView] = useState<View>('flow');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -102,7 +103,6 @@ export default function App() {
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showCardShelf, setShowCardShelf] = useState(false);
   const [showTypeDialog, setShowTypeDialog] = useState(false);
-  const [showContext, setShowContext] = useState(false);
   // Birden fazla kart aynı anda açık kalabilir; bu özellikle yan yana
   // karşılaştırılan boru ve fitting kartlarında akışı hızlandırır.
   // Açık kartlar TEK bir yerde tutuluyor. Önceden aynı küme hem state hem ref
@@ -359,7 +359,7 @@ export default function App() {
           },
         };
       });
-      setNodes(nextFlow.nodes);
+      setNodes(arrangeFlowNodes(nextFlow.nodes, nodePositions.current));
       setEdges(nextFlow.edges);
       setSelectedPlacementId((current) =>
         nextPlacements.some((item) => item.id === current) ? current : (nextPlacements[0]?.id ?? null),
@@ -417,9 +417,11 @@ export default function App() {
   }, [selectedRevisionId]);
 
   useEffect(() => {
-    void loadProjects();
-    void loadCards();
-    void loadCatalogTypeSettings();
+    let cancelled = false;
+    void Promise.all([loadProjects(), loadCards(), loadCatalogTypeSettings()]).finally(() => {
+      if (!cancelled) setStarting(false);
+    });
+    return () => { cancelled = true; };
   }, [loadCards, loadCatalogTypeSettings, loadProjects]);
   useEffect(() => {
     let cancelled = false;
@@ -1121,7 +1123,12 @@ export default function App() {
       notify('Kartı silmek için sağdaki “Seçili kartı ve altını sil” düğmesini kullanın.');
     }
     const applicable = changes.filter((change) => change.type !== 'remove');
-    if (applicable.length > 0) setNodes((current) => applyNodeChanges<PlacementNode>(applicable, current));
+    if (applicable.length > 0) setNodes((current) => {
+      const changed = applyNodeChanges<PlacementNode>(applicable, current);
+      return applicable.some((change) => change.type === 'dimensions')
+        ? arrangeFlowNodes(changed, nodePositions.current)
+        : changed;
+    });
   };
   const handleEdgesChange = (changes: EdgeChange<Edge>[]) => {
     // Kenarlar üst–alt ilişkisini temsil eder; bağlantı yalnızca yeni bir
@@ -1175,6 +1182,7 @@ export default function App() {
 
   return (
     <main className={`app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {starting && <div className="startup-splash" role="status" aria-live="polite"><span className="startup-mark">◇</span><strong>Proje Metraj</strong><span>Çalışma alanınız hazırlanıyor</span><i /></div>}
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark">◇</span>
@@ -1262,11 +1270,21 @@ export default function App() {
                   </div>
                   <div className="intro-actions">
                     <button onClick={() => flow?.fitView({ padding: 0.24, duration: 360 })}>Haritayı sığdır</button>
-                    <button className="primary" disabled={!canEdit} onClick={() => setShowCardShelf(true)}>
-                      + Kart ekle
+                    <button className="primary" disabled={!canEdit} aria-expanded={showCardShelf} aria-controls="inline-card-library" onClick={() => setShowCardShelf(!showCardShelf)}>
+                      {showCardShelf ? 'Kartlığı kapat' : '+ Kart ekle'}
                     </button>
                   </div>
                 </div>
+                {showCardShelf && (
+                  <section className="inline-card-library" id="inline-card-library" aria-label="Kütüphaneden kart ekle">
+                    <div className="inline-library-heading">
+                      <div><span className="eyebrow">KART DESTELERİ</span><h3>{selectedPlacement ? `“${selectedPlacement.displayName}” altına ekle` : 'Haritaya kart ekle'}</h3></div>
+                      <button onClick={startFirstCardForFlow}>+ Yeni kart oluştur</button>
+                      <button aria-label="Kartlığı kapat" onClick={() => setShowCardShelf(false)}>Kapat</button>
+                    </div>
+                    <CardShelf cards={cards} onAdd={addCardToFlow} onCreate={startFirstCardForFlow} />
+                  </section>
+                )}
                 <div className="flow-layout">
                   <div className="flow-stage" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
                     <ReactFlow<PlacementNode, Edge>
@@ -1288,6 +1306,8 @@ export default function App() {
                       <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#31415d" />
                       <Controls showInteractive={false} />
                       <MiniMap
+                        position="top-right"
+                        style={{ width: 120, height: 76 }}
                         pannable
                         zoomable
                         nodeColor={(node) => TYPE_META[(node.data as Placement).cardType]?.color ?? '#9bacbf'}
@@ -1297,7 +1317,7 @@ export default function App() {
                       <div className="empty-flow">
                         <span>✦</span>
                         <h3>Harita boş</h3>
-                        <p>Sağdaki kartlıktan bir kartı bu alana bırak.</p>
+                        <p>“Kart ekle” ile bir desteyi aç ve kartını seç.</p>
                       </div>
                     )}
                   </div>
@@ -1314,8 +1334,6 @@ export default function App() {
                     onDraft={setMeasurementDraft}
                     onSubmit={addMeasurement}
                     onSubmitRows={addMeasurementRows}
-                    onToggleContext={() => setShowContext(!showContext)}
-                    showContext={showContext}
                     placementNotes={placementNotesDraft}
                     onPlacementNotes={setPlacementNotesDraft}
                     onSavePlacementNotes={savePlacementNotes}
@@ -1472,31 +1490,6 @@ export default function App() {
         )}
       </section>
 
-      {showCardShelf && (
-        <div className="modal-backdrop" onMouseDown={() => setShowCardShelf(false)}>
-          <div
-            className="modal shelf-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Kütüphaneden kart ekle"
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') setShowCardShelf(false);
-            }}
-            onMouseDown={(event) => event.stopPropagation()}
-          >
-            <button className="modal-close" aria-label="Kapat" onClick={() => setShowCardShelf(false)}>
-              ×
-            </button>
-            <span className="eyebrow">KÜTÜPHANE</span>
-            <h2>{selectedPlacement ? `“${selectedPlacement.displayName}” altına ekle` : 'Haritaya kart ekle'}</h2>
-            <p>Bir kart seç veya ihtiyacın olan yeni kartı hemen oluştur.</p>
-            <button className="primary new-card-button" onClick={startFirstCardForFlow}>
-              + Yeni kart oluştur
-            </button>
-            <CardShelf cards={cards} onAdd={addCardToFlow} onCreate={startFirstCardForFlow} />
-          </div>
-        </div>
-      )}
       {showProjectDialog && (
         <div className="modal-backdrop" onMouseDown={() => setShowProjectDialog(false)}>
           <div

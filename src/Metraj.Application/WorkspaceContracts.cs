@@ -65,13 +65,25 @@ public sealed record CatalogCardVariant(
     string Code,
     string Label,
     decimal? StandardLength = null,
-    IReadOnlyList<string>? CompatibleDiameters = null);
+    IReadOnlyList<string>? CompatibleDiameters = null,
+    string? SourceCardCode = null,
+    string? SourceVariantCode = null,
+    string? SourceCardName = null,
+    string? SourceNotes = null,
+    string? MaterialType = null,
+    IReadOnlyList<string>? CompatiblePipeSystems = null);
 
 public sealed record CatalogCardVariantDraft(
     string Code,
     string Label,
     decimal? StandardLength = null,
-    IReadOnlyList<string>? CompatibleDiameters = null);
+    IReadOnlyList<string>? CompatibleDiameters = null,
+    string? SourceCardCode = null,
+    string? SourceVariantCode = null,
+    string? SourceCardName = null,
+    string? SourceNotes = null,
+    string? MaterialType = null,
+    IReadOnlyList<string>? CompatiblePipeSystems = null);
 
 public sealed record CatalogCardListItem(
     Guid Id,
@@ -97,7 +109,9 @@ public sealed record CatalogCardListItem(
     IReadOnlyList<string>? AttributeKeys = null,
     IReadOnlyDictionary<string, string>? AttributeValues = null,
     CatalogVariantMode VariantMode = CatalogVariantMode.None,
-    IReadOnlyList<CatalogCardVariant>? Variants = null);
+    IReadOnlyList<CatalogCardVariant>? Variants = null,
+    string? FamilyCode = null,
+    string? SupersededByCode = null);
 
 public sealed record CatalogCardDraft(
     string Code,

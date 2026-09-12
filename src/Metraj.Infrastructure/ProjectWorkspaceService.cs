@@ -136,6 +136,24 @@ public sealed class ProjectWorkspaceService(Func<MetrajDbContext> contextFactory
             });
         }
 
+        List<PlacementContextNote> sourceContextNotes = await context.PlacementContextNotes.AsNoTracking()
+            .Where(x => x.Placement!.ProjectRevisionId == source.Id)
+            .ToListAsync(cancellationToken);
+        foreach (PlacementContextNote note in sourceContextNotes)
+        {
+            context.PlacementContextNotes.Add(new PlacementContextNote
+            {
+                Id = Guid.NewGuid(),
+                PlacementId = placementIds[note.PlacementId],
+                Block = note.Block,
+                Floor = note.Floor,
+                Room = note.Room,
+                Text = note.Text,
+                CreatedAtUtc = note.CreatedAtUtc,
+                UpdatedAtUtc = note.UpdatedAtUtc
+            });
+        }
+
         List<PlacementLink> sourceLinks = await context.PlacementLinks
             .Where(x => sourcePlacements.Select(placement => placement.Id).Contains(x.SourcePlacementId))
             .OrderBy(x => x.Id)

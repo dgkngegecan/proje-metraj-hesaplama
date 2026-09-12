@@ -8,7 +8,7 @@ namespace Metraj.Infrastructure;
 /// Idempotent starter vocabulary for common Turkish field terms and their global equivalents.
 /// The pack is deliberately a catalog only: it creates no projects or placements.
 /// </summary>
-public sealed class StarterCatalogWorkspaceService(Func<MetrajDbContext> contextFactory) : IStarterCatalogWorkspace
+public sealed partial class StarterCatalogWorkspaceService(Func<MetrajDbContext> contextFactory) : IStarterCatalogWorkspace
 {
     private readonly Func<MetrajDbContext> contextFactory =
         contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
@@ -16,42 +16,33 @@ public sealed class StarterCatalogWorkspaceService(Func<MetrajDbContext> context
     public async Task<StarterCatalogSeedResult> SeedAsync(CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = contextFactory();
+        // One transaction publishes the full upgrade. Existing rows are never changed.
+        await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         var existing = (await context.CatalogCardDefinitions.AsNoTracking()
                 .Select(card => card.Code).ToListAsync(cancellationToken))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
         var added = new List<string>();
-        // Servis döngünün dışında bir kez kuruluyor: içeride kurulduğunda ~60
-        // kart için ~60 örnek yaratılıyordu.
-        var catalog = new CatalogWorkspaceService(contextFactory);
-        foreach (StarterCard card in Cards)
+        foreach (CatalogCardDraft draft in Consolidation.Value.Targets)
         {
-            if (!existing.Add(card.Code))
-            {
-                continue;
-            }
-
-            await catalog.CreateCardAsync(new CatalogCardDraft(
-                card.Code,
-                card.Name,
-                card.CardType,
-                card.ItemKind,
-                InputBehavior.Manual,
-                card.SalesConversion,
-                card.ReportBehavior,
-                card.Unit,
-                card.WasteRatePct,
-                card.ContainerParameter,
-                null,
-                card.Notes,
-                card.MaterialType,
-                card.CompatibleDiameters,
-                VariantMode: card.VariantMode,
-                Variants: card.Variants), cancellationToken);
-            added.Add(card.Code);
+            if (!existing.Add(draft.Code)) continue;
+            await CatalogWorkspaceService.AddSeedCardAsync(context, draft, cancellationToken);
+            added.Add(draft.Code);
         }
-
-        return new StarterCatalogSeedResult(added.Count, Cards.Count - added.Count, added);
+        await context.SaveChangesAsync(cancellationToken);
+        // A user may already own a replacement code. Preserve it and keep its source vocabulary selectable.
+        var managed = (await context.CatalogCardDefinitions.AsNoTracking().Include(x => x.Versions)
+            .Where(x => x.IsActive).ToListAsync(cancellationToken))
+            .Where(IsManagedFamily).Select(x => x.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (Mapping entry in Consolidation.Value.Mappings.Values)
+        {
+            if (entry.Family.Length == 0 || managed.Contains(entry.Family) || !existing.Add(entry.Source)) continue;
+            await CatalogWorkspaceService.AddSeedCardAsync(context, Consolidation.Value.Legacy[entry.Source], cancellationToken);
+            added.Add(entry.Source);
+        }
+        await context.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        int presentTargets = Consolidation.Value.Targets.Count(draft => existing.Contains(draft.Code));
+        return new StarterCatalogSeedResult(added.Count, presentTargets - added.Count, added);
     }
 
     private sealed record StarterCard(
