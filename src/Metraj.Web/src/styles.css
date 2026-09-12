@@ -762,3 +762,16 @@ button.primary:hover:not(:disabled), .primary:hover { background-position: 100% 
 /* Yalnızca anlamsal bir canlı bölge: kendi kutusunu üretmez, bu yüzden
    toast'ın mevcut sağ-alt konumu ve görünümü birebir korunur. */
 .toast-region { display: contents; }
+
+/* Kütüphane arama çubuğu: ada ve kategoriye göre süzme */
+.shelf-wrap { display: grid; gap: 2px; }
+.shelf-search { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 15px; }
+.shelf-search-input { width: auto; flex: 1 1 260px; min-width: 200px; }
+.shelf-search-type { width: auto; flex: 0 0 auto; min-width: 190px; }
+.shelf-search-count { color: #8fa0b8; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.shelf-search-clear { padding: 8px 12px; font-size: .78rem; background: transparent; border-color: #334762; color: #aab8ce; }
+.shelf-search-clear:hover:not(:disabled) { background: #1b2740; border-color: #4a6088; }
+@media (max-width: 650px) {
+  .shelf-search-input, .shelf-search-type { flex: 1 1 100%; min-width: 0; }
+  .shelf-search-count { order: 3; }
+}
