@@ -59,6 +59,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             // Geri yükleme ucu bakım sınırını KENDİSİ alır; burada da bir yuva
             // tutulsaydı kendi kendini bekleyip kilitlenirdi.
             bool isMaintenanceRequest = context.Request.Path.StartsWithSegments("/api/database/backups/restore") ||
+                context.Request.Path.StartsWithSegments("/api/database/projects") ||
                 context.Request.Path.StartsWithSegments("/api/workspace/import");
             await using IAsyncDisposable? operation = isMaintenanceRequest
                 ? null
@@ -432,6 +433,8 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         });
         api.MapGet("/database/integrity", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.CheckIntegrityAsync(token)));
+        api.MapDelete("/database/projects", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
+            Results.Ok(await workspace.ResetProjectDataAsync(token)));
     }
 
     /// <summary>Tek dosyalık çalışma alanı dışa aktarma ve mevcut veriye ekleyerek içe aktarma.</summary>

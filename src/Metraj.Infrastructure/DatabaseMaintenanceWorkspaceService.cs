@@ -159,6 +159,83 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
         }
     }
 
+    /// <inheritdoc />
+    public async Task<ProjectDataResetResult> ResetProjectDataAsync(CancellationToken cancellationToken = default)
+    {
+        await using IAsyncDisposable? maintenance = gate is null
+            ? null
+            : await gate.EnterMaintenanceAsync(cancellationToken);
+
+        // Kullanıcı yanlışlıkla onaylasa bile işlem geri alınabilir kalsın.
+        DatabaseBackupListItem safetyBackup = await CreateBackupAsync(
+            DatabaseBackupReason.BeforeProjectReset, protectedBackupPath: null, cancellationToken);
+
+        string databasePath = GetDatabasePath();
+        SqliteConnectionStringBuilder builder = new()
+        {
+            DataSource = databasePath,
+            Mode = SqliteOpenMode.ReadWrite,
+            ForeignKeys = true
+        };
+        await using var connection = new SqliteConnection(builder.ToString());
+        await connection.OpenAsync(cancellationToken);
+        await using SqliteTransaction transaction = connection.BeginTransaction();
+        try
+        {
+            int projectCount = await ExecuteScalarIntAsync(
+                connection, transaction, "SELECT COUNT(*) FROM \"Projects\";", cancellationToken);
+
+            // Bazı ilişkiler silmeyi bilerek kısıtlar. Bütün proje kümesi
+            // temizlendiği için bağımlılar açık ve sabit bir sırayla kaldırılır.
+            string[] commands =
+            [
+                "UPDATE \"CalculationResults\" SET \"SupersedesResultId\" = NULL;",
+                "DELETE FROM \"ResponsibilityAssignments\";",
+                "DELETE FROM \"CalculationResults\";",
+                "DELETE FROM \"PlacementLinks\";",
+                "DELETE FROM \"PlacementContextNotes\";",
+                "DELETE FROM \"Measurements\";",
+                "DELETE FROM \"ResponsibilityDimensions\";",
+                "DELETE FROM \"ResponsibilityParties\";",
+                "DELETE FROM \"CalculationRuleVersions\";",
+                "DELETE FROM \"ProjectPlacements\";",
+                "DELETE FROM \"AuditEntries\" WHERE \"ProjectRevisionId\" IS NOT NULL;",
+                "DELETE FROM \"ProjectRevisions\";",
+                "DELETE FROM \"Projects\";"
+            ];
+            foreach (string commandText in commands)
+            {
+                await ExecuteAsync(connection, transaction, commandText, cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return new ProjectDataResetResult(projectCount, safetyBackup);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    private static async Task<int> ExecuteScalarIntAsync(
+        SqliteConnection connection, SqliteTransaction transaction, string commandText, CancellationToken cancellationToken)
+    {
+        await using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = commandText;
+        return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static async Task ExecuteAsync(
+        SqliteConnection connection, SqliteTransaction transaction, string commandText, CancellationToken cancellationToken)
+    {
+        await using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = commandText;
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static async Task CopyDatabaseAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken)
     {
         SqliteConnectionStringBuilder sourceBuilder = new() { DataSource = sourcePath, Mode = SqliteOpenMode.ReadOnly, ForeignKeys = true };

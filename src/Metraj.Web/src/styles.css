@@ -226,6 +226,11 @@ textarea:focus { border-color: #f25591; box-shadow: 0 0 0 3px rgb(242 85 145 / 1
 .settings-inline .advanced-grid { margin-top: 18px; }
 .settings-inline .advanced-card { min-height: 0; }
 .waste-settings-card { grid-column: span 2; }
+.danger-zone-card { grid-column: 1 / -1; border-color: #7f3046; background: linear-gradient(145deg, rgb(68 22 38 / 92%), rgb(31 15 27 / 96%)); }
+.danger-zone-card h3 { color: #ffd6df; }
+.danger-zone-card p { max-width: 760px; color: #d9aab6; font-size: .78rem; line-height: 1.55; }
+.danger-zone-card .danger-reset { display: block; margin: 14px 0 10px; padding: 10px 14px; border-color: #ff5378; background: linear-gradient(135deg, #c92148, #8f1535); color: #fff; font-weight: 800; }
+.danger-zone-card .danger-reset:hover:not(:disabled) { border-color: #ff91a9; background: linear-gradient(135deg, #e02b55, #ad1b40); box-shadow: 0 12px 28px rgb(180 24 65 / 34%); }
 .waste-list { display: grid; gap: 7px; margin-top: 12px; max-height: 220px; overflow-y: auto; }
 .waste-list > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid #293a56; color: #b9c7d9; font-size: .74rem; }
 .waste-list span { min-width: 0; display: grid; gap: 2px; }

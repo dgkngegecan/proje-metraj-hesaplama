@@ -675,6 +675,22 @@ export default function App() {
       await loadAdvanced();
       notifySuccess('Yedek geri yüklendi.');
     });
+  const resetProjectData = () =>
+    withBusy(async () => {
+      const answer = await ask({
+        title: 'Tüm proje verileri temizlensin mi?',
+        description:
+          'Bütün projeler, sürümler, yerleşimler, metrajlar, notlar ve hesap geçmişi silinecek. Kart kütüphanesi ve genel ayarlar korunacak. İşlem öncesinde otomatik yedek alınacak.',
+        confirmLabel: 'Evet, proje verilerini temizle',
+        danger: true,
+      });
+      if (!answer) return;
+      const result = await api.delete<{ deletedProjectCount: number }>('/database/projects');
+      clearProjectView();
+      setSelectedProjectId('');
+      await loadProjects();
+      notifySuccess(`${result.deletedProjectCount} proje temizlendi. Güvenlik yedeği alındı.`);
+    });
   const importWorkspace = (file: File) =>
     withBusy(async () => {
       const answer = await ask({
@@ -1498,6 +1514,7 @@ export default function App() {
                   onCreateBackup={createBackup}
                   onCheckIntegrity={checkIntegrity}
                   onRestoreBackup={restoreBackup}
+                  onResetProjectData={resetProjectData}
                 />
               </section>
             )}

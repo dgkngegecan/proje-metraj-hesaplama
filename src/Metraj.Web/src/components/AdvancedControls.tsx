@@ -56,6 +56,7 @@ export function AdvancedControls(props: {
   onCreateBackup: () => void;
   onCheckIntegrity: () => void;
   onRestoreBackup: (backup: DatabaseBackup) => void;
+  onResetProjectData: () => void;
 }) {
   const { responsibilities } = props;
   const targetId = props.calculationTargetId || props.selectedPlacementId || '';
@@ -442,6 +443,19 @@ export function AdvancedControls(props: {
                 <small>Henüz yedek yok.</small>
               )}
             </div>
+          </section>
+
+          <section className="advanced-card danger-zone-card">
+            <span className="advanced-icon">06</span>
+            <h3>Tüm proje verilerini temizle</h3>
+            <p>
+              Bütün projeleri, sürümleri, yerleşimleri, metrajları, notları ve hesap geçmişini kaldırır. Kart
+              kütüphanesi ile genel ayarlar korunur.
+            </p>
+            <button className="danger-reset" disabled={props.busy} onClick={props.onResetProjectData}>
+              Tüm proje verilerini temizle
+            </button>
+            <small>İşlemden hemen önce otomatik bir güvenlik yedeği alınır.</small>
           </section>
         </div>
       </div>

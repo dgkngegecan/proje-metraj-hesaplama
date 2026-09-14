@@ -133,6 +133,42 @@ public sealed class DatabaseMaintenanceWorkspaceTests
     }
 
     [Fact]
+    public async Task ProjectResetKeepsCatalogAndCreatesRestorableSafetyBackup()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-project-reset");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), $"metraj-reset-backups-{Guid.NewGuid():N}");
+        try
+        {
+            await using (MetrajDbContext context = MetrajDbContextFactory.Create(database.Path))
+            {
+                await ApplicationSchemaMigrator.MigrateAsync(context);
+            }
+
+            var catalog = new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(database.Path));
+            await catalog.CreateCardAsync(new CatalogCardDraft(
+                "RESET-KEEP", "Korunacak kart", CardType.Material, ItemKind.Material,
+                InputBehavior.Manual, SalesConversion.None, ReportBehavior.Measurable, "adet"));
+            var projects = new ProjectWorkspaceService(() => MetrajDbContextFactory.Create(database.Path));
+            await projects.CreateProjectAsync("RESET-1", "Silinecek proje");
+
+            var maintenance = new DatabaseMaintenanceWorkspaceService(() => database.Path, backupDirectory);
+            ProjectDataResetResult result = await maintenance.ResetProjectDataAsync();
+
+            Assert.Equal(1, result.DeletedProjectCount);
+            Assert.Equal(DatabaseBackupReason.BeforeProjectReset, result.SafetyBackup.Reason);
+            Assert.True(File.Exists(result.SafetyBackup.FullPath));
+            await using MetrajDbContext verification = MetrajDbContextFactory.Create(database.Path);
+            Assert.Empty(await verification.Projects.ToListAsync());
+            Assert.Equal("RESET-KEEP", await verification.CatalogCardDefinitions.Select(card => card.Code).SingleAsync());
+            Assert.True((await maintenance.CheckIntegrityAsync()).IsHealthy);
+        }
+        finally
+        {
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
+        }
+    }
+
+    [Fact]
     public void SingleWriterGuardRejectsSecondApplicationInstanceUntilReleased()
     {
         string identity = $"Metraj.Tests.{Guid.NewGuid():N}";

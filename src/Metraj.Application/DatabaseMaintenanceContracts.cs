@@ -5,7 +5,8 @@ public enum DatabaseBackupReason
 {
     Manual,
     BeforeMigration,
-    BeforeRestore
+    BeforeRestore,
+    BeforeProjectReset
 }
 
 /// <summary>One complete, independently restorable SQLite snapshot.</summary>
@@ -19,6 +20,9 @@ public sealed record DatabaseBackupListItem(
 /// <summary>Read-only result of SQLite's quick consistency validation.</summary>
 public sealed record DatabaseIntegrityCheckResult(bool IsHealthy, string Details);
 
+/// <summary>Summary of a completed project-data reset.</summary>
+public sealed record ProjectDataResetResult(int DeletedProjectCount, DatabaseBackupListItem SafetyBackup);
+
 /// <summary>Owns safe snapshot, restore, and integrity operations for the single application database.</summary>
 public interface IDatabaseMaintenanceWorkspace
 {
@@ -26,4 +30,5 @@ public interface IDatabaseMaintenanceWorkspace
     public Task<DatabaseBackupListItem> CreateBackupAsync(DatabaseBackupReason reason = DatabaseBackupReason.Manual, CancellationToken cancellationToken = default);
     public Task RestoreBackupAsync(string backupPath, CancellationToken cancellationToken = default);
     public Task<DatabaseIntegrityCheckResult> CheckIntegrityAsync(CancellationToken cancellationToken = default);
+    public Task<ProjectDataResetResult> ResetProjectDataAsync(CancellationToken cancellationToken = default);
 }
