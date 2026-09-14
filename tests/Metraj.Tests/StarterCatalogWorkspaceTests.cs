@@ -17,20 +17,20 @@ public sealed class StarterCatalogWorkspaceTests
 
         Assert.True(first.AddedCount >= 40, "Başlangıç paketi mekanik tesisat için anlamlı bir katalog çekirdeği sağlamalıdır.");
         Assert.Contains("STD-CAT-MEK", first.AddedCodes);
-        Assert.Contains("STD-PPRC-DN25", first.AddedCodes);
+        Assert.Contains("STDF-PIPE-PPRC", first.AddedCodes);
         Assert.Contains("STD-EQ-BOILER", first.AddedCodes);
 
         var catalog = new CatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath));
         IReadOnlyList<CatalogCardListItem> seededCards = await catalog.ListCardsAsync();
         Assert.Equal(first.AddedCount, seededCards.Count);
 
-        CatalogCardListItem pprc25 = Assert.Single(seededCards, card => card.Code == "STD-PPRC-DN25");
+        CatalogCardListItem pprc25 = Assert.Single(seededCards, card => card.Code == "STDF-PIPE-PPRC");
         Assert.Equal(SalesConversion.StandardLength, pprc25.SalesConversion);
-        Assert.Equal(4m, pprc25.ContainerParameter);
+        Assert.Equal(4m, Assert.Single(pprc25.Variants!, variant => variant.Code == "DN25").StandardLength);
         Assert.Equal("PP-R", pprc25.MaterialType);
         Assert.False(string.IsNullOrWhiteSpace(pprc25.Notes));
 
-        CatalogCardListItem elbow25 = Assert.Single(seededCards, card => card.Code == "STD-PPRC-ELBOW-25");
+        CatalogCardListItem elbow25 = Assert.Single(seededCards, card => card.Code == "STDF-SU-PPRC-FITTING-AILE-EK");
         Assert.Contains(elbow25.CompatibleDiameters!, diameter => diameter.Equals("DN25", StringComparison.OrdinalIgnoreCase));
 
         CatalogCardListItem custom = await catalog.CreateCardAsync(new CatalogCardDraft(

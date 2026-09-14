@@ -50,14 +50,24 @@ public sealed class PlacementContextNoteWorkspaceService(Func<MetrajDbContext> c
     }
 
     /// <inheritdoc />
-    public async Task DeleteNoteAsync(Guid placementId, Guid noteId, CancellationToken cancellationToken = default)
+    public Task DeleteNoteAsync(Guid noteId, CancellationToken cancellationToken = default) =>
+        DeleteNoteCoreAsync(noteId, null, cancellationToken);
+
+    /// <inheritdoc />
+    public Task DeleteNoteAsync(Guid placementId, Guid noteId, CancellationToken cancellationToken = default) =>
+        DeleteNoteCoreAsync(noteId, placementId, cancellationToken);
+
+    private async Task DeleteNoteCoreAsync(Guid noteId, Guid? placementId, CancellationToken cancellationToken)
     {
         await using MetrajDbContext context = contextFactory();
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
-        await EnsureDraftPlacementAsync(context, placementId, cancellationToken);
-        PlacementContextNote note = await context.PlacementContextNotes
-            .SingleOrDefaultAsync(x => x.Id == noteId && x.PlacementId == placementId, cancellationToken)
-            ?? throw new DomainRuleViolationException("context-note.not-found", "Context note was not found on this placement.");
+        PlacementContextNote? note = await context.PlacementContextNotes
+            .SingleOrDefaultAsync(x => x.Id == noteId, cancellationToken);
+        if (note is null || (placementId is Guid expectedPlacementId && note.PlacementId != expectedPlacementId))
+        {
+            throw new DomainRuleViolationException("context-note.not-found", "Context note was not found.");
+        }
+        await EnsureDraftPlacementAsync(context, note.PlacementId, cancellationToken);
         context.PlacementContextNotes.Remove(note);
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);

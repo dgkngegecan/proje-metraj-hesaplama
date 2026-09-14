@@ -45,7 +45,7 @@ export function ContextNotes({ placementId, canEdit }: { placementId: string; ca
     if (!canEdit || saving) return;
     setSaving(true); setError('');
     try {
-      await api.delete(`/placement-context-notes/${id}`);
+      await api.delete(`/placements/${placementId}/context-notes/${id}`);
       setNotes((current) => current.filter((item) => item.id !== id));
       setDeleteId(null);
     } catch (error) { explain(error); }

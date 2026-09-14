@@ -44,7 +44,9 @@ public sealed record PlacementListItem(
     // MaterialType: kartın malzeme ailesi. Arayüz, giriş panelini seçerken
     // kullanıcının serbestçe değiştirebildiği görünen ad yerine bu açık
     // özelliği kullanır.
-    string? MaterialType = null);
+    string? MaterialType = null,
+    // Resolved from the placed immutable card version, never from its newest catalogue version.
+    string? PipeSystem = null);
 
 public sealed record PlacementDraft(Guid RevisionId, Guid CardVersionId, Guid? ParentPlacementId = null, string? DisplayNameOverride = null, string? ProcurementScope = null);
 

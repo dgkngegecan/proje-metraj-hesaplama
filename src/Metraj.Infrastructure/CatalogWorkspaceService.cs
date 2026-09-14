@@ -37,6 +37,7 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
             .Select(definition => new
             {
                 Definition = definition,
+                VersionCount = definition.Versions.Count,
                 Latest = definition.Versions
                     .OrderByDescending(version => version.VersionNumber)
                     .FirstOrDefault(),
@@ -51,11 +52,19 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
             .Where(row => row.Latest != null)
             .ToListAsync(cancellationToken);
 
+        var managedFamilies = rows.Where(row => row.Definition.IsActive &&
+                DeserializeAttributeValues(row.Latest!.AttributeValuesJson).GetValueOrDefault(CatalogFamilyMetadata.FamilyCode) == row.Definition.Code &&
+                DeserializeAttributeValues(row.Latest.AttributeValuesJson).ContainsKey(CatalogFamilyMetadata.SeedRevision))
+            .Select(row => row.Definition.Code).ToHashSet(StringComparer.OrdinalIgnoreCase);
         return rows
             .Select(row =>
             {
                 row.Latest!.CatalogCardTypeDefinition = row.LatestType;
-                return ToListItem(row.Definition, row.Latest);
+                string? replacement = StarterCatalogWorkspaceService.SupersededBy(row.Definition, row.Latest, row.VersionCount);
+                return ToListItem(row.Definition, row.Latest) with
+                {
+                    SupersededByCode = replacement is not null && managedFamilies.Contains(replacement) ? replacement : null
+                };
             })
             .OrderBy(x => x.Code)
             .ToList();
@@ -165,14 +174,24 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
     public async Task<IReadOnlyList<CatalogCardListItem>> ListCompatibleFittingsAsync(Guid pipePlacementId, CancellationToken cancellationToken = default)
     {
         await using MetrajDbContext context = contextFactory();
-        if (!await context.ProjectPlacements.AnyAsync(x => x.Id == pipePlacementId, cancellationToken))
-        {
-            throw new DomainRuleViolationException("placement.not-found", "Pipe placement was not found.");
-        }
-        var enteredDiameters = (await context.Measurements.AsNoTracking()
-            .Where(x => x.ProjectPlacementId == pipePlacementId && x.Variant != null)
-            .Select(x => x.Variant!).Distinct().ToListAsync(cancellationToken))
+        ProjectPlacement parent = await context.ProjectPlacements.AsNoTracking()
+            .Include(x => x.CatalogCardVersion).ThenInclude(x => x!.CatalogCardDefinition)
+            .SingleOrDefaultAsync(x => x.Id == pipePlacementId, cancellationToken)
+            ?? throw new DomainRuleViolationException("placement.not-found", "Pipe placement was not found.");
+        CatalogCardVersion pipe = parent.CatalogCardVersion!;
+        if (pipe.CardType != CardType.Material || pipe.ReportBehavior != ReportBehavior.Measurable) return [];
+        var measuredSizes = await context.Measurements.AsNoTracking()
+            .Where(x => x.ProjectPlacementId == pipePlacementId)
+            .Select(x => new { x.Variant, x.Notes }).ToListAsync(cancellationToken);
+        IReadOnlyList<CatalogCardVariant> pipeVariants = CatalogVariantCatalog.Parse(pipe.VariantDefinitionsJson);
+        var enteredDiameters = measuredSizes.Select(x => ReadMeasuredSize(x.Variant, x.Notes))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(size => pipeVariants.FirstOrDefault(option => string.Equals(option.Code, size, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(option.Label, size, StringComparison.OrdinalIgnoreCase)) is { } matched ? matched.SourceVariantCode ?? matched.Code : size!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        if (enteredDiameters.Count == 0)
+            enteredDiameters.UnionWith(StarterCatalogWorkspaceService.ParentSizes(pipe.CatalogCardDefinition!, pipe));
+        (string? system, string? material) = StarterCatalogWorkspaceService.ParentProfile(pipe.CatalogCardDefinition!, pipe);
         // Aktiflik ve kart tipi süzgeci artık veritabanında uygulanıyor; önceki
         // hâl BÜTÜN kartları listeye çevirip sonra bellekte eliyordu.
         IQueryable<CatalogCardDefinition> accessories = context.CatalogCardDefinitions
@@ -184,10 +203,8 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
 
         IReadOnlyList<CatalogCardListItem> cards = await ProjectLatestVersionsAsync(accessories, cancellationToken);
         // Uyumlu çaplar JSON içinde saklandığı için bu süzgeç bellekte kalıyor.
-        return cards
-            .Where(x => enteredDiameters.Count == 0 || x.CompatibleDiameters is null || x.CompatibleDiameters.Count == 0 ||
-                x.CompatibleDiameters.Any(enteredDiameters.Contains))
-            .ToList();
+        return cards.Select(x => CatalogCompatibility.Filter(x, system, material, enteredDiameters))
+            .OfType<CatalogCardListItem>().ToList();
     }
 
     /// <summary>
@@ -201,6 +218,21 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
     /// üzerinden gelen negatif bir boy kapasitesi kaydedilebiliyor, hata ancak
     /// kullanıcı rapor alırken ortaya çıkıyordu.
     /// </remarks>
+    private static string? ReadMeasuredSize(string? variant, string? notes)
+    {
+        if (!string.IsNullOrWhiteSpace(variant)) return variant.Trim();
+        if (notes is null) return null;
+        foreach (string marker in new[] { "Çap:", "Boyut:" })
+        {
+            int start = notes.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+            if (start < 0) continue;
+            start += marker.Length;
+            int end = notes.IndexOf('·', start);
+            return notes[start..(end < 0 ? notes.Length : end)].Trim();
+        }
+        return null;
+    }
+
     private sealed record ResolvedCardContent(
         string Code,
         string Name,
@@ -339,7 +371,9 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
             customType);
     }
 
-    private static CatalogCardListItem ToListItem(CatalogCardDefinition definition, CatalogCardVersion version) => new(
+    private static CatalogCardListItem ToListItem(CatalogCardDefinition definition, CatalogCardVersion version)
+    {
+        var item = new CatalogCardListItem(
         definition.Id,
         version.Id,
         definition.Code,
@@ -363,7 +397,18 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
         ParseAttributeKeys(version.CatalogCardTypeDefinition?.AttributeKeysJson),
         DeserializeAttributeValues(version.AttributeValuesJson),
         version.VariantMode,
-        CatalogVariantCatalog.Parse(version.VariantDefinitionsJson));
+        CatalogVariantCatalog.Parse(version.VariantDefinitionsJson),
+        DeserializeAttributeValues(version.AttributeValuesJson).GetValueOrDefault(CatalogFamilyMetadata.FamilyCode));
+        bool starter = version.VersionNumber == 1 && (StarterCatalogWorkspaceService.IsOriginal(definition, version) ||
+            item.AttributeValues?.GetValueOrDefault(CatalogFamilyMetadata.FamilyCode) == definition.Code);
+        if (!starter) return item;
+        return item with
+        {
+            Name = CatalogProductText.CleanName(item.Name),
+            Notes = CatalogProductText.Description(item.Code, item.Notes, item.Variants ?? [], item.MaterialType),
+            Variants = CatalogProductText.CleanOptions(item.Code, item.Variants ?? [])
+        };
+    }
 
     private static void EnsureVariantProfile(CatalogVariantMode mode, IReadOnlyList<CatalogCardVariant> variants)
     {

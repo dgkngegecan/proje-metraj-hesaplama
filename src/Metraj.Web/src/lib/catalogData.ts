@@ -107,5 +107,8 @@ export function visibleCatalogCards(cards: CatalogCard[]) {
       if (group.generatedPrefixes.some((prefix) => code.startsWith(prefix))) hidden.add(card.code);
     }
   }
-  return active.filter((card) => !hidden.has(card.code) && !hidden.has(card.code.toUpperCase()));
+  const present = new Set(active.map((card) => card.code.toUpperCase()));
+  return active.filter((card) =>
+    !(card.supersededByCode && present.has(card.supersededByCode.toUpperCase())) &&
+    !hidden.has(card.code) && !hidden.has(card.code.toUpperCase()));
 }

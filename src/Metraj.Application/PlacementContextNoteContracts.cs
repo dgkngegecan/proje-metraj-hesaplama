@@ -25,6 +25,8 @@ public interface IPlacementContextNoteWorkspace
     /// <summary>Returns notes in creation order, with identity as the tie breaker.</summary>
     public Task<IReadOnlyList<PlacementContextNoteListItem>> ListNotesAsync(Guid placementId, CancellationToken cancellationToken = default);
     public Task<PlacementContextNoteListItem> AddNoteAsync(PlacementContextNoteDraft draft, CancellationToken cancellationToken = default);
-    /// <summary>Deletes only the note belonging to the supplied placement; mismatched or missing IDs are rejected.</summary>
+    /// <summary>Deletes only the identified note after checking its owning placement's revision.</summary>
+    public Task DeleteNoteAsync(Guid noteId, CancellationToken cancellationToken = default);
+    /// <summary>Deletes the note only when it belongs to the supplied placement.</summary>
     public Task DeleteNoteAsync(Guid placementId, Guid noteId, CancellationToken cancellationToken = default);
 }

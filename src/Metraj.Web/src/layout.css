@@ -18,6 +18,7 @@
 .counter-row > span, .counter-row > strong { min-width: 0; overflow-wrap: anywhere; }
 .counter-row input { width: 100%; }
 .pipe-variant-box, .fitting-variant-box, .quantity-card, .quick-measure { min-width: 0; border-radius: 12px; }
+fieldset.quick-measure { margin-inline: 0; }
 .variant-panel-heading { flex-wrap: wrap; }
 .variant-panel-heading > div { min-width: 0; }
 .variant-editor-list { overflow: auto; }
@@ -44,10 +45,34 @@
 .react-flow__node { transition: none; }
 .react-flow__minimap { opacity: .78; }
 .react-flow__minimap:hover { opacity: 1; }
+.flow-workspace { min-height: 0; flex: 1; position: relative; }
+.flow-workspace:not(.shelf-open) { display: flex; flex-direction: column; }
+.flow-workspace:not(.shelf-open) .flow-layout { flex: 1; }
+.flow-workspace.shelf-open { min-height: 520px; overflow: hidden; border: 1px solid #4d4369; border-radius: 16px; background: #10192b; }
+.flow-workspace.shelf-open .flow-layout { position: absolute; inset: 0; display: block; min-height: 0; pointer-events: none; }
 .inline-card-library { flex: 0 0 auto; max-height: min(56vh, 600px); overflow: auto; scrollbar-gutter: stable; padding: 18px; margin-bottom: 14px; border: 1px solid #4d4369; border-radius: 16px; background: #10192b; }
+.flow-workspace.shelf-open .inline-card-library { width: 100%; height: 100%; max-height: none; margin: 0; border: 0; border-radius: 0; padding: 20px; }
+.project-map-window:not(.is-floating) { display: contents; }
+.project-map-window.is-floating { position: absolute; z-index: 20; min-width: 300px; min-height: 230px; pointer-events: auto; touch-action: none; filter: drop-shadow(0 18px 35px rgb(0 0 0 / 55%)); }
+.project-map-window.is-floating .flow-stage { width: 100%; height: 100%; min-height: 0; border-color: #7086a6; background: rgb(8 17 31 / 76%); backdrop-filter: blur(5px); box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%), 0 0 0 1px rgb(0 0 0 / 30%); }
+.project-map-window.is-moving { user-select: none; }
+.project-map-drag { position: absolute; z-index: 24; top: 8px; left: 8px; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border: 1px solid #8298b7; border-radius: 9px; background: rgb(12 27 47 / 88%); color: #eaf3ff; cursor: grab; touch-action: none; box-shadow: 0 5px 15px #0008; }
+.project-map-drag:active { cursor: grabbing; }
+.project-map-resize { position: absolute; z-index: 23; display: block; touch-action: none; }
+.resize-n, .resize-s { left: 14px; right: 14px; height: 10px; cursor: ns-resize; }
+.resize-e, .resize-w { top: 14px; bottom: 14px; width: 10px; cursor: ew-resize; }
+.resize-n { top: -4px; } .resize-s { bottom: -4px; }
+.resize-e { right: -4px; } .resize-w { left: -4px; }
+.resize-ne, .resize-se, .resize-sw, .resize-nw { width: 18px; height: 18px; }
+.resize-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.resize-se { right: -4px; bottom: -4px; cursor: nwse-resize; }
+.resize-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.resize-nw { top: -4px; left: -4px; cursor: nwse-resize; }
 .inline-library-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
 .inline-library-heading > div { flex: 1; min-width: 200px; }
 .inline-library-heading h3 { font-size: 1rem; margin: 6px 0 0; overflow-wrap: anywhere; }
+.shelf-compatibility { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 14px; padding: 10px 12px; background: #16273e; border: 1px solid #435575; border-radius: 10px; }
+.shelf-compatibility p { flex: 1; min-width: 190px; margin: 0; font-size: .8rem; }
 .context-notes { margin-top: 14px; border-top: 1px solid #354863; padding-top: 12px; }
 .context-notes-heading { display: flex; gap: 8px; align-items: center; justify-content: space-between; }
 .context-notes-heading h4 { margin: 0; font-size: .82rem; }
@@ -79,7 +104,12 @@
   .flow-stage { height: 510px; }
   .inspector { height: auto; }
   .inline-card-library { max-height: 60vh; }
+  .flow-workspace.shelf-open { min-height: 680px; }
+  .flow-workspace.shelf-open .inline-card-library { max-height: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  /* The two ambient lights are an explicit user preference, including in reduced-motion mode. */
+  .app-shell::before { animation: ambientBlueBounce 54s linear infinite !important; }
+  .app-shell::after { animation: ambientRoseBounce 63s linear -21s infinite !important; }
 }

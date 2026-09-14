@@ -41,19 +41,29 @@ public sealed class ProjectTreeWorkspaceTests
         ProjectListItem project = await projects.CreateProjectAsync("P-PH3", "Faz 3 testi");
         CatalogCardListItem card = await cards.CreateCardAsync(new CatalogCardDraft(
             "MAT-PH3", "Test borusu", CardType.Material, ItemKind.Material,
-            InputBehavior.Manual, SalesConversion.None, ReportBehavior.Measurable, "m"));
+            InputBehavior.Manual, SalesConversion.None, ReportBehavior.Measurable, "m",
+            AttributeValues: new Dictionary<string, string> { [CatalogFamilyMetadata.PipeSystem] = "clean-water" }));
 
         PlacementListItem firstRoot = await tree.AddPlacementAsync(new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
+        Assert.Equal("clean-water", firstRoot.PipeSystem);
         PlacementListItem secondRoot = await tree.AddPlacementAsync(new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
         PlacementListItem child = await tree.AddPlacementAsync(new PlacementDraft(project.LatestRevisionId, card.LatestVersionId, firstRoot.Id));
         CatalogCardListItem v2 = await cards.CreateVersionAsync(card.Id, new CatalogCardDraft(
             "ignored", "Test borusu güncel", CardType.Material, ItemKind.Material,
-            InputBehavior.Manual, SalesConversion.StandardLength, ReportBehavior.Measurable, "m", 10m, 6m));
+            InputBehavior.Manual, SalesConversion.StandardLength, ReportBehavior.Measurable, "m", 10m, 6m,
+            AttributeValues: new Dictionary<string, string> { [CatalogFamilyMetadata.PipeSystem] = "heating" }));
+        PlacementListItem latestPlacement = await tree.AddPlacementAsync(new PlacementDraft(project.LatestRevisionId, v2.LatestVersionId));
+        Assert.Equal("heating", latestPlacement.PipeSystem);
+        // Even a newly added placement can pin an older immutable version.
+        PlacementListItem pinnedPlacement = await tree.AddPlacementAsync(new PlacementDraft(project.LatestRevisionId, card.LatestVersionId));
+        Assert.Equal("clean-water", pinnedPlacement.PipeSystem);
 
         Assert.NotEqual(firstRoot.Id, secondRoot.Id);
         PlacementListItem preservedPlacement = (await tree.ListPlacementsAsync(project.LatestRevisionId)).Single(x => x.Id == firstRoot.Id);
         Assert.Equal(card.LatestVersionId, preservedPlacement.CardVersionId);
         Assert.Equal("Test borusu", preservedPlacement.CardName);
+        Assert.Equal("clean-water", preservedPlacement.PipeSystem);
+        Assert.Equal("heating", (await tree.ListPlacementsAsync(project.LatestRevisionId)).Single(x => x.Id == latestPlacement.Id).PipeSystem);
         Assert.NotEqual(card.LatestVersionId, v2.LatestVersionId);
         Assert.Equal("Test borusu güncel", v2.Name);
 

@@ -27,6 +27,7 @@ import { SummaryTable } from './components/SummaryTable';
 import { CatalogPage } from './components/CatalogPage';
 import { AdvancedControls } from './components/AdvancedControls';
 import { Inspector } from './components/Inspector';
+import { FloatingProjectMap } from './components/FloatingProjectMap';
 import type { CardDraftState } from './lib/draftTypes';
 import { arrangeFlowNodes, buildFlow } from './lib/flow';
 import { makeCardCode, measurementLabel, parseDecimal, quantity } from './lib/format';
@@ -102,6 +103,8 @@ export default function App() {
   const nodePositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [showCardShelf, setShowCardShelf] = useState(false);
+  const [showAllShelfCards, setShowAllShelfCards] = useState(false);
+  const [compatibleShelf, setCompatibleShelf] = useState<{ key: string; cards: CatalogCard[]; error?: string } | null>(null);
   const [showTypeDialog, setShowTypeDialog] = useState(false);
   // Birden fazla kart aynı anda açık kalabilir; bu özellikle yan yana
   // karşılaştırılan boru ve fitting kartlarında akışı hızlandırır.
@@ -174,6 +177,29 @@ export default function App() {
   const selectedProject = projects.find((item) => item.id === selectedProjectId) ?? null;
   const selectedRevision = revisions.find((item) => item.id === selectedRevisionId) ?? null;
   const selectedPlacement = placements.find((item) => item.id === selectedPlacementId) ?? null;
+  const shelfPipe = useMemo(() => {
+    const byId = new Map(placements.map((item) => [item.id, item]));
+    const visited = new Set<string>();
+    let current = selectedPlacement ?? undefined;
+    while (current && !visited.has(current.id)) {
+      if (current.variantMode === 'Pipe' || (current.pipeSystem && current.cardType === 'Material')) return current;
+      visited.add(current.id);
+      current = current.parentPlacementId ? byId.get(current.parentPlacementId) : undefined;
+    }
+    return undefined;
+  }, [placements, selectedPlacement]);
+  const shelfFilterKey = `${shelfPipe?.id ?? ''}:${dataVersion}`;
+  useEffect(() => { setShowAllShelfCards(false); }, [shelfPipe?.id]);
+  useEffect(() => {
+    if (!showCardShelf || !shelfPipe || showAllShelfCards) return;
+    let cancelled = false;
+    void api.get<CatalogCard[]>(`/placements/${shelfPipe.id}/compatible-fittings`).then((items) => {
+      if (!cancelled) setCompatibleShelf({ key: shelfFilterKey, cards: items });
+    }).catch(() => {
+      if (!cancelled) setCompatibleShelf({ key: shelfFilterKey, cards: [], error: 'Uyumlu parçalar yüklenemedi. Kartlığı tekrar açarak deneyin.' });
+    });
+    return () => { cancelled = true; };
+  }, [showCardShelf, shelfPipe?.id, shelfFilterKey, showAllShelfCards]);
   const canEdit = selectedRevision?.status === 'Draft';
   const measurablePlacements = placements.filter((item) => item.isMeasurable && item.inputBehavior !== 'Derived');
 
@@ -1026,13 +1052,13 @@ export default function App() {
           secondaryVariant: row.secondaryVariant ?? null,
         })),
       );
+      saved = true;
       // Yalnızca miktar temizlenir. Blok/kat/mahal/pafta, kullanıcının o an
       // çalıştığı yeri tarif eder; art arda satır girerken her seferinde yeniden
       // yazdırmak hızlı giriş akışını kırıyordu.
       setMeasurementDraft((current) => ({ ...current, quantity: '' }));
       await loadRevision(selectedRevisionId);
       notifySuccess('Metraj satırı eklendi.');
-      saved = true;
     });
     return saved;
   };
@@ -1275,6 +1301,7 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+                <div className={`flow-workspace ${showCardShelf ? 'shelf-open' : ''}`}>
                 {showCardShelf && (
                   <section className="inline-card-library" id="inline-card-library" aria-label="Kütüphaneden kart ekle">
                     <div className="inline-library-heading">
@@ -1282,10 +1309,19 @@ export default function App() {
                       <button onClick={startFirstCardForFlow}>+ Yeni kart oluştur</button>
                       <button aria-label="Kartlığı kapat" onClick={() => setShowCardShelf(false)}>Kapat</button>
                     </div>
-                    <CardShelf cards={cards} onAdd={addCardToFlow} onCreate={startFirstCardForFlow} />
+                    {shelfPipe && <div className="shelf-compatibility">
+                      <p>{showAllShelfCards ? 'Tüm kartlar gösteriliyor.' : `“${shelfPipe.displayName}” malzemesine ve girilmiş çaplarına uygun parçalar.`}</p>
+                      <button onClick={() => setShowAllShelfCards(!showAllShelfCards)}>{showAllShelfCards ? 'Uyumlu parçaları göster' : 'Tüm kartları göster'}</button>
+                    </div>}
+                    {shelfPipe && !showAllShelfCards && compatibleShelf?.key !== shelfFilterKey
+                      ? <p role="status">Uyumlu parçalar yükleniyor…</p>
+                      : shelfPipe && !showAllShelfCards && compatibleShelf?.error
+                        ? <p role="alert">{compatibleShelf.error}</p>
+                        : <CardShelf cards={shelfPipe && !showAllShelfCards ? compatibleShelf?.cards ?? [] : cards} onAdd={addCardToFlow} onCreate={startFirstCardForFlow} />}
                   </section>
                 )}
                 <div className="flow-layout">
+                  <FloatingProjectMap active={showCardShelf}>
                   <div className="flow-stage" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
                     <ReactFlow<PlacementNode, Edge>
                       nodes={nodes}
@@ -1298,6 +1334,8 @@ export default function App() {
                       onEdgesChange={handleEdgesChange}
                       onConnect={reparent}
                       fitView
+                      minZoom={0.1}
+                      maxZoom={2}
                       fitViewOptions={{ padding: 0.24 }}
                       nodesDraggable={canEdit}
                       nodesConnectable={canEdit}
@@ -1321,6 +1359,8 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                  </FloatingProjectMap>
+                  {!showCardShelf && (
                   <Inspector
                     key={selectedPlacement?.id ?? 'empty-inspector'}
                     placement={selectedPlacement}
@@ -1350,6 +1390,8 @@ export default function App() {
                       }
                     }}
                   />
+                  )}
+                </div>
                 </div>
               </section>
             )}

@@ -75,7 +75,8 @@ public sealed class ProjectTreeWorkspaceService(Func<MetrajDbContext> contextFac
         return new PlacementListItem(placement.Id, revision.Id, placement.ParentPlacementId, card.Id,
             definition.Code, card.Name, card.Unit, card.InputBehavior, card.CardType, card.PositionNumber, card.ReportBehavior == ReportBehavior.Measurable, displayName,
             placement.DisplayNameOverride, placement.ProcurementScope, placement.Notes,
-            card.VariantMode, CatalogVariantCatalog.Parse(card.VariantDefinitionsJson), card.MaterialType);
+            card.VariantMode, CatalogVariantCatalog.Parse(card.VariantDefinitionsJson), card.MaterialType,
+            StarterCatalogWorkspaceService.ResolvePipeSystem(card, definition.Code));
     }
 
     public async Task UpdatePlacementAsync(Guid placementId, PlacementUpdateDraft draft, CancellationToken cancellationToken = default)
@@ -238,24 +239,29 @@ public sealed class ProjectTreeWorkspaceService(Func<MetrajDbContext> contextFac
             ?? throw new DomainRuleViolationException("placement.card", "Placement card version was not loaded.");
         CatalogCardDefinition definition = card.CatalogCardDefinition
             ?? throw new DomainRuleViolationException("placement.card-definition", "Placement card definition was not loaded.");
+        bool starter = card.VersionNumber == 1 && (StarterCatalogWorkspaceService.IsOriginal(definition, card) ||
+            JsonStore.Read(card.AttributeValuesJson, new Dictionary<string, string>()).GetValueOrDefault(CatalogFamilyMetadata.FamilyCode) == definition.Code);
+        IReadOnlyList<CatalogCardVariant> variants = CatalogVariantCatalog.Parse(card.VariantDefinitionsJson);
+        string cardName = starter ? CatalogProductText.CleanName(card.Name) : card.Name;
         return new PlacementListItem(
             placement.Id,
             placement.ProjectRevisionId,
             placement.ParentPlacementId,
             card.Id,
             definition.Code,
-            card.Name,
+            cardName,
             card.Unit,
             card.InputBehavior,
             card.CardType,
             card.PositionNumber,
             card.ReportBehavior == ReportBehavior.Measurable,
-            placement.DisplayNameOverride ?? card.Name,
+            placement.DisplayNameOverride ?? cardName,
             placement.DisplayNameOverride,
             placement.ProcurementScope,
             placement.Notes,
             card.VariantMode,
-            CatalogVariantCatalog.Parse(card.VariantDefinitionsJson),
-            card.MaterialType);
+            starter ? CatalogProductText.CleanOptions(definition.Code, variants) : variants,
+            card.MaterialType,
+            StarterCatalogWorkspaceService.ResolvePipeSystem(card, definition.Code));
     }
 }

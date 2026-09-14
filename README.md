@@ -4,6 +4,12 @@ Windows 11 x64 için hazırlanmış, tek kullanıcılı ve çevrimdışı çalı
 
 Uygulama; katalog kartlarını proje yerleşimlerinden ayırır, tek ebeveynli proje ağacında metraj girmenizi sağlar, sınırlı/izlenebilir hesap kuralları uygular ve PDF, Excel ile Word raporları üretir.
 
+## GitHub'dan indirme
+
+Kalıcı sürümler için GitHub sayfasındaki **Releases** bölümünü açın ve `ProjeMetraj-win-x64.exe` dosyasını indirin.
+
+Her `main` derlemesinin geçici çıktısı **Actions → son başarılı build → Artifacts → ProjeMetraj-win-x64** altında 90 gün saklanır. Actions indirmesi ZIP içinde gelir; ZIP'i açıp EXE'yi çalıştırın.
+
 ## Teslim paketi
 
 Çalıştırılacak dosya:

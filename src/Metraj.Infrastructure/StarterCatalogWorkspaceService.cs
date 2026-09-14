@@ -41,8 +41,9 @@ public sealed partial class StarterCatalogWorkspaceService(Func<MetrajDbContext>
         }
         await context.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        int presentTargets = Consolidation.Value.Targets.Count(draft => existing.Contains(draft.Code));
-        return new StarterCatalogSeedResult(added.Count, presentTargets - added.Count, added);
+        var addedCodes = added.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        int existingTargets = Consolidation.Value.Targets.Count(draft => !addedCodes.Contains(draft.Code));
+        return new StarterCatalogSeedResult(added.Count, existingTargets, added);
     }
 
     private sealed record StarterCard(

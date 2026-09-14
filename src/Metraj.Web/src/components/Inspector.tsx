@@ -1,8 +1,9 @@
 import type { MeasurementDraft } from '../lib/draftTypes';
 import { ContextNotes } from './ContextNotes';
-import { FITTING_PRESETS, STEEL_DIAMETERS, variantName } from '../lib/catalogData';
+import { STEEL_DIAMETERS, variantName } from '../lib/catalogData';
+import { diameterCode, fittingChoices } from '../lib/fittingChoices';
 import { useEffect, useRef, useState } from 'react';
-import { clearUiState, readUiState, writeUiState, type UiStateMap } from '../uiState';
+import { readUiState, writeUiState, type UiStateMap } from '../uiState';
 import { TYPE_META } from '../lib/uiTypes';
 import {
   isRadiatorPlacement,
@@ -12,7 +13,13 @@ import {
   purchaseUnit,
   quantity,
 } from '../lib/format';
-import type { CatalogCardVariant, CatalogVariantMode, Measurement, MeasurementSummary, Placement } from '../types';
+import type { CatalogCardVariant, Measurement, MeasurementSummary, Placement } from '../types';
+
+type FittingBox = { id: string; diameter: string; countsByDiameter: Record<string, Record<string, number>> };
+// A save belongs to the placement even if its inspector is unmounted during navigation.
+const fittingSaves = new Set<string>();
+const fittingSaveListeners = new Set<(id: string, boxes?: FittingBox[]) => void>();
+const announceFittingSave = (id: string, boxes?: FittingBox[]) => fittingSaveListeners.forEach((listener) => listener(id, boxes));
 
 export function Inspector({
   placement,
@@ -62,14 +69,21 @@ export function Inspector({
   onScope: () => void;
 }) {
   type PipeBox = { id: string; diameter: string; pending: string };
-  type FittingBox = { id: string; diameter: string; countsByDiameter: Record<string, Record<string, number>> };
-  const [diameter, setDiameter] = useState('DN25');
   const [radiatorType, setRadiatorType] = useState('Panel');
   const [radiatorHeight, setRadiatorHeight] = useState('600');
   const [radiatorWidth, setRadiatorWidth] = useState('');
-  const [fittingCounts, setFittingCounts] = useState<Record<string, number>>({ Dirsek: 0, Muşon: 0, Te: 0, Vana: 0 });
   const [pipeBoxes, setPipeBoxes] = useState<PipeBox[]>([]);
   const [fittingBoxes, setFittingBoxes] = useState<FittingBox[]>([]);
+  const [fittingSaving, setFittingSaving] = useState(() => Boolean(placement && fittingSaves.has(placement.id)));
+  useEffect(() => {
+    const changed = (id: string, boxes?: FittingBox[]) => {
+      if (id !== placement?.id) return;
+      setFittingSaving(fittingSaves.has(id));
+      if (boxes) setFittingBoxes(boxes);
+    };
+    fittingSaveListeners.add(changed);
+    return () => { fittingSaveListeners.delete(changed); };
+  }, [placement?.id]);
   const [showHistory, setShowHistory] = useState(false);
   // Satır içi düzenleme/silme onayı. window.prompt / window.confirm yerine
   // arayüzün kendi kontrolleri kullanılır: kopyalanabilir, tema uyumlu ve
@@ -132,7 +146,7 @@ export function Inspector({
     )?.code;
     const first =
       placement.variantMode === 'Fitting'
-        ? (preferredParentDiameter ?? ancestor?.variants?.[0]?.code ?? 'DN25')
+        ? (preferredParentDiameter ?? fittingChoices(placement, placements, allMeasurements).diameters[0]?.code ?? 'GENEL')
         : (placement.variants?.[0]?.code ?? 'DN25');
     let savedPipeBoxes: Array<{ id?: string; diameter?: string }> = [];
     let savedFittingBoxes: Array<{ id?: string; diameter?: string; counts?: unknown; countsByDiameter?: unknown }> = [];
@@ -227,8 +241,6 @@ export function Inspector({
         ? normalizedFittingBoxes
         : [{ id: `${placement.id}-fit-0`, diameter: first, countsByDiameter: {} }],
     );
-    setDiameter(first);
-    setFittingCounts({ Dirsek: 0, Muşon: 0, Te: 0, Vana: 0 });
   }, [placement?.id, placement?.variantMode, placement?.parentPlacementId, variantKey, uiStateReady]);
   useEffect(() => {
     setShowHistory(false);
@@ -268,7 +280,6 @@ export function Inspector({
   // bir çaredir: "Panel Radyatör" kartını "PR-600 Panel" olarak yeniden
   // adlandırmak, tür/yükseklik/genişlik panelini sessizce kaybettiriyordu.
   const isRadiator = !isPipe && !isFitting && isRadiatorPlacement(placement);
-  const isCount = !isFitting && !isRadiator && (placement.cardType === 'Accessory' || /adet/i.test(placement.unit));
   const knownDiameters = [
     ...new Set(measurements.map((item) => measurementVariantOf(item)).filter(Boolean) as string[]),
   ];
@@ -276,47 +287,15 @@ export function Inspector({
     ? knownDiameters.map((item) => ({ code: item, label: item }))
     : STEEL_DIAMETERS;
   const variantDiameters = placement.variants?.length ? placement.variants : fallbackDiameters;
-  const findAncestor = (mode: CatalogVariantMode) => {
-    let current = placements.find((item) => item.id === placement.parentPlacementId);
-    let guard = 0;
-    while (current && guard++ < 24) {
-      if (current.variantMode === mode) return current;
-      current = placements.find((item) => item.id === current?.parentPlacementId);
-    }
-    return undefined;
+  const choices = fittingChoices(placement, placements, allMeasurements);
+  const parentPipe = choices.parentPipe;
+  const parentDiameterMeasurements = choices.entered;
+  const parentDiameters = choices.diameters;
+  const parentDiameterFiltered = choices.filtered;
+  const compatibleFittings = (code: string) => {
+    const selected = parentDiameters.find((item) => item.code === code);
+    return selected ? choices.compatibleVariants(selected) : [];
   };
-  const parentPipe = isFitting ? findAncestor('Pipe') : undefined;
-  const parentDiameterMeasurements = parentPipe
-    ? allMeasurements.filter((item) => item.placementId === parentPipe.id && measurementVariantOf(item))
-    : [];
-  const parentDiameterBase = parentPipe?.variants?.length ? parentPipe.variants : fallbackDiameters;
-  const parentEnteredDiameters =
-    parentPipe && parentDiameterMeasurements.length
-      ? parentDiameterBase.filter((item) =>
-          parentDiameterMeasurements.some((measurement) => {
-            const entered = measurementVariantOf(measurement).trim().toLowerCase();
-            return entered === item.code.toLowerCase() || entered === item.label.toLowerCase();
-          }),
-        )
-      : [];
-  const parentDiameters = parentEnteredDiameters.length ? parentEnteredDiameters : parentDiameterBase;
-  const parentDiameterFiltered = Boolean(
-    parentPipe && parentEnteredDiameters.length && parentEnteredDiameters.length < parentDiameterBase.length,
-  );
-  const fittingVariants = placement.variants?.length ? placement.variants : FITTING_PRESETS;
-  const compatibleFittings = (diameterCode: string) =>
-    fittingVariants.filter((item) => {
-      const compatible = item.compatibleDiameters ?? [];
-      return (
-        compatible.length === 0 ||
-        compatible.some(
-          (itemDiameter) =>
-            itemDiameter.toLowerCase() === diameterCode.toLowerCase() ||
-            itemDiameter.toLowerCase() ===
-              variantDiameters.find((item) => item.code === diameterCode)?.label.toLowerCase(),
-        )
-      );
-    });
   // Girilen değer, kayıt BAŞARILI olmadan temizlenmez. Aksi hâlde bir doğrulama
   // veya yazma hatasında kutu boşalıyor, kısa bir toast geçiyor ve kullanıcının
   // sahadan okuyup yazdığı sayı hiçbir yerde kalmıyordu.
@@ -348,14 +327,15 @@ export function Inspector({
     if (saved) setRadiatorWidth('');
   };
   const hasPendingFittings = fittingBoxes.some((box) =>
-    Object.values(box.countsByDiameter).some((counts) => Object.values(counts).some((count) => count > 0)),
+    Object.entries(box.countsByDiameter).some(([diameter, counts]) => Object.entries(counts).some(([kind, count]) => count > 0 && compatibleFittings(diameter).some((item) => item.code === kind))),
   );
   const submitFittings = async () => {
+    if (!canEdit || busy || fittingSaves.has(placement.id)) return;
     const totals = new Map<string, { diameter: string; kind: string; count: number }>();
     fittingBoxes.forEach((box) =>
       Object.entries(box.countsByDiameter).forEach(([diameter, counts]) => {
         Object.entries(counts)
-          .filter(([, count]) => count > 0)
+          .filter(([kind, count]) => count > 0 && compatibleFittings(diameter).some((option) => option.code === kind))
           .forEach(([kind, count]) => {
             const key = `${diameter}\u0000${kind}`;
             const current = totals.get(key);
@@ -365,15 +345,28 @@ export function Inspector({
     );
     const rows = [...totals.values()].map(({ diameter, kind, count }) => ({
       quantity: count,
-      variant: diameter,
+      variant: diameter === 'GENEL' ? null : diameter,
       secondaryVariant: kind,
-      notes: `${kind} · Çap: ${diameter}`,
+      notes: `${placement.variants?.find((item) => item.code === kind)?.label ?? kind}${diameter === 'GENEL' ? '' : ` · Çap: ${parentDiameters.find((item) => item.code === diameter)?.label ?? diameter}`}`,
     }));
     if (!rows.length) return;
-    const saved = await onSubmitRows(rows);
-    if (saved) {
-      setFittingBoxes((current) => current.map((box) => ({ ...box, countsByDiameter: {} })));
-      clearUiState(uiState, `fitting-draft.v1.${placement.id}`);
+    const placementId = placement.id;
+    fittingSaves.add(placementId);
+    announceFittingSave(placementId);
+    try {
+      const saved = await onSubmitRows(rows);
+      if (saved) {
+        const remaining = fittingBoxes.map((box) => ({ ...box, countsByDiameter:
+          Object.fromEntries(Object.entries(box.countsByDiameter).map(([diameter, counts]) => [diameter,
+            Object.fromEntries(Object.entries(counts).filter(([kind]) => !totals.has(`${diameter}\u0000${kind}`))) ]))
+        }));
+        // Persist before notifying whichever inspector is currently mounted.
+        writeUiState(uiState, `fitting-draft.v1.${placementId}`, JSON.stringify(remaining));
+        announceFittingSave(placementId, remaining);
+      }
+    } finally {
+      fittingSaves.delete(placementId);
+      announceFittingSave(placementId);
     }
   };
   const updateFittingCount = (boxId: string, diameterCode: string, code: string, delta: number) =>
@@ -403,27 +396,6 @@ export function Inspector({
         };
       }),
     );
-  };
-  const submitSimpleCounts = async () => {
-    const rows = Object.entries(fittingCounts)
-      .filter(([, count]) => count > 0)
-      .map(([kind, count]) => ({
-        quantity: count,
-        variant: diameter,
-        secondaryVariant: kind,
-        notes: `${kind} · Çap: ${diameter}`,
-      }));
-    if (!rows.length) return;
-    const saved = await onSubmitRows(rows);
-    // Sayaçlar yalnızca kayıt gerçekten başarılı olduğunda sıfırlanır.
-    if (saved) setFittingCounts({ Dirsek: 0, Muşon: 0, Te: 0, Vana: 0 });
-  };
-  const setSimpleCount = (kind: string, value: string) => {
-    const parsed = parseDecimal(value);
-    setFittingCounts((current) => ({
-      ...current,
-      [kind]: Number.isFinite(parsed) ? Math.max(0, Math.floor(parsed)) : 0,
-    }));
   };
   const addFittingBox = () =>
     setFittingBoxes((current) => [
@@ -636,6 +608,10 @@ export function Inspector({
           </div>
           {pipeBoxes.map((box) => {
             const profile = variantDiameters.find((item) => item.code === box.diameter);
+            const sourceGroup = (item: CatalogCardVariant) => item.sourceCardName ?? item.sourceCardCode ?? '';
+            const sourceGroups = [...new Map(variantDiameters.map((item) => [sourceGroup(item), item.sourceCardName ?? placement.cardName])).entries()];
+            const sourceCode = profile ? sourceGroup(profile) : '';
+            const sourceDiameters = sourceGroups.length > 1 ? variantDiameters.filter((item) => sourceGroup(item) === sourceCode) : variantDiameters;
             /* Toplam ve satin alma adedi backend'in decimal sonucundan okunur. Panelde JavaScript kayan noktasiyla yeniden hesaplamak, 40 adet 0,1 girisinde 4 m boy icin 1 yerine 2 boy gosteriyordu; ekran ile rapor celisiyordu. */ const variantSummary =
               summaryForVariant(box.diameter, profile?.label);
             const entered = variantSummary?.netQuantity ?? 0;
@@ -644,6 +620,13 @@ export function Inspector({
             const bars = barsPurchase ? (variantSummary?.purchaseQuantity ?? 0) : 0;
             return (
               <div className="pipe-variant-box" key={box.id}>
+                {sourceGroups.length > 1 && <label>Boru çeşidi / basınç sınıfı
+                  <select value={sourceCode} disabled={!canEdit || busy} onChange={(event) => {
+                    const variants = variantDiameters.filter((item) => sourceGroup(item) === event.target.value);
+                    const next = variants.find((item) => profile && diameterCode(item) === diameterCode(profile)) ?? variants[0];
+                    if (next) setPipeBoxes((current) => current.map((item) => item.id === box.id ? { ...item, diameter: next.code } : item));
+                  }}>{sourceGroups.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select>
+                </label>}
                 <div className="variant-box-head">
                   <label>
                     Çap / boyut
@@ -657,7 +640,7 @@ export function Inspector({
                         )
                       }
                     >
-                      {variantDiameters.map((item) => (
+                      {sourceDiameters.map((item) => (
                         <option key={item.code} value={item.code}>
                           {variantName(item)}
                         </option>
@@ -716,14 +699,14 @@ export function Inspector({
         </div>
       )}
       {placement.isMeasurable && placement.inputBehavior !== 'Derived' && isFitting && (
-        <div className="quick-measure variant-input-panel fitting-input-panel">
+        <fieldset className="quick-measure variant-input-panel fitting-input-panel" disabled={!canEdit || busy || fittingSaving}>
           <div className="variant-panel-heading">
             <div>
-              <strong>Fitting çap grupları</strong>
+              <strong>{choices.dimensional ? 'Uyumlu çap ve parça seçenekleri' : 'Parça / malzeme seçenekleri'}</strong>
               <small>Çaplar arasında geçiş yapabilirsin; gönderilmeyen adetler kaybolmaz.</small>
             </div>
             <button type="button" onClick={addFittingBox}>
-              + Çap kutusu
+              {choices.dimensional ? '+ Çap kutusu' : '+ Seçenek grubu'}
             </button>
           </div>
           {parentDiameterFiltered && (
@@ -736,6 +719,7 @@ export function Inspector({
               Bağlı boruda henüz ölçüm yok; kartta tanımlı tüm çaplar gösteriliyor.
             </div>
           )}
+          {!parentDiameters.length && <p className="muted">Bağlı borunun malzeme ve çaplarına uygun seçenek bulunamadı.</p>}
           {fittingBoxes.map((box) => {
             const activeDiameter = parentDiameters.some((item) => item.code === box.diameter)
               ? box.diameter
@@ -815,13 +799,13 @@ export function Inspector({
             disabled={!canEdit || busy || !hasPendingFittings}
             onClick={() => void submitFittings()}
           >
-            Hepsini ekle ↵
+            {fittingSaving ? 'Kaydediliyor…' : 'Hepsini ekle ↵'}
           </button>
           <small>
             Bekleyen adetler bu kart, diğer kartlar ve ekranlar arasında saklanır; yalnız başarıyla eklenince
             temizlenir.
           </small>
-        </div>
+        </fieldset>
       )}
       {placement.isMeasurable && isRadiator && (
         <div className="quick-measure">
@@ -867,91 +851,26 @@ export function Inspector({
           </button>
         </div>
       )}
-      {placement.isMeasurable && !isPipe && !isFitting && !isRadiator && !isCount && (
+      {placement.isMeasurable && placement.inputBehavior !== 'Derived' && !isPipe && !isFitting && !isRadiator && (
         <div className="quick-measure">
-          <label>
-            Çap / boyut
-            <select value={diameter} onChange={(event) => setDiameter(event.target.value)}>
-              {fallbackDiameters.map((item) => (
-                <option key={item.code}>{item.code}</option>
-              ))}
-            </select>
-          </label>
           <label className="large-input-label">
-            Metre yaz, Enter'a bas
+            Miktar ({placement.unit})
             <input
-              autoFocus
               className="large-measure-input"
               inputMode="decimal"
-              placeholder="0,00"
+              placeholder="0"
+              disabled={!canEdit || busy}
               value={draft.quantity}
               onChange={(event) => onDraft({ ...draft, quantity: event.target.value })}
               onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  const parsed = parseDecimal(draft.quantity);
-                  if (parsed > 0) onSubmitRows([{ quantity: parsed, variant: diameter, notes: `Çap: ${diameter}` }]);
-                }
+                if (event.key === 'Enter' && canEdit && !busy) { event.preventDefault(); onSubmit(); }
               }}
             />
           </label>
-          <button
-            className="primary full"
-            disabled={!canEdit || busy}
-            onClick={() => {
-              const parsed = parseDecimal(draft.quantity);
-              if (parsed > 0) onSubmitRows([{ quantity: parsed, variant: diameter, notes: `Çap: ${diameter}` }]);
-              else onSubmit();
-            }}
-          >
-            Metreyi ekle
+          <button className="primary full" disabled={!canEdit || busy || !draft.quantity.trim()} onClick={onSubmit}>
+            Miktarı ekle
           </button>
-          <small>Her Enter ayrı bir ölçüm olarak kaydolur; toplam otomatik güncellenir.</small>
-        </div>
-      )}
-      {placement.isMeasurable && isCount && (
-        <div className="quick-measure">
-          <label>
-            Çap / boyut
-            <select value={diameter} onChange={(event) => setDiameter(event.target.value)}>
-              {fallbackDiameters.map((item) => (
-                <option key={item.code}>{item.code}</option>
-              ))}
-            </select>
-          </label>
-          <div className="counter-list">
-            {Object.entries(fittingCounts).map(([kind, count]) => (
-              <div className="counter-row" key={kind}>
-                <strong>{kind}</strong>
-                <button
-                  type="button"
-                  onClick={() => setFittingCounts({ ...fittingCounts, [kind]: Math.max(0, count - 1) })}
-                >
-                  −
-                </button>
-                <input
-                  className="counter-input"
-                  type="number"
-                  min="0"
-                  step="1"
-                  inputMode="numeric"
-                  aria-label={`${kind} adedi`}
-                  value={count}
-                  onChange={(event) => setSimpleCount(kind, event.target.value)}
-                />
-                <button type="button" onClick={() => setFittingCounts({ ...fittingCounts, [kind]: count + 1 })}>
-                  +
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            className="primary full"
-            disabled={!canEdit || busy || !Object.values(fittingCounts).some(Boolean)}
-            onClick={() => void submitSimpleCounts()}
-          >
-            Hepsini ekle ↵
-          </button>
+          <small>Her giriş ayrı kaydedilir; toplam otomatik güncellenir.</small>
         </div>
       )}
       <ContextNotes key={placement.id} placementId={placement.id} canEdit={canEdit && !busy} />

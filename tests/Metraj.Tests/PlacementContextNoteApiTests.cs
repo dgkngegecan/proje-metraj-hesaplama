@@ -11,12 +11,18 @@ namespace Metraj.Tests;
 
 public sealed class PlacementContextNoteApiTests
 {
-    [Fact]
-    public async Task HttpContractPersistsMultipleFolderPlacementNotesAcrossHostRestartAndEnforcesApprovedRestrictions()
+    private static readonly string[] NotePropertyNames =
+        ["block", "createdAtUtc", "floor", "id", "placementId", "room", "text", "updatedAtUtc"];
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HttpContractPersistsMultipleFolderPlacementNotesAcrossHostRestartAndEnforcesApprovedRestrictions(bool scopedDelete)
     {
         await using TestDatabase database = await TestDatabase.CreateAsync();
         var (project, placement, other) = await CreatePlacementsAsync(database);
         string route = $"api/placements/{placement.Id}/context-notes";
+        string DeleteRoute(Guid noteId) => scopedDelete ? $"{route}/{noteId}" : $"api/placement-context-notes/{noteId}";
         PlacementContextNoteListItem survivor;
         await using (LocalApiHost host = await LocalApiHost.StartAsync(database.Path))
         {
@@ -28,7 +34,7 @@ public sealed class PlacementContextNoteApiTests
             });
             Assert.Equal(HttpStatusCode.OK, added.StatusCode);
             JsonElement payload = await added.Content.ReadFromJsonAsync<JsonElement>();
-            Assert.Equal(new[] { "block", "createdAtUtc", "floor", "id", "placementId", "room", "text", "updatedAtUtc" },
+            Assert.Equal(NotePropertyNames,
                 payload.EnumerateObject().Select(x => x.Name).OrderBy(x => x, StringComparer.Ordinal));
             Guid firstId = payload.GetProperty("id").GetGuid();
             Assert.NotEqual(Guid.Empty, firstId);
@@ -52,8 +58,9 @@ public sealed class PlacementContextNoteApiTests
             Assert.All(both, note => Assert.Equal(DateTimeKind.Utc, note.CreatedAtUtc.Kind));
             Assert.Empty((await client.GetFromJsonAsync<PlacementContextNoteListItem[]>($"api/placements/{other.Id}/context-notes"))!);
 
+            await AssertErrorAsync(await client.DeleteAsync(DeleteRoute(Guid.NewGuid())), "context-note.not-found");
             await AssertErrorAsync(await client.DeleteAsync($"api/placements/{other.Id}/context-notes/{firstId}"), "context-note.not-found");
-            HttpResponseMessage deletion = await client.DeleteAsync($"{route}/{firstId}");
+            HttpResponseMessage deletion = await client.DeleteAsync(DeleteRoute(firstId));
             Assert.Equal(HttpStatusCode.NoContent, deletion.StatusCode);
             Assert.Empty(await deletion.Content.ReadAsStringAsync());
             Assert.Equal(survivor, Assert.Single((await client.GetFromJsonAsync<PlacementContextNoteListItem[]>(route))!));
@@ -66,7 +73,7 @@ public sealed class PlacementContextNoteApiTests
         HttpResponseMessage approval = await reopened.PostAsync($"api/revisions/{project.LatestRevisionId}/approve", null);
         Assert.Equal(HttpStatusCode.NoContent, approval.StatusCode);
         await AssertErrorAsync(await reopened.PostAsJsonAsync(route, new { text = "Kilitli revizyona ekleme" }), "revision.read-only");
-        await AssertErrorAsync(await reopened.DeleteAsync($"{route}/{survivor.Id}"), "revision.read-only");
+        await AssertErrorAsync(await reopened.DeleteAsync(DeleteRoute(survivor.Id)), "revision.read-only");
         Assert.Equal(survivor, Assert.Single((await reopened.GetFromJsonAsync<PlacementContextNoteListItem[]>(route))!));
     }
 

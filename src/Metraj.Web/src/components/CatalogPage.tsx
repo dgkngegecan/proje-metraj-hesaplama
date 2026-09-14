@@ -50,6 +50,7 @@ export function CatalogPage(props: {
     if (formExpanded) nameInputRef.current?.focus();
   }, [formExpanded, props.editingCardId]);
   const openForm = () => {
+    if (props.editingCardId) props.onCancelEdit();
     setFormExpanded(true);
     if (formExpanded) nameInputRef.current?.focus();
   };
@@ -469,45 +470,48 @@ export function CatalogPage(props: {
         onAdd={props.onAddCard}
         onCreate={openForm}
         onDelete={props.onDeactivateCard}
-        onEdit={(card) => { setFormExpanded(true); props.onEditCard(card); }}
+        onEdit={(card) => {
+          setFormExpanded(true);
+          props.onEditCard(card);
+        }}
       />
       {activeTypes.length > 0 && (
         <details className="catalog-type-disclosure">
           <summary>Özel kart türlerini yönet · {activeTypes.length} tür</summary>
-        <section className="catalog-types">
-          <div className="summary-heading">
-            <div>
-              <span className="eyebrow">TÜR ŞABLONLARI</span>
-              <h3>Özel kart türleri</h3>
+          <section className="catalog-types">
+            <div className="summary-heading">
+              <div>
+                <span className="eyebrow">TÜR ŞABLONLARI</span>
+                <h3>Özel kart türleri</h3>
+              </div>
+              <span>{activeTypes.length} global tür</span>
             </div>
-            <span>{activeTypes.length} global tür</span>
-          </div>
-          <div className="catalog-type-list">
-            {activeTypes.map((type) => (
-              <article key={type.id} className="catalog-type-row">
-                <div>
-                  <strong>{type.name}</strong>
-                  <small>
-                    {type.code} · temel tür: {TYPE_META[type.baseCardType].label}
-                  </small>
-                  <p>
-                    {type.attributeKeys.length} bilgi alanı ·{' '}
-                    {type.allowedParentCardIds.length
-                      ? `${type.allowedParentCardIds.length} üst kart kısıtı`
-                      : 'üst kart kısıtı yok'}{' '}
-                    ·{' '}
-                    {type.allowedChildCardIds.length
-                      ? `${type.allowedChildCardIds.length} alt kart kısıtı`
-                      : 'alt kart kısıtı yok'}
-                  </p>
-                </div>
-                <button className="danger-link" disabled={props.busy} onClick={() => props.onDeleteType(type)}>
-                  Kaldır
-                </button>
-              </article>
-            ))}
-          </div>
-        </section>
+            <div className="catalog-type-list">
+              {activeTypes.map((type) => (
+                <article key={type.id} className="catalog-type-row">
+                  <div>
+                    <strong>{type.name}</strong>
+                    <small>
+                      {type.code} · temel tür: {TYPE_META[type.baseCardType].label}
+                    </small>
+                    <p>
+                      {type.attributeKeys.length} bilgi alanı ·{' '}
+                      {type.allowedParentCardIds.length
+                        ? `${type.allowedParentCardIds.length} üst kart kısıtı`
+                        : 'üst kart kısıtı yok'}{' '}
+                      ·{' '}
+                      {type.allowedChildCardIds.length
+                        ? `${type.allowedChildCardIds.length} alt kart kısıtı`
+                        : 'alt kart kısıtı yok'}
+                    </p>
+                  </div>
+                  <button className="danger-link" disabled={props.busy} onClick={() => props.onDeleteType(type)}>
+                    Kaldır
+                  </button>
+                </article>
+              ))}
+            </div>
+          </section>
         </details>
       )}
       {props.showTypeDialog && (

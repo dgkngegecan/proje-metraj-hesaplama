@@ -52,7 +52,7 @@ public sealed class PlacementContextNoteWorkspaceTests
     }
 
     [Fact]
-    public async Task DeletingOneOfSeveralNotesIsIndependentAndRejectsOtherPlacementOrMissingIds()
+    public async Task DeletingOneOfSeveralNotesIsIndependentAndRejectsMissingIds()
     {
         await using TestDatabase database = await TestDatabase.CreateAsync();
         var (_, placement, other) = await CreatePlacementsAsync(database);
@@ -63,10 +63,9 @@ public sealed class PlacementContextNoteWorkspaceTests
         PlacementContextNoteListItem unrelated = await notes.AddNoteAsync(new(other.Id, "Başka kartın notu"));
 
         await AssertRuleAsync("context-note.not-found", () => notes.DeleteNoteAsync(other.Id, second.Id));
-        await AssertRuleAsync("context-note.not-found", () => notes.DeleteNoteAsync(placement.Id, Guid.NewGuid()));
-        await AssertRuleAsync("placement.not-found", () => notes.DeleteNoteAsync(Guid.NewGuid(), second.Id));
-        await notes.DeleteNoteAsync(placement.Id, second.Id);
-        await AssertRuleAsync("context-note.not-found", () => notes.DeleteNoteAsync(placement.Id, second.Id));
+        await AssertRuleAsync("context-note.not-found", () => notes.DeleteNoteAsync(Guid.NewGuid()));
+        await notes.DeleteNoteAsync(second.Id);
+        await AssertRuleAsync("context-note.not-found", () => notes.DeleteNoteAsync(second.Id));
 
         var reopened = new PlacementContextNoteWorkspaceService(database.ContextFactory);
         Assert.Equal(new[] { first, third }, await reopened.ListNotesAsync(placement.Id));
@@ -83,7 +82,7 @@ public sealed class PlacementContextNoteWorkspaceTests
         await new ProjectWorkspaceService(database.ContextFactory).ApproveRevisionAsync(project.LatestRevisionId);
 
         await AssertRuleAsync("revision.read-only", () => notes.AddNoteAsync(new(placement.Id, "Yeni not")));
-        await AssertRuleAsync("revision.read-only", () => notes.DeleteNoteAsync(placement.Id, note.Id));
+        await AssertRuleAsync("revision.read-only", () => notes.DeleteNoteAsync(note.Id));
         await AssertRuleAsync("revision.read-only", () => new ProjectTreeWorkspaceService(database.ContextFactory).DeletePlacementAsync(placement.Id));
         Assert.Equal(note, Assert.Single(await notes.ListNotesAsync(placement.Id)));
     }
@@ -116,7 +115,8 @@ public sealed class PlacementContextNoteWorkspaceTests
                 Assert.Equal(sourceNote with { Id = copy.Id, PlacementId = copied.Id }, copy);
             }
 
-            await notes.DeleteNoteAsync(copied.Id, copiedNotes[0].Id);
+            await AssertRuleAsync("revision.read-only", () => notes.DeleteNoteAsync(sourceNotes[0].Id));
+            await notes.DeleteNoteAsync(copiedNotes[0].Id);
             await notes.AddNoteAsync(new(copied.Id, "Yalnız yeni revizyonda"));
             Assert.Equal(sourceNotes, await notes.ListNotesAsync(original.Id));
             await tree.DeletePlacementAsync(copied.Id);
@@ -205,7 +205,7 @@ public sealed class PlacementContextNoteWorkspaceTests
             DatabaseBackupListItem backup = await maintenance.CreateBackupAsync();
             var backupNotes = new PlacementContextNoteWorkspaceService(() => MetrajDbContextFactory.Create(backup.FullPath));
             Assert.Equal(expected, await backupNotes.ListNotesAsync(placement.Id));
-            await notes.DeleteNoteAsync(placement.Id, first.Id);
+            await notes.DeleteNoteAsync(first.Id);
             await notes.AddNoteAsync(new(placement.Id, "Yedekten sonra"));
 
             await maintenance.RestoreBackupAsync(backup.FullPath);

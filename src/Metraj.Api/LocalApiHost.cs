@@ -265,6 +265,11 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         api.MapPost("/placements/{placementId:guid}/context-notes", async (Guid placementId, AddPlacementContextNoteRequest request, IPlacementContextNoteWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.AddNoteAsync(new PlacementContextNoteDraft(
                 placementId, request.Text, request.Block, request.Floor, request.Room), token)));
+        api.MapDelete("/placement-context-notes/{noteId:guid}", async (Guid noteId, IPlacementContextNoteWorkspace workspace, CancellationToken token) =>
+        {
+            await workspace.DeleteNoteAsync(noteId, token);
+            return Results.NoContent();
+        });
         api.MapDelete("/placements/{placementId:guid}/context-notes/{noteId:guid}", async (Guid placementId, Guid noteId, IPlacementContextNoteWorkspace workspace, CancellationToken token) =>
         {
             await workspace.DeleteNoteAsync(placementId, noteId, token);

@@ -53,11 +53,11 @@ export function arrangeFlowNodes(nodes: PlacementNode[], preferred: ReadonlyMap<
     measure(node, 0);
   }
   const columns = [0];
-  columnWidths.forEach((width, depth) => { columns[depth + 1] = columns[depth] + width + COLUMN_GAP; });
+  columnWidths.forEach((width, depth) => { columns[depth + 1] = columns[depth]! + width + COLUMN_GAP; });
   const positions = new Map<string, Point>();
   const place = (node: PlacementNode, top: number) => {
     const span = spans.get(node.id)!;
-    positions.set(node.id, preferred.get(node.id) ?? { x: columns[depths.get(node.id)!], y: top + (span - nodeSize(node).height) / 2 });
+    positions.set(node.id, preferred.get(node.id) ?? { x: columns[depths.get(node.id)!]!, y: top + (span - nodeSize(node).height) / 2 });
     const branch = treeChildren.get(node.id) ?? [];
     const total = branch.reduce((sum, child) => sum + spans.get(child.id)!, 0) + Math.max(0, branch.length - 1) * ROW_GAP;
     let childTop = top + (span - total) / 2;

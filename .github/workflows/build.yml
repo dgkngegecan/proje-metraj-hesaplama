@@ -10,8 +10,12 @@ name: build
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   windows:
@@ -45,3 +49,39 @@ jobs:
 
       - name: Test
         run: dotnet test Metraj.sln --no-build -c Release
+
+      - name: Tek EXE yayınla
+        run: >-
+          dotnet publish src/Metraj.Desktop/Metraj.Desktop.csproj
+          --no-restore
+          -c Release
+          -r win-x64
+          --self-contained true
+          -o artifacts/ProjeMetraj-win-x64
+
+      - name: İndirilecek dosyayı adlandır
+        shell: pwsh
+        run: Move-Item -LiteralPath artifacts/ProjeMetraj-win-x64/Metraj.Desktop.exe -Destination artifacts/ProjeMetraj-win-x64/ProjeMetraj-win-x64.exe
+
+      - name: Actions indirmesine ekle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjeMetraj-win-x64
+          path: artifacts/ProjeMetraj-win-x64/ProjeMetraj-win-x64.exe
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Etiketli sürümü GitHub Release olarak yayınla
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $asset = 'artifacts/ProjeMetraj-win-x64/ProjeMetraj-win-x64.exe'
+          gh release view $env:GITHUB_REF_NAME 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:GITHUB_REF_NAME $asset --clobber
+          } else {
+            gh release create $env:GITHUB_REF_NAME $asset --title "Proje Metraj $env:GITHUB_REF_NAME" --generate-notes
+          }

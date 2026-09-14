@@ -7,6 +7,12 @@ export interface CatalogCardVariant {
   label: string;
   standardLength?: number | null;
   compatibleDiameters?: string[] | null;
+  sourceCardCode?: string | null;
+  sourceVariantCode?: string | null;
+  sourceCardName?: string | null;
+  sourceNotes?: string | null;
+  materialType?: string | null;
+  compatiblePipeSystems?: string[] | null;
 }
 
 export interface CatalogCardAttributeDescriptor {
@@ -48,6 +54,8 @@ export interface Revision {
 }
 
 export interface CatalogCard {
+  familyCode?: string | null;
+  supersededByCode?: string | null;
   id: string;
   latestVersionId: string;
   code: string;
@@ -81,6 +89,7 @@ export interface StarterCatalogSeedResult {
 }
 
 export interface Placement extends Record<string, unknown> {
+  pipeSystem?: string | null;
   id: string;
   revisionId: string;
   parentPlacementId?: string | null;
