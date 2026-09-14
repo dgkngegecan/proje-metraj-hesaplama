@@ -5,6 +5,8 @@ button, input, select { font: inherit; }
 button { border: 0; cursor: pointer; color: inherit; }
 button:disabled { cursor: not-allowed; opacity: .42; }
 button, .download { background: #1a263b; border: 1px solid #34445e; border-radius: 12px; padding: 10px 14px; font-weight: 720; transition: transform .16s ease, background .16s ease, border-color .16s ease; text-decoration: none; }
+.download { cursor: pointer; }
+.download[aria-disabled="true"] { opacity: .55; pointer-events: none; }
 button:hover:not(:disabled), .download:hover { background: #263754; border-color: #587098; transform: translateY(-1px); }
 button.primary, .primary { background: linear-gradient(135deg, #ff3f84, #b947ff); border-color: #ff72ae; color: #fff; box-shadow: 0 12px 26px rgb(209 44 134 / 25%); }
 button.primary:hover:not(:disabled), .primary:hover { background: linear-gradient(135deg, #ff5695, #c55bff); }

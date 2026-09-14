@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Data.Sqlite;
 
 namespace Metraj.Api;
 
@@ -33,7 +34,13 @@ public sealed partial class LocalApiHost : IAsyncDisposable
             ContentRootPath = AppContext.BaseDirectory
         };
         WebApplicationBuilder builder = WebApplication.CreateBuilder(options);
-        builder.WebHost.ConfigureKestrel(server => server.Listen(IPAddress.Loopback, 0));
+        builder.WebHost.ConfigureKestrel(server =>
+        {
+            // Çalışma alanı dosyası katalog ve proje geçmişi büyüdükçe yüzlerce MB olabilir.
+            // Sunucu yalnız loopback'te dinlediği için içe aktarma gövdesine yapay bir sınır koymuyoruz.
+            server.Limits.MaxRequestBodySize = null;
+            server.Listen(IPAddress.Loopback, 0);
+        });
         builder.WebHost.UseSetting("detailedErrors", "false");
         builder.Services.Configure<JsonOptions>(json =>
         {
@@ -51,7 +58,8 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         {
             // Geri yükleme ucu bakım sınırını KENDİSİ alır; burada da bir yuva
             // tutulsaydı kendi kendini bekleyip kilitlenirdi.
-            bool isMaintenanceRequest = context.Request.Path.StartsWithSegments("/api/database/backups/restore");
+            bool isMaintenanceRequest = context.Request.Path.StartsWithSegments("/api/database/backups/restore") ||
+                context.Request.Path.StartsWithSegments("/api/workspace/import");
             await using IAsyncDisposable? operation = isMaintenanceRequest
                 ? null
                 : await databaseGate.EnterOperationAsync(context.RequestAborted);
@@ -128,6 +136,8 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         services.AddSingleton<IProjectReportWorkspace, ProjectReportWorkspaceService>();
         services.AddSingleton<IMaterialTypeWasteWorkspace, MaterialTypeWasteWorkspaceService>();
         services.AddSingleton<IUiStateWorkspace, UiStateWorkspaceService>();
+        services.AddSingleton<IWorkspaceTransfer>(provider => new WorkspaceTransferService(
+            () => databasePath, provider.GetRequiredService<ApplicationDatabaseGate>()));
 
         // Bu ikisi bağlam fabrikasının yanında başka bağımlılık da alıyor.
         services.AddSingleton<IDatabaseMaintenanceWorkspace>(provider =>
@@ -158,6 +168,7 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         MapSyntheticDataEndpoints(api);
         MapUiStateEndpoints(api);
         MapDatabaseEndpoints(api);
+        MapWorkspaceTransferEndpoints(api);
     }
 
     /// <summary>Canlılık yoklaması.</summary>
@@ -421,6 +432,52 @@ public sealed partial class LocalApiHost : IAsyncDisposable
         });
         api.MapGet("/database/integrity", async (IDatabaseMaintenanceWorkspace workspace, CancellationToken token) =>
             Results.Ok(await workspace.CheckIntegrityAsync(token)));
+    }
+
+    /// <summary>Tek dosyalık çalışma alanı dışa aktarma ve mevcut veriye ekleyerek içe aktarma.</summary>
+    private static void MapWorkspaceTransferEndpoints(RouteGroupBuilder api)
+    {
+        api.MapGet("/workspace/export", async (IWorkspaceTransfer workspace, CancellationToken token) =>
+        {
+            string downloadName = $"ProjeMetraj-{DateTime.Now:yyyyMMdd-HHmmss}.metraj";
+            string temporaryPath = Path.Combine(Path.GetTempPath(), $"proje-metraj-export-{Guid.NewGuid():N}.metraj");
+            try
+            {
+                await workspace.ExportAsync(temporaryPath, token);
+                var stream = new FileStream(temporaryPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                    bufferSize: 64 * 1024, FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+                return Results.File(stream, "application/vnd.projemetraj.workspace", downloadName);
+            }
+            catch
+            {
+                TryDeleteTemporaryFile(temporaryPath);
+                throw;
+            }
+        });
+
+        api.MapPost("/workspace/import", async (HttpRequest request, IWorkspaceTransfer workspace, CancellationToken token) =>
+        {
+            if (!request.HasFormContentType)
+                throw new DomainRuleViolationException("workspace-import.empty", "A multipart workspace file is required.");
+            IFormCollection form = await request.ReadFormAsync(token);
+            IFormFile? file = form.Files.GetFile("file");
+            if (file is null || file.Length == 0)
+                throw new DomainRuleViolationException("workspace-import.empty", "A workspace file is required.");
+
+            string temporaryPath = Path.Combine(Path.GetTempPath(), $"proje-metraj-import-{Guid.NewGuid():N}.metraj");
+            try
+            {
+                await using (FileStream output = new(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None,
+                    bufferSize: 64 * 1024, FileOptions.Asynchronous))
+                    await file.CopyToAsync(output, token);
+                return Results.Ok(await workspace.ImportAsync(temporaryPath, token));
+            }
+            finally
+            {
+                SqliteConnection.ClearAllPools();
+                TryDeleteTemporaryFile(temporaryPath);
+            }
+        }).DisableAntiforgery();
     }
 
     private static void MapStaticReactApplication(WebApplication app)

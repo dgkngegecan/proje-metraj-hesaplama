@@ -46,3 +46,12 @@ Aynı ortamda önce iki ışık için `animation-name: none`, `duration: 0s`, `t
 - Gerçek Windows EXE üzerinde sürükleme, kenara sınırlama, köşeden büyütme ve harita içi yakınlaştırma doğrulandı. Kartlık 746 kartı 69 deste halinde gösterdi. Web üretim derlemesi ve 20/20 yerleşim/seçim testi başarılı.
 - Ana yayın güncellendi: `artifacts/ProjeMetraj-react-single-win-x64/Metraj.Desktop.exe` (192491805 bayt), SHA256 `A9AECE57FD97483CC0A4723DCAA946694CEE5FEDE56509CC4694CFCCA868C02D`.
 - Önceki yayın yedeği: `tmp/UiReview/release-backup/Metraj.Desktop-before-floating-map-20260914-070735.exe`.
+
+### Taşınabilir çalışma alanı — 14 Eylül 2026
+
+- Metraj çıktısına tek dosyalık `.metraj` çalışma alanı dışa aktarma ve mevcut veriye ekleyerek içe aktarma eklendi.
+- Dosya bütün projeleri, revizyonları, harita ve metraj verilerini, notları, sorumlulukları, hesap geçmişini, kullanılan katalog sürümlerini ve fire ayarlarını taşır.
+- İçe aktarma mevcut projeleri silmez. Aynı proje kimliği daha önce eklenmişse atlanır; proje kodu çakışırsa `-IMPORT-n` ekiyle güvenli biçimde ayrılır. Katalog kartları kod/içerik özetiyle birleştirilir.
+- SQLite bütünlük, şema ve ilişki kontrolleri aktarım öncesinde çalışır; bütün yazımlar tek transaction içinde tamamlanır veya tamamen geri alınır.
+- 150/150 .NET ve 20/20 arayüz yerleşim testi başarılı. Gerçek Windows EXE'de iki transfer kontrolünün yerleşimi doğrulandı.
+- Ana yayın: `artifacts/ProjeMetraj-react-single-win-x64/Metraj.Desktop.exe` (192540957 bayt), SHA256 `6469E2AFA765E1C0A1FABBB613AACA821E01631A60AA0E21BA545BD646629196`.

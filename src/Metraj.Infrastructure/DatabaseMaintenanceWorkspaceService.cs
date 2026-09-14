@@ -177,7 +177,7 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
     /// denetlemez. Bu kontrol olmadan yabancı bir .db dosyası "Yedek geri
     /// yüklendi." mesajıyla kullanıcının bütün projelerinin yerine geçebiliyordu.
     /// </summary>
-    private static async Task EnsureRestorableMetrajDatabaseAsync(string databasePath, CancellationToken cancellationToken)
+    internal static async Task EnsureRestorableMetrajDatabaseAsync(string databasePath, CancellationToken cancellationToken)
     {
         SqliteConnectionStringBuilder builder = new() { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, ForeignKeys = true };
         await using var connection = new SqliteConnection(builder.ToString());
@@ -240,7 +240,7 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
         }
     }
 
-    private static async Task VerifyDatabaseAsync(string databasePath, CancellationToken cancellationToken)
+    internal static async Task VerifyDatabaseAsync(string databasePath, CancellationToken cancellationToken)
     {
         SqliteConnectionStringBuilder builder = new() { DataSource = databasePath, Mode = SqliteOpenMode.ReadOnly, ForeignKeys = true };
         await using var connection = new SqliteConnection(builder.ToString());

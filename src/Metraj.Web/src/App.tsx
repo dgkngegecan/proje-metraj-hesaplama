@@ -675,6 +675,29 @@ export default function App() {
       await loadAdvanced();
       notifySuccess('Yedek geri yüklendi.');
     });
+  const importWorkspace = (file: File) =>
+    withBusy(async () => {
+      const answer = await ask({
+        title: 'Çalışma alanı eklensin mi?',
+        description: `${file.name} içindeki yeni projeler ve eksik kütüphane kayıtları mevcut çalışma alanına eklenecek. Mevcut veriler silinmeyecek.`,
+        confirmLabel: 'İçe aktar',
+      });
+      if (!answer) return;
+      const form = new FormData();
+      form.append('file', file, file.name);
+      const result = await api.upload<{
+        importedProjects: number;
+        skippedProjects: number;
+        importedCatalogCards: number;
+        importedCardVersions: number;
+        importedWasteSettings: number;
+      }>('/workspace/import', form);
+      await reload();
+      await loadAdvanced();
+      notifySuccess(
+        `${result.importedProjects} proje eklendi${result.skippedProjects ? `, ${result.skippedProjects} mevcut proje atlandı` : ''}.`,
+      );
+    });
   const saveWasteSetting = () =>
     withBusy(async () => {
       const materialType = wasteDraft.materialType.trim();
@@ -1493,6 +1516,23 @@ export default function App() {
                   </div>
                   <div className="intro-actions">
                     {reportScopeId && <button onClick={() => setReportScopeId(null)}>Bütün projeyi göster</button>}
+                    <a className="download" href="/api/workspace/export" download>
+                      Çalışma alanını dışa aktar
+                    </a>
+                    <label className="download" aria-disabled={busy}>
+                      Çalışma alanı ekle
+                      <input
+                        type="file"
+                        accept=".metraj,application/vnd.projemetraj.workspace"
+                        disabled={busy}
+                        hidden
+                        onChange={(event) => {
+                          const file = event.currentTarget.files?.[0];
+                          event.currentTarget.value = '';
+                          if (file) void importWorkspace(file);
+                        }}
+                      />
+                    </label>
                     <a
                       className="download"
                       href={`/api/revisions/${selectedRevisionId}/report/excel${reportScopeId ? `?placementId=${reportScopeId}` : ''}`}

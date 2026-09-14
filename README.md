@@ -38,6 +38,8 @@ Yerel veriler uygulama dosyasından bağımsız olarak şu konumda tutulur:
 
 Yedekler aynı klasördeki `backups` dizinine kaydedilir. Ayrıntılı işlem adımları için [kullanım ve yedekleme kılavuzuna](docs/kullanim-ve-yedekleme-kilavuzu.md) bakın.
 
+**Metraj çıktısı** ekranındaki **Çalışma alanını dışa aktar** düğmesi bütün projeleri, revizyon geçmişlerini, metrajları, notları, hesapları ve kütüphaneyi tek bir `.metraj` dosyasına yazar. **Çalışma alanı ekle** aynı dosyadaki yeni projeleri ve eksik katalog kayıtlarını mevcut verileri silmeden ekler; daha önce eklenmiş aynı kimlikli projeleri tekrar oluşturmaz.
+
 ## Global katalog
 
 Katalog kartları `Projects` tablosunun içinde tutulmaz; aynı SQLite dosyasındaki global `CatalogCardDefinitions` ve sürüm tablolarında tutulur. Bu nedenle yeni proje açmak kütüphaneyi sıfırlamaz. Bir kartın projede kullanılması yalnızca o kart sürümüne bir **yerleşim** referansı ekler; aynı kart başka projelerde tekrar seçilebilir. Projeye özel görünen ad, not, tedarik kapsamı ve ağaç ilişkisi ise yerleşimde kalır.

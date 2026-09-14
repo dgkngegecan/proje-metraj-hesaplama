@@ -25,6 +25,11 @@ public static class DomainMessageCatalog
         ["backup.broken-relations"] = "Yedekteki kayıtlar tutarsız; bu dosya güvenle geri yüklenemez.",
         ["backup.outside-folder"] = "Yalnızca uygulamanın yedek klasöründeki .db yedekleri geri yüklenebilir.",
 
+        // Taşınabilir çalışma alanı
+        ["workspace-import.same-file"] = "Etkin veritabanı kendi üzerine aktarılamaz.",
+        ["workspace-import.id-collision"] = "Aktarılan çalışma alanında mevcut verilerle çakışan kayıtlar var; dosya güvenle birleştirilemedi.",
+        ["workspace-import.empty"] = "Seçilen çalışma alanında aktarılacak proje bulunamadı.",
+
         // Miktar kuralları
         ["quantity.non-negative"] = "Miktar negatif olamaz.",
         ["quantity.range"] = "Miktar desteklenen aralığın dışında.",
@@ -197,6 +202,7 @@ public static class DomainMessageCatalog
             "revision" or "project" => "Proje işlemi tamamlanamadı",
             "waste" => "Fire kuralı kaydedilemedi",
             "backup" => "Yedekleme işlemi tamamlanamadı",
+            "workspace-import" => "Çalışma alanı içe aktarılamadı",
             _ => "İşlem tamamlanamadı"
         };
 
