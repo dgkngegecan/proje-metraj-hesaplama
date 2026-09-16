@@ -39,10 +39,13 @@ export function makeCardCode(name: string) {
  * kullanılması yeniden adlandırmayı davranış değişikliğine dönüştürüyordu.
  */
 export function isRadiatorPlacement(placement: Placement) {
+  // Heating accessories and system containers also contain “radyatör” in their names.
+  if (placement.cardType !== 'Material' || placement.variantMode === 'Pipe') return false;
   const family = placement.materialType ?? '';
+  if (/vana|valve|ask[ıi]|konsol|purj[öo]r|aksesuar|tapa|rakor|bracket|trv/i.test(`${placement.cardCode} ${placement.cardName} ${placement.displayName}`)) return false;
   if (/radiator|radyat[öo]r/i.test(family)) return true;
-  if (/(^|-)(RAD|RADYATOR)(-|$)/i.test(placement.cardCode)) return true;
-  return /radyat[öo]r/i.test(placement.displayName);
+  if (/(^|-)(RAD|RADYATOR|RADIATOR|HAVLUPAN|PETEK)(-|$)/i.test(placement.cardCode)) return true;
+  return /radyat[öo]r|radiator|petek|havlupan/i.test(`${placement.cardName} ${placement.displayName}`);
 }
 
 export function measurementLabel(notes?: string | null) {

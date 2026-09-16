@@ -15,7 +15,23 @@ public sealed record ProjectReportData(
     IReadOnlyList<ReportContextSummaryItem> ContextSummaries,
     IReadOnlyList<ReportPurchaseItem> PurchaseItems,
     IReadOnlyList<ResponsibilityAssignmentListItem> Responsibilities,
-    IReadOnlyList<ReportCalculationCheckItem> CalculationChecks);
+    IReadOnlyList<ReportCalculationCheckItem> CalculationChecks)
+{
+    public IReadOnlyList<ReportRadiatorSummaryItem> RadiatorSummaries { get; init; } = [];
+}
+
+/// <summary>Display-only radiator grouping; original measurement identities and policies remain unchanged.</summary>
+public sealed record ReportRadiatorSummaryItem(
+    string Type,
+    string TypeLabel,
+    decimal HeightMm,
+    decimal? LengthMm,
+    string Unit,
+    decimal NetQuantity,
+    decimal WithWasteQuantity,
+    decimal PurchaseQuantity,
+    string PurchaseUnit,
+    IReadOnlyList<Guid> PlacementIds);
 
 /// <summary>Placement-level quantities labelled with their nearest configured category and system ancestors.</summary>
 public sealed record ReportClassificationSummaryItem(

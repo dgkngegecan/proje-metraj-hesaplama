@@ -76,7 +76,10 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 result.ProposedQuantity,
                 result.PurchaseQuantity,
                 result.UsedQuantity,
-                result.OverrideReason)).ToList());
+                result.OverrideReason)).ToList())
+        {
+            RadiatorSummaries = RadiatorReportGrouping.Build(summaries, placements)
+        };
     }
 
     /// <inheritdoc />
@@ -116,6 +119,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         {
             SourceMeasurements = sources,
             Summaries = summaries,
+            RadiatorSummaries = RadiatorReportGrouping.Build(summaries, selectedPlacements),
             ClassificationSummaries = BuildClassificationSummaries(summaries, selectedPlacements),
             ContextSummaries = BuildContextSummaries(sources, selectedPlacements),
             PurchaseItems = full.PurchaseItems.Where(x => ids.Contains(x.PlacementId)).ToList(),
@@ -184,6 +188,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     {
         using var workbook = new XLWorkbook();
         WriteSummaryWorksheet(workbook, report);
+        WriteRadiatorWorksheet(workbook, report);
         WriteClassificationWorksheet(workbook, report);
         WriteContextWorksheet(workbook, report);
         WriteSourceWorksheet(workbook, report);
@@ -245,6 +250,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 item.MeasurementCount.ToString(CultureInfo.InvariantCulture), item.Unit,
                 FormatQuantity(item.NetQuantity), FormatQuantity(item.WithWasteQuantity), FormatQuantity(item.PurchaseQuantity)
             ]));
+        if (report.RadiatorSummaries.Count > 0)
+        {
+            var radiatorRows = RadiatorDisplayRows(report.RadiatorSummaries).ToList();
+            var totalIndexes = radiatorRows.Select((row, index) => (row, index)).Where(x => x.row.IsTotal).Select(x => x.index).ToHashSet();
+            AddWordTable(body, "Radyatörler", RadiatorHeaders, radiatorRows.Select(RadiatorCells), pageBreakBefore: true, emphasizedRows: totalIndexes);
+        }
         AddWordTable(body, "Sistem ve kategori özeti",
             ["Kategori", "Sistem", "Poz", "Kod", "Malzeme", "Çap / Boyut", "Çeşit", "Satır", "Birim", "Net", "Fireli", "Satın alma"],
             report.ClassificationSummaries.Select(item => (IReadOnlyList<string?>)
@@ -302,9 +313,10 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     private static void AddWordTable(
         W.Body body,
         string title,
-        IReadOnlyList<string> headers,
+        string[] headers,
         IEnumerable<IReadOnlyList<string?>> rows,
-        bool pageBreakBefore = false)
+        bool pageBreakBefore = false,
+        HashSet<int>? emphasizedRows = null)
     {
         W.Paragraph titleParagraph = CreateWordParagraph(title, 26, bold: true, color: ReportPalette.Heading);
         if (pageBreakBefore)
@@ -337,7 +349,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         if (materializedRows.Count == 0)
         {
             var emptyRow = new W.TableRow();
-            for (int index = 0; index < headers.Count; index++)
+            for (int index = 0; index < headers.Length; index++)
             {
                 emptyRow.Append(CreateWordCell(index == 0 ? "Kayıt yok" : string.Empty, header: false));
             }
@@ -346,12 +358,12 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         }
         else
         {
-            foreach (IReadOnlyList<string?> values in materializedRows)
+            for (int index = 0; index < materializedRows.Count; index++)
             {
                 var row = new W.TableRow();
-                foreach (string? value in values)
+                foreach (string? value in materializedRows[index])
                 {
-                    row.Append(CreateWordCell(value, header: false));
+                    row.Append(CreateWordCell(value, header: false, emphasized: emphasizedRows?.Contains(index) == true));
                 }
 
                 table.Append(row);
@@ -361,12 +373,16 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         body.Append(table);
     }
 
-    private static W.TableCell CreateWordCell(string? text, bool header)
+    private static W.TableCell CreateWordCell(string? text, bool header, bool emphasized = false)
     {
         var properties = new W.TableCellProperties();
         if (header)
         {
             properties.Append(new W.Shading { Fill = ReportPalette.Heading, Val = W.ShadingPatternValues.Clear });
+        }
+        else if (emphasized)
+        {
+            properties.Append(new W.Shading { Fill = "E8F0F7", Val = W.ShadingPatternValues.Clear });
         }
 
         properties.Append(
@@ -377,7 +393,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 new W.RightMargin { Width = "70", Type = W.TableWidthUnitValues.Dxa }),
             new W.TableCellVerticalAlignment { Val = W.TableVerticalAlignmentValues.Center });
 
-        return new W.TableCell(properties, CreateWordParagraph(text ?? string.Empty, 15, header, header ? "FFFFFF" : "111827"));
+        return new W.TableCell(properties, CreateWordParagraph(text ?? string.Empty, 15, header || emphasized, header ? "FFFFFF" : "111827"));
     }
 
     private static W.Paragraph CreateWordParagraph(string text, int halfPointSize, bool bold, string color)
@@ -606,6 +622,79 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         }
 
         ApplyWorksheetStyle(sheet, 6, row - 1, columns);
+    }
+
+    private static readonly string[] RadiatorHeaders = ["Tip", "Yükseklik (mm)", "Uzunluk (mm)", "Birim", "Net", "Fireli", "Satın alma", "Satın alma birimi"];
+
+    private sealed record RadiatorDisplayRow(string Label, decimal? Height, decimal? Length, string Unit,
+        decimal Net, decimal Waste, decimal Purchase, string PurchaseUnit, bool IsTotal = false);
+
+    private static IEnumerable<RadiatorDisplayRow> RadiatorDisplayRows(IReadOnlyList<ReportRadiatorSummaryItem> items)
+    {
+        foreach (var type in items.GroupBy(x => x.Type))
+        {
+            foreach (var height in type.GroupBy(x => new { x.HeightMm, x.Unit, x.PurchaseUnit }))
+            {
+                foreach (var item in height)
+                    yield return new(item.TypeLabel, item.HeightMm, item.LengthMm, item.Unit,
+                        item.NetQuantity, item.WithWasteQuantity, item.PurchaseQuantity, item.PurchaseUnit);
+                yield return Total($"{type.First().TypeLabel} · yükseklik toplamı", height.Key.HeightMm, height);
+            }
+            foreach (var units in type.GroupBy(x => new { x.Unit, x.PurchaseUnit }))
+                yield return Total($"{type.First().TypeLabel} · tip toplamı", null, units);
+        }
+        foreach (var units in items.GroupBy(x => new { x.Unit, x.PurchaseUnit }))
+            yield return Total("GENEL TOPLAM", null, units);
+
+        static RadiatorDisplayRow Total(string label, decimal? height, IEnumerable<ReportRadiatorSummaryItem> rows)
+        {
+            var values = rows.ToList();
+            return new(label, height, null, values[0].Unit, values.Sum(x => x.NetQuantity),
+                values.Sum(x => x.WithWasteQuantity), values.Sum(x => x.PurchaseQuantity), values[0].PurchaseUnit, true);
+        }
+    }
+
+    private static IReadOnlyList<string?> RadiatorCells(RadiatorDisplayRow row) =>
+        [row.Label, row.Height is decimal height ? FormatQuantity(height) : null,
+            row.Length is decimal length ? FormatQuantity(length) : row.IsTotal ? null : "—", row.Unit,
+            FormatQuantity(row.Net), FormatQuantity(row.Waste), FormatQuantity(row.Purchase), row.PurchaseUnit];
+
+    private static void WriteRadiatorWorksheet(XLWorkbook workbook, ProjectReportData report)
+    {
+        if (report.RadiatorSummaries.Count == 0) return;
+        var sheet = workbook.Worksheets.Add("Radyatörler");
+        sheet.Cell(1, 1).Value = "Radyatörler";
+        sheet.Range(1, 1, 1, 8).Merge();
+        sheet.Cell(2, 1).Value = SafeCellText($"{report.ProjectCode} — {report.ProjectName} | {report.RevisionCode}");
+        ExcelColumn[] columns = [Text(RadiatorHeaders[0], 36), Quantity(RadiatorHeaders[1], 18), Quantity(RadiatorHeaders[2], 18),
+            Text(RadiatorHeaders[3], 10), Quantity(RadiatorHeaders[4], 12), Quantity(RadiatorHeaders[5], 12),
+            Quantity(RadiatorHeaders[6], 14), Text(RadiatorHeaders[7], 20)];
+        WriteHeaderRow(sheet, 3, columns);
+        var rows = RadiatorDisplayRows(report.RadiatorSummaries).ToList();
+        int row = 4;
+        foreach (var item in rows)
+        {
+            sheet.Cell(row, 1).Value = SafeCellText(item.Label);
+            if (item.Height is decimal height) sheet.Cell(row, 2).Value = height;
+            if (item.Length is decimal length) sheet.Cell(row, 3).Value = length;
+            sheet.Cell(row, 4).Value = SafeCellText(item.Unit);
+            sheet.Cell(row, 5).Value = item.Net;
+            sheet.Cell(row, 6).Value = item.Waste;
+            sheet.Cell(row, 7).Value = item.Purchase;
+            sheet.Cell(row, 8).Value = SafeCellText(item.PurchaseUnit);
+            row++;
+        }
+        ApplyWorksheetStyle(sheet, 3, row - 1, columns);
+        // Totals are explicitly labelled display rows, not extra material entries.
+        sheet.AutoFilter.Clear();
+        for (int index = 0; index < rows.Count; index++)
+            if (rows[index].IsTotal)
+            {
+                var range = sheet.Range(index + 4, 1, index + 4, 8);
+                range.Style.Font.Bold = true;
+                range.Style.Fill.BackgroundColor = XLColor.FromHtml("E8F0F7");
+            }
+        sheet.PageSetup.SetRowsToRepeatAtTop(3, 3);
     }
 
     private static void EnsurePdfFontsConfigured()
@@ -998,6 +1087,23 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         summarySection.AddParagraph("Proje Metraj Özeti", "Heading1");
         summarySection.AddParagraph($"{report.ProjectCode} — {report.ProjectName} | {report.RevisionCode} | Üretim (UTC): {report.GeneratedAtUtc:yyyy-MM-dd HH:mm:ss}");
         AddSummaryTable(summarySection, report.Summaries);
+
+        if (report.RadiatorSummaries.Count > 0)
+        {
+            Section radiatorSection = document.AddSection();
+            ConfigureLandscape(radiatorSection);
+            radiatorSection.AddParagraph("Radyatörler", "Heading1");
+            Table radiatorTable = CreateTable(radiatorSection, [6.0, 2.1, 2.1, 1.3, 2.2, 2.2, 2.2, 2.4]);
+            AddHeader(radiatorTable, RadiatorHeaders);
+            foreach (var item in RadiatorDisplayRows(report.RadiatorSummaries))
+            {
+                Row row = radiatorTable.AddRow();
+                var cells = RadiatorCells(item);
+                for (int column = 0; column < cells.Count; column++)
+                    SetCell(row, column, cells[column], column is >= 4 and <= 6 ? ParagraphAlignment.Right : ParagraphAlignment.Left);
+                if (item.IsTotal) { row.Format.Font.Bold = true; row.Shading.Color = Color.FromRgb(232, 240, 247); }
+            }
+        }
 
         Section classificationSection = document.AddSection();
         ConfigureLandscape(classificationSection);

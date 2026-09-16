@@ -30,7 +30,9 @@ import { Inspector } from './components/Inspector';
 import { FloatingProjectMap } from './components/FloatingProjectMap';
 import type { CardDraftState } from './lib/draftTypes';
 import { arrangeFlowNodes, buildFlow } from './lib/flow';
-import { makeCardCode, measurementLabel, parseDecimal, quantity } from './lib/format';
+import { isRadiatorPlacement, makeCardCode, measurementLabel, parseDecimal, quantity } from './lib/format';
+import { measurementRadiatorSize, radiatorTypeLabel } from './lib/radiatorChoices';
+import { RadiatorSummaryTable } from './components/RadiatorSummaryTable';
 import type {
   CalculationResult,
   CalculationRule,
@@ -347,8 +349,10 @@ export default function App() {
         const itemSummary = summaryByPlacement.get(node.id);
         const groups = new Map<string, FlowBreakdown>();
         (measurementsByPlacement.get(node.id) ?? []).forEach((item) => {
-          const label =
-            [item.variant, item.secondaryVariant].filter(Boolean).join(' · ') || measurementLabel(item.notes);
+          const radiator = isRadiatorPlacement(node.data) ? measurementRadiatorSize(item) : null;
+          const label = radiator
+            ? `${radiatorTypeLabel(radiator.type).replace(' · ', ' / ')} · H${radiator.height} mm${radiator.length ? ` · ${radiator.length} mm` : ' · Dilim'}`
+            : [item.variant, item.secondaryVariant].filter(Boolean).join(' · ') || measurementLabel(item.notes);
           const existing = groups.get(label);
           const entry = {
             id: item.id,
@@ -404,16 +408,17 @@ export default function App() {
     if (view !== 'control' || !selectedRevisionId) return;
     const revisionId = selectedRevisionId;
     const requestSequence = ++reportLoadSequence.current;
+    setReport(null);
     void (async () => {
       try {
-        const nextReport = await api.get<ReportData>(`/revisions/${revisionId}/report`);
+        const nextReport = await api.get<ReportData>(`/revisions/${revisionId}/report${reportScopeId ? `/subtree/${reportScopeId}` : ''}`);
         if (requestSequence !== reportLoadSequence.current) return;
         setReport(nextReport);
       } catch (error) {
         fail(error);
       }
     })();
-  }, [view, selectedRevisionId, dataVersion]);
+  }, [view, selectedRevisionId, dataVersion, reportScopeId]);
 
   const loadAdvanced = useCallback(async () => {
     if (!selectedRevisionId) return;
@@ -1582,7 +1587,12 @@ export default function App() {
                     }
                   />
                 </div>
-                <SummaryTable summaries={visibleSummaries} measurements={visibleMeasurements} placements={placements} />
+                {!report && <p role="status">Metraj tabloları hazırlanıyor…</p>}
+                {Boolean(report?.radiatorSummaries?.length) && <RadiatorSummaryTable key={`${selectedRevisionId}:${reportScopeId ?? ''}`} rows={report!.radiatorSummaries} />}
+                {report?.radiatorSummaries?.length ? <details className="all-material-details">
+                  <summary>Tüm malzemelerin ayrıntılı listesi</summary>
+                  <SummaryTable summaries={visibleSummaries} measurements={visibleMeasurements} placements={placements} />
+                </details> : <SummaryTable summaries={visibleSummaries} measurements={visibleMeasurements} placements={placements} />}
               </section>
             )}
           </>

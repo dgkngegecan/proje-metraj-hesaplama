@@ -1,5 +1,6 @@
 import type { MeasurementDraft } from '../lib/draftTypes';
 import { ContextNotes } from './ContextNotes';
+import { RadiatorInput } from './RadiatorInput';
 import { STEEL_DIAMETERS, variantName } from '../lib/catalogData';
 import { diameterCode, fittingChoices } from '../lib/fittingChoices';
 import { useEffect, useRef, useState } from 'react';
@@ -69,9 +70,6 @@ export function Inspector({
   onScope: () => void;
 }) {
   type PipeBox = { id: string; diameter: string; pending: string };
-  const [radiatorType, setRadiatorType] = useState('Panel');
-  const [radiatorHeight, setRadiatorHeight] = useState('600');
-  const [radiatorWidth, setRadiatorWidth] = useState('');
   const [pipeBoxes, setPipeBoxes] = useState<PipeBox[]>([]);
   const [fittingBoxes, setFittingBoxes] = useState<FittingBox[]>([]);
   const [fittingSaving, setFittingSaving] = useState(() => Boolean(placement && fittingSaves.has(placement.id)));
@@ -274,12 +272,9 @@ export function Inspector({
       return variant === code.toLowerCase() || (label !== undefined && variant === label.toLowerCase());
     });
   const isPipe = placement.variantMode === 'Pipe';
-  const isFitting = placement.variantMode === 'Fitting';
-  // Hangi giriş panelinin açılacağı, önce kartın AÇIK özelliklerinden çıkarılır.
-  // Ad regex'i yalnızca bu ipuçlarının hiçbiri yoksa devreye giren geriye dönük
-  // bir çaredir: "Panel Radyatör" kartını "PR-600 Panel" olarak yeniden
-  // adlandırmak, tür/yükseklik/genişlik panelini sessizce kaybettiriyordu.
-  const isRadiator = !isPipe && !isFitting && isRadiatorPlacement(placement);
+  // Radyatör katalogları Fitting varyantları taşısa da yükseklik seçicisini kullanır.
+  const isRadiator = !isPipe && isRadiatorPlacement(placement);
+  const isFitting = !isRadiator && placement.variantMode === 'Fitting';
   const knownDiameters = [
     ...new Set(measurements.map((item) => measurementVariantOf(item)).filter(Boolean) as string[]),
   ];
@@ -312,19 +307,6 @@ export function Inspector({
       current.map((item) => (item.id === box.id && item.pending === box.pending ? { ...item, pending: '' } : item)),
     );
     onDraft({ ...draft, quantity: '' });
-  };
-  const submitRadiator = async () => {
-    const width = parseDecimal(radiatorWidth);
-    if (!Number.isFinite(width) || width <= 0) return;
-    const saved = await onSubmitRows([
-      {
-        quantity: 1,
-        variant: `${radiatorType} · H${radiatorHeight}`,
-        secondaryVariant: `W${width}`,
-        notes: `Radyatör: ${radiatorType} · Yükseklik: ${radiatorHeight} · Genişlik: ${width}`,
-      },
-    ]);
-    if (saved) setRadiatorWidth('');
   };
   const hasPendingFittings = fittingBoxes.some((box) =>
     Object.entries(box.countsByDiameter).some(([diameter, counts]) => Object.entries(counts).some(([kind, count]) => count > 0 && compatibleFittings(diameter).some((item) => item.code === kind))),
@@ -807,49 +789,9 @@ export function Inspector({
           </small>
         </fieldset>
       )}
-      {placement.isMeasurable && isRadiator && (
-        <div className="quick-measure">
-          <div className="variant-grid">
-            <label>
-              Tür
-              <select value={radiatorType} onChange={(event) => setRadiatorType(event.target.value)}>
-                <option>Panel</option>
-                <option>Döküm</option>
-                <option>Havlupan</option>
-              </select>
-            </label>
-            <label>
-              Yükseklik
-              <select value={radiatorHeight} onChange={(event) => setRadiatorHeight(event.target.value)}>
-                <option>300</option>
-                <option>400</option>
-                <option>500</option>
-                <option>600</option>
-                <option>900</option>
-              </select>
-            </label>
-          </div>
-          <label className="large-input-label">
-            Genişlik yaz, Enter'a bas
-            <input
-              autoFocus
-              className="large-measure-input"
-              inputMode="decimal"
-              value={radiatorWidth}
-              onChange={(event) => setRadiatorWidth(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !busy) {
-                  event.preventDefault();
-                  void submitRadiator();
-                }
-              }}
-              placeholder="1000"
-            />
-          </label>
-          <button className="primary full" disabled={!canEdit || busy} onClick={() => void submitRadiator()}>
-            Radyatörü ekle
-          </button>
-        </div>
+      {placement.isMeasurable && placement.inputBehavior !== 'Derived' && isRadiator && uiStateReady && (
+        <RadiatorInput placement={placement} measurements={measurements}
+          canEdit={canEdit} busy={busy} uiState={uiState} onSubmitRows={onSubmitRows} />
       )}
       {placement.isMeasurable && placement.inputBehavior !== 'Derived' && !isPipe && !isFitting && !isRadiator && (
         <div className="quick-measure">

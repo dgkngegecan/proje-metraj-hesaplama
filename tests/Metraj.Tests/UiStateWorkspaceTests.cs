@@ -16,6 +16,22 @@ namespace Metraj.Tests;
 public sealed class UiStateWorkspaceTests
 {
     [Fact]
+    public async Task ConcurrentDraftAndPreferenceWritesPreserveEveryKey()
+    {
+        await using TestDatabase database = await TestDatabase.CreateAsync();
+        var workspace = new UiStateWorkspaceService(database.ContextFactory);
+        await Task.WhenAll(Enumerable.Range(0, 24).Select(index => Task.Run(async () =>
+        {
+            string key = $"radiator-draft.v1.{index}";
+            await workspace.SetAsync(key, "{\"count\":1}");
+            await workspace.SetAsync(key, "{\"count\":2}");
+        })));
+        IReadOnlyList<UiStateItem> states = await workspace.ListAsync();
+        Assert.Equal(24, states.Count);
+        Assert.All(states, state => Assert.Equal("{\"count\":2}", state.ValueJson));
+    }
+
+    [Fact]
     public async Task PendingDraftsSurviveAnApplicationRestartOnADifferentPort()
     {
         await using TestDatabase database = await TestDatabase.CreateAsync();

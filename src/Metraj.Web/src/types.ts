@@ -149,7 +149,21 @@ export interface MeasurementSummary {
   purchaseUnit?: string | null;
 }
 
+export interface RadiatorSummary {
+  type: string;
+  typeLabel: string;
+  heightMm: number;
+  lengthMm: number | null;
+  unit: string;
+  netQuantity: number;
+  withWasteQuantity: number;
+  purchaseQuantity: number;
+  purchaseUnit: string;
+  placementIds: string[];
+}
+
 export interface ReportData {
+  radiatorSummaries: RadiatorSummary[];
   projectCode: string;
   projectName: string;
   revisionCode: string;

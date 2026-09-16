@@ -1,0 +1,38 @@
+.radiator-input-panel { min-width: 0; margin-inline: 0; }
+.radiator-heading { display: grid; gap: 5px; }
+.radiator-input-panel small { color: #aebcd1; line-height: 1.5; }
+.radiator-choice-label { color: #aebcd1; font-size: .8rem; font-weight: 700; }
+.radiator-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.radiator-types button { position: relative; display: grid; justify-items: start; gap: 4px; min-width: 0; padding: 9px; text-align: left; border-radius: 9px; }
+.radiator-types strong { font-size: .86rem; overflow-wrap: anywhere; }
+.radiator-types small { font-size: .73rem; }
+.radiator-types button[aria-pressed="true"] { border-color: #ff79ad; background: #39233d; box-shadow: inset 0 -2px #ff79ad; }
+.radiator-count-badge { padding: 1px 5px; border-radius: 5px; background: #101b2e; font-size: .72rem; }
+.radiator-heights { display: flex; gap: 6px; flex-wrap: wrap; }
+.radiator-heights button { min-height: 36px; padding: 7px 10px; font-size: .84rem; }
+.radiator-heights button[aria-pressed="true"] { border-color: #ff79ad; background: #39233d; box-shadow: inset 0 -2px #ff79ad; }
+.radiator-heights span { display: inline-block; margin-left: 6px; padding: 1px 5px; background: #101b2e; border-radius: 5px; }
+.radiator-group-form { display: grid; gap: 10px; padding: 12px; background: #101b2e; border: 1px solid #34445e; border-radius: 10px; }
+.radiator-lengths { border: 1px solid #34445e; border-radius: 12px; padding: 10px; display: grid; gap: 7px; min-width: 0; }
+.radiator-table-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-bottom: 6px; font-size: .84rem; }
+.radiator-table-heading strong { overflow-wrap: anywhere; }
+.radiator-table-heading span { color: #aebcd1; font-size: .8rem; }
+.radiator-counter-row { display: grid; grid-template-columns: minmax(0, 1fr) 32px minmax(48px, 60px) 32px; gap: 5px; align-items: center; }
+.radiator-counter-list { display: grid; gap: 5px; max-height: min(36vh, 350px); overflow-y: auto; scrollbar-gutter: stable; padding-right: 4px; }
+.radiator-counter-row:focus-within { border-radius: 8px; background: #19283d; }
+.radiator-counter-row strong { font-size: .84rem; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.radiator-counter-row button { padding: 4px; min-height: 34px; border-radius: 8px; }
+.radiator-counter-row input { min-width: 0; padding: 7px 2px; text-align: center; font-size: .86rem; appearance: textfield; }
+.radiator-counter-row input::-webkit-inner-spin-button, .radiator-counter-row input::-webkit-outer-spin-button { appearance: none; margin: 0; }
+.radiator-add-length { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; margin-top: 5px; }
+.radiator-add-length button { padding: 10px 8px; font-size: .8rem; }
+.radiator-add-length small { grid-column: 1 / -1; }
+.radiator-custom-length { font-size: .8rem; border-top: 1px solid #34445e; padding-top: 8px; }
+.radiator-custom-length summary { color: #ff9abd; cursor: pointer; padding: 5px 0; }
+.radiator-save-bar { position: sticky; bottom: -1px; z-index: 1; display: grid; gap: 6px; padding: 9px 0; background: #0a1424; }
+.radiator-save-bar > small { font-size: .74rem; }
+.radiator-error { color: #ffb9c3; margin: 0; font-size: .84rem; }
+.radiator-pending { font-size: .82rem; }
+.radiator-pending summary { cursor: pointer; padding-block: 6px; }
+.radiator-pending button { display: block; text-align: left; width: 100%; margin-top: 5px; overflow-wrap: anywhere; font-size: .8rem; }
+.radiator-input-panel button:focus-visible, .radiator-input-panel summary:focus-visible { outline: 2px solid #ff79ad; outline-offset: 3px; }

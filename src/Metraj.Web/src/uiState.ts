@@ -19,11 +19,11 @@ export type UiStateMap = Record<string, string>;
 type UiStateItem = { key: string; valueJson: string; updatedAtUtc: string };
 
 const MIRROR_PREFIX = 'metraj.mirror.';
-const pendingWrites = new Map<string, Promise<void>>();
-function queueWrite(key: string, operation: () => Promise<unknown>) {
-  const pending = (pendingWrites.get(key) ?? Promise.resolve()).then(operation).then(() => undefined).catch(() => undefined);
-  pendingWrites.set(key, pending);
-  void pending.finally(() => { if (pendingWrites.get(key) === pending) pendingWrites.delete(key); });
+// Different draft/preference keys share the same SQLite database. Serialize all
+// writes so rapid counting cannot race independent read-then-save requests.
+let pendingWrite: Promise<void> = Promise.resolve();
+function queueWrite(operation: () => Promise<unknown>) {
+  pendingWrite = pendingWrite.then(operation).then(() => undefined).catch(() => undefined);
 }
 
 export async function loadUiState(): Promise<UiStateMap> {
@@ -54,7 +54,7 @@ export function writeUiState(map: UiStateMap, key: string, valueJson: string): v
   } catch {
     // Özel pencere veya kapalı site verisi: sunucu kaydı yine de yapılır.
   }
-  queueWrite(key, () => api.put('/ui-state', { key, valueJson }));
+  queueWrite(() => api.put('/ui-state', { key, valueJson }));
 }
 
 /** Anahtarı siler (ör. bekleyen adetler başarıyla kaydedildiğinde). */
@@ -65,5 +65,5 @@ export function clearUiState(map: UiStateMap, key: string): void {
   } catch {
     // yok sayılır
   }
-  queueWrite(key, () => api.delete(`/ui-state?key=${encodeURIComponent(key)}`));
+  queueWrite(() => api.delete(`/ui-state?key=${encodeURIComponent(key)}`));
 }

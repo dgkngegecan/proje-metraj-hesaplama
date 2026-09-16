@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import { TYPE_META, type FlowBreakdown, type PlacementNode } from '../lib/uiTypes';
-import { quantity } from '../lib/format';
+import { isRadiatorPlacement, quantity } from '../lib/format';
 import type { MeasurementSummary } from '../types';
 
 function BreakdownRow({
@@ -125,6 +125,7 @@ function BreakdownRow({
 export function FlowCard({ data, selected }: NodeProps<PlacementNode>) {
   const meta = TYPE_META[data.cardType];
   const expanded = Boolean(data.expanded);
+  const grouped = data.variantMode === 'Fitting' || isRadiatorPlacement(data);
   const nodeSummary = data.uiSummary as MeasurementSummary | undefined;
   const breakdown = data.uiBreakdown as FlowBreakdown[] | undefined;
   const placementNote = typeof data.notes === 'string' ? data.notes.trim() : '';
@@ -136,7 +137,7 @@ export function FlowCard({ data, selected }: NodeProps<PlacementNode>) {
     : nodeSummary?.netQuantity;
   return (
     <div
-      className={`flow-card ${selected ? 'selected' : ''} ${expanded ? 'expanded' : ''} ${expanded && data.variantMode === 'Fitting' ? 'fitting-expanded' : ''}`}
+      className={`flow-card ${selected ? 'selected' : ''} ${expanded ? 'expanded' : ''} ${expanded && grouped ? 'fitting-expanded' : ''}`}
       style={{ '--node-accent': meta.color } as React.CSSProperties}
     >
       <Handle type="target" position={Position.Left} className="flow-handle" aria-label="Bu karta bağla" />
@@ -166,7 +167,7 @@ export function FlowCard({ data, selected }: NodeProps<PlacementNode>) {
           ) : (
             !placementNote && <small>Bu kartta ölçüm girişi bulunmuyor.</small>
           )}
-          {data.variantMode === 'Fitting' && breakdown?.length ? (
+          {grouped && breakdown?.length ? (
             <div className="fitting-summary-grid">
               {[...new Set(breakdown.map((item) => item.label.split(' · ')[0]))].map((diameter) => (
                 <div className="fitting-summary-tile" key={diameter}>

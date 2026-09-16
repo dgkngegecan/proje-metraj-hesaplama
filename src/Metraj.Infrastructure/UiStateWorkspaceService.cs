@@ -31,17 +31,16 @@ public sealed class UiStateWorkspaceService(Func<MetrajDbContext> contextFactory
         }
 
         await using MetrajDbContext context = contextFactory();
-        UiState? state = await context.UiStates.SingleOrDefaultAsync(x => x.Key == normalizedKey, cancellationToken);
-        if (state is null)
-        {
-            state = new UiState { Key = normalizedKey };
-            context.UiStates.Add(state);
-        }
-
-        state.ValueJson = normalizedValue;
-        state.UpdatedAtUtc = DateTime.UtcNow;
-        await context.SaveChangesAsync(cancellationToken);
-        return new UiStateItem(state.Key, state.ValueJson, state.UpdatedAtUtc);
+        DateTime updatedAtUtc = DateTime.UtcNow;
+        // One atomic statement avoids competing read-then-insert/update operations
+        // while measurement and draft writes share the local SQLite database.
+        await context.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "UiStates" ("Key", "ValueJson", "UpdatedAtUtc")
+            VALUES ({normalizedKey}, {normalizedValue}, {updatedAtUtc})
+            ON CONFLICT("Key") DO UPDATE SET
+                "ValueJson" = excluded."ValueJson", "UpdatedAtUtc" = excluded."UpdatedAtUtc"
+            """, cancellationToken);
+        return new UiStateItem(normalizedKey, normalizedValue, updatedAtUtc);
     }
 
     /// <inheritdoc />

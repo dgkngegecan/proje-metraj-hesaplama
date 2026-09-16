@@ -1,0 +1,26 @@
+.radiator-report { margin-bottom: 24px; padding: 20px; border: 1px solid #34445e; background: #101b2e; border-radius: 16px; }
+.radiator-report-totals { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.radiator-report-totals > div { display: grid; gap: 6px; padding: 14px 20px; border: 1px solid #425575; border-radius: 12px; background: #17243a; }
+.radiator-report-totals span { font-size: .8rem; color: #aebcd1; }
+.radiator-report-totals strong { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.radiator-report-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.radiator-report-filters button { font-size: .84rem; padding: 8px 12px; }
+.radiator-report-filters button[aria-pressed="true"] { background: #39233d; border-color: #ff79ad; box-shadow: inset 0 -2px #ff79ad; }
+.radiator-report-type { margin-top: 16px; border: 1px solid #415575; border-radius: 12px; overflow: hidden; }
+.radiator-report-type-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: baseline; background: #1c2c45; padding: 14px 16px; }
+.radiator-report-type-heading h4 { margin: 0; font-size: 1rem; }
+.radiator-report-type-heading strong { color: #7ee5b6; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.radiator-report-scroll { overflow-x: auto; }
+.radiator-report table { width: 100%; min-width: 480px; border-collapse: collapse; font-size: .86rem; font-variant-numeric: tabular-nums; }
+.radiator-report caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.radiator-report th, .radiator-report td { padding: 10px 16px; text-align: right; border-bottom: 1px solid #2b3e59; }
+.radiator-report tr > :first-child { text-align: left; }
+.radiator-report thead th { color: #b8c7db; font-size: .78rem; background: #0e1727; }
+.radiator-report .radiator-height-heading th { text-align: left; color: #ffadcc; background: #212138; border-top: 2px solid #485674; }
+.radiator-report .radiator-height-total { color: #c8d6ea; background: #152238; font-weight: 700; }
+.radiator-report .radiator-net { font-weight: 800; color: #f2f6ff; }
+.radiator-report tfoot { background: #23344e; font-weight: 800; }
+.radiator-report-note { margin: 14px 0 0; color: #aebcd1; font-size: .8rem; line-height: 1.5; }
+.radiator-report button:focus-visible, .radiator-report-scroll:focus-visible { outline: 2px solid #ff79ad; outline-offset: 3px; }
+.all-material-details > summary { cursor: pointer; margin: 14px 0; padding: 10px 0; font-weight: 700; color: #c8d6ea; }
+@media (max-width: 600px) { .radiator-report { padding: 12px; } .radiator-report .summary-heading { flex-wrap: wrap; gap: 8px; } }
