@@ -42,7 +42,7 @@ Yedekler aynı klasördeki `backups` dizinine kaydedilir. Ayrıntılı işlem ad
 
 ## Global katalog
 
-Katalog kartları `Projects` tablosunun içinde tutulmaz; aynı SQLite dosyasındaki global `CatalogCardDefinitions` ve sürüm tablolarında tutulur. Bu nedenle yeni proje açmak kütüphaneyi sıfırlamaz. Bir kartın projede kullanılması yalnızca o kart sürümüne bir **yerleşim** referansı ekler; aynı kart başka projelerde tekrar seçilebilir. Projeye özel görünen ad, not, tedarik kapsamı ve ağaç ilişkisi ise yerleşimde kalır.
+Kataloglar kartları `Projects` tablosunun içinde tutulmaz; aynı SQLite dosyasındaki global `CatalogCardDefinitions` ve sürüm tablolarında tutulur. Bu nedenle yeni proje açmak kütüphaneyi sıfırlamaz. Bir kartın projede kullanılması yalnızca o kart sürümüne bir **yerleşim** referansı ekler; aynı kart başka projelerde tekrar seçilebilir. Projeye özel görünen ad, not, tedarik kapsamı ve ağaç ilişkisi ise yerleşimde kalır.
 
 İlk açılışta eklenen standart paket; mekanik tesisat, sıhhi tesisat/plumbing, HVAC, yangın koruma, PP-R/PPRC, karbon çelik, bakır, PVC-U, fitting/vanalar, izolasyon ve yaygın ekipman terimlerini Türkçe saha adı + global karşılık biçiminde içerir. Kütüphane sekmesindeki **Eksik standartları tamamla** düğmesi yalnızca eksik kodları ekler; mevcut veya pasife alınmış kullanıcı kartlarını değiştirmez.
 
@@ -54,3 +54,5 @@ Katalog kartları `Projects` tablosunun içinde tutulmaz; aynı SQLite dosyasın
 ## Doğrulama durumu
 
 Uygulama sentetik Temiz Su referans paketiyle doğrulanmıştır: `SYNTHETIC-VALIDATED / REAL-DATA-NOT-VALIDATED`. Gerçek proje Excel’i bu teslimde bulunmamaktadır.
+
+XD hehe
