@@ -1,15 +1,5 @@
 # Teslim notları
 
-## Radyatör sayımı paketi — 2026-09-16
-
-- Tip → yükseklik → hazır uzunluk sayaçları; Enter yalnız seçili tip/yüksekliği kaydeder. Özel tip ve ölçüler diğer projelerde tekrar seçilebilir.
-- Radyatör raporu tip, yükseklik ve uzunluğa göre ayrılır; Excel/PDF/Word çıktılarında ara ve genel toplamlar bulunur. Adet ve dilim ayrı tutulur.
-- Release derlemesi: 0 uyarı, 0 hata. .NET testleri: 153/153; Node arayüz mantık testleri: 31/31. Node testleri GitHub Actions akışına eklendi.
-- Yeni tek EXE, ayrı test veritabanıyla doğrudan açıldı. Gömülü WebView2 ekranında hazır seçenekler, aktif grubu Enter ile kayıt, başarısız kayıtta tekrar deneme, rapor kapsamı ve projeler arası özel ölçü aktarımı doğrulandı. Gömülü JavaScript ile yerel üretim çıktısının SHA256 değerleri eşleşti.
-- Teslim: `artifacts/ProjeMetraj-react-single-win-x64/Metraj.Desktop.exe`, 192598301 bayt. SHA256: `8C969DFBE35574F8FBF79BB91C58FDF20AB5703C2C3A3F8B1778C36099FC226A`.
-- Önceki EXE yedeği: `tmp/UiReview/release-backup/Metraj.Desktop-before-radiator-20260916.exe`.
-- EXE Git deposuna eklenmez. `main` push'u mevcut Actions akışıyla indirilebilir EXE artifact'ini üretir; GitHub Release yayını yalnız `v*` etiketiyle çalışır. Bu turda uzak yayın/etiket oluşturulmadı.
-
 ## Nihai paket
 
 - Hedef: Windows 11 x64

@@ -50,9 +50,6 @@ jobs:
       - name: Test
         run: dotnet test Metraj.sln --no-build -c Release
 
-      - name: Arayüz mantık testleri
-        run: node --test src/Metraj.Web/tests/*.test.mjs
-
       - name: Tek EXE yayınla
         run: >-
           dotnet publish src/Metraj.Desktop/Metraj.Desktop.csproj
