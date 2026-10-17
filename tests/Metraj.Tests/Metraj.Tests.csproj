@@ -17,6 +17,7 @@
     <ProjectReference Include="..\..\src\Metraj.Application\Metraj.Application.csproj" />
     <ProjectReference Include="..\..\src\Metraj.Infrastructure\Metraj.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Metraj.Api\Metraj.Api.csproj" />
+    <ProjectReference Include="..\..\src\Metraj.Host\Metraj.Host.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="TestData\Phase0\CleanWater\fixtures\measurements.csv" CopyToOutputDirectory="PreserveNewest" />

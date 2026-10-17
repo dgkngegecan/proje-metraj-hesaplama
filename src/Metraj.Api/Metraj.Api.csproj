@@ -7,9 +7,11 @@
   <ItemGroup>
     <ProjectReference Include="..\Metraj.Application\Metraj.Application.csproj" />
     <ProjectReference Include="..\Metraj.Infrastructure\Metraj.Infrastructure.csproj" />
+    <!-- Uç nokta mantığı (rota tablosu, bağlama, hata eşlemesi) Metraj.Host'ta; bu proje yalnız HTTP adaptörü. -->
+    <ProjectReference Include="..\Metraj.Host\Metraj.Host.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\tests\Metraj.Tests\TestData\Phase0\CleanWater\fixtures\measurements.csv" LogicalName="Metraj.Api.SampleData.CleanWaterSynthetic.csv" />
+    <!-- Sentetik Temiz Su örnek verisi Android de kullansın diye Metraj.Host'a gömülüyor. -->
     <EmbeddedResource Include="..\Metraj.Desktop\Assets\metraj.ico" LogicalName="Metraj.Api.Web.favicon.ico" />
   </ItemGroup>
 
