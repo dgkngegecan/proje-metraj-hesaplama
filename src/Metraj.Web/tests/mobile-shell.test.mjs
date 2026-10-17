@@ -233,12 +233,13 @@ test('arama dizini metni öğe başına bir kez sadeleştirir', () => {
     name: index % 3 ? `Boru DN${index}` : `Çelik vana ${index}`,
   }));
   assert.equal(search(items, ''), items, 'boş sorgu aynı diziyi döner');
-  const started = performance.now();
   assert.equal(search(items, 'celik').length, 667);
   search(items, 'celik van');
   search(items, 'celik vana 1');
+  // Hız garantisi duvar saatiyle değil sayımla ölçülür: üç aramada da her öğe
+  // yalnız bir kez sadeleştirilir. Önceki "150 ms altında" kontrolü testler
+  // paralel koşarken makine yüküne göre rastgele düşüyordu (161 ms ölçüldü).
   assert.equal(folds, 2000);
-  assert.ok(performance.now() - started < 150, '2.000 öğede üç arama 150 ms altında');
 });
 
 // ---------------------------------------------------------------------------
