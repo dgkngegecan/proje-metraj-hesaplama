@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { quantity } from '../../../lib/format';
 import {
   isSectionalRadiator,
@@ -89,7 +89,12 @@ export function RadiatorEntry({
   const group = activeGroup(draft);
   const frozen = locked || saving;
 
+  // Kayıt sürerken eklenen tip/yükseklik, kayıt bitince bayat taslakla ezilmesin
+  // diye son taslak her zaman bu başvurudan okunur.
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
   const update = (next: RadiatorDraft) => {
+    latestDraft.current = next;
     setDraftState(next);
     drafts.write(draftStorageKey, serializeDraft(next));
     // Tür/boy seçenekleri kataloğa özeldir (adetsiz); adetler kartlara özeldir.
@@ -109,7 +114,7 @@ export function RadiatorEntry({
     setSaving(false);
     if (outcome.ok) {
       haptic('confirm');
-      update(afterSubmit(draft));
+      update(afterSubmit(latestDraft.current));
       setError('');
       void actions.refreshSummaries(revisionId);
       actions.invalidateResources(`report:${revisionId}`);
