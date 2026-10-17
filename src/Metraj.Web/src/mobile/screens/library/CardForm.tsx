@@ -1,4 +1,4 @@
-﻿import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { api } from '../../../api';
 import { TYPE_META } from '../../../lib/cardTypes.ts';
 import type { CardDraftState } from '../../../lib/draftTypes';

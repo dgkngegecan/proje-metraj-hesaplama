@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TYPE_META } from '../../../lib/cardTypes.ts';
 import { quantity } from '../../../lib/format';
 import type { CatalogCard } from '../../../types';

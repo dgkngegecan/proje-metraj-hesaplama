@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { api } from '../../../api';
 import { TYPE_META } from '../../../lib/cardTypes.ts';
 import type { CardType, CatalogCard, CatalogCardType } from '../../../types';

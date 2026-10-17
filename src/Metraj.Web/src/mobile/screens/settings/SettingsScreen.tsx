@@ -1,31 +1,34 @@
-import { useEffect, useState } from 'react';
-import { api } from '../../../api';
-import { ActionSheet, ChipGrid, Icon, setHapticsEnabled } from '../../components';
+import { useEffect, type ReactNode } from 'react';
+import { ChipGrid, Icon, setHapticsEnabled, type IconName } from '../../components';
 import {
   applyTheme,
   HAPTICS_KEY,
-  notifyError,
-  notifySuccess,
-  REVISION_STATUS_LABEL,
   shellActions,
   THEME_KEY,
+  useShell,
+  type NestedRoute,
   type ThemePreference,
 } from '../../shell';
 import {
-  actions,
-  readSavedSelection,
+  listOf,
+  useAppStore,
   useDraft,
+  useIsRevisionLocked,
   useRevisionsOf,
   useSelectedProject,
   useSelectedRevision,
 } from '../../store';
-
-/*
- * YER TUTUCU — Dalga 2'de Ajan 6 bu klasörü doldurur (revizyon oluştur/onayla,
- * fire ayarları, hesap kuralları ve onayı, sorumluluklar, yedekler, bütünlük,
- * tüm projeleri temizle). Buradaki sürüm: tema ve titreşim tercihi (kalıcı
- * taslak), revizyon listesi, çalışma alanını dışa/içe aktarma.
- */
+import { Section } from '../library/shared/FormParts';
+import { AboutPanel } from './AboutPanel';
+import { BackupsPanel } from './BackupsPanel';
+import { CalculationsPanel } from './CalculationsPanel';
+import { ResponsibilitiesPanel } from './ResponsibilitiesPanel';
+import { RevisionsPanel } from './RevisionsPanel';
+import { useCalculationResults, useIntegrity } from './settingsData';
+import { INTEGRITY_TEXT, REVISION_STATUS_TEXT, integrityState, pendingResults } from './settingsModel';
+import { WastePanel } from './WastePanel';
+import { WorkspacePanel } from './WorkspacePanel';
+import './settings.css';
 
 const THEME_OPTIONS = [
   { value: 'system', label: 'Sistem' },
@@ -38,54 +41,106 @@ const HAPTIC_OPTIONS = [
   { value: 'off', label: 'Kapalı' },
 ] as const;
 
+/**
+ * Ayarlar sekmesi: kök menü ve iç ekranlar. Kök liste bağlı kalır (gizli) ki geri dönünce
+ * kaydırma konumu korunsun.
+ *
+ *   revisions · calculations · responsibilities · waste · backups · workspace · about
+ */
 export default function SettingsScreen() {
+  const stack = useShell((state) => state.stacks.settings);
+  return (
+    <div className="m-screen m-stack">
+      <div className="m-stack__layer" hidden={stack.length > 0}>
+        <SettingsHome />
+      </div>
+      {stack.map((route, index) => (
+        <div key={`${index}:${route.screen}`} className="m-stack__layer" hidden={index !== stack.length - 1}>
+          <RouteView route={route} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RouteView({ route }: { route: NestedRoute }) {
+  switch (route.screen) {
+    case 'revisions':
+      return <RevisionsPanel />;
+    case 'calculations':
+      return <CalculationsPanel />;
+    case 'responsibilities':
+      return <ResponsibilitiesPanel />;
+    case 'waste':
+      return <WastePanel />;
+    case 'backups':
+      return <BackupsPanel />;
+    case 'workspace':
+      return <WorkspacePanel />;
+    case 'about':
+      return <AboutPanel />;
+    default:
+      return null;
+  }
+}
+
+function MenuRow({
+  icon,
+  title,
+  subtitle,
+  badge,
+  tone,
+  disabled,
+  onClick,
+}: {
+  icon: IconName;
+  title: string;
+  subtitle: ReactNode;
+  badge?: string | null;
+  tone?: 'warning' | 'danger';
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button type="button" className="m-set-menu" disabled={disabled} onClick={onClick}>
+        <span className="m-set-menu__icon" aria-hidden="true">
+          <Icon name={icon} />
+        </span>
+        <span className="m-set-menu__text">
+          <strong>{title}</strong>
+          <small>{subtitle}</small>
+        </span>
+        {badge && <span className={`m-status${tone ? ` m-status--${tone}` : ''}`}>{badge}</span>}
+        <Icon name="chevronRight" size={20} className="m-tree-row__chevron" />
+      </button>
+    </li>
+  );
+}
+
+function SettingsHome() {
   const [theme, setTheme] = useDraft<ThemePreference>(THEME_KEY, 'system');
   const [haptics, setHaptics] = useDraft<'on' | 'off'>(HAPTICS_KEY, 'on');
   const project = useSelectedProject();
-  const selected = useSelectedRevision();
+  const revision = useSelectedRevision();
   const revisions = useRevisionsOf(project?.id ?? null);
-  const [confirmImport, setConfirmImport] = useState(false);
-  const [working, setWorking] = useState<'export' | 'import' | null>(null);
+  const locked = useIsRevisionLocked();
+  const results = useCalculationResults(revision?.id ?? null);
+  const integrity = useIntegrity();
+  const wasteTable = useAppStore((state) => state.entities.wasteSettings);
 
   useEffect(() => applyTheme(theme), [theme]);
   useEffect(() => setHapticsEnabled(haptics !== 'off'), [haptics]);
 
-  const exportWorkspace = async () => {
-    setWorking('export');
-    try {
-      const result = await api.download('/workspace/export', 'ProjeMetraj.metraj');
-      if (result.outcome !== 'cancelled' && result.outcome !== 'share') notifySuccess(`${result.name} hazırlandı.`);
-    } catch (error) {
-      notifyError(error, 'Çalışma alanı dışa aktarılamadı.');
-    } finally {
-      setWorking(null);
-    }
-  };
-
-  const importWorkspace = async () => {
-    setWorking('import');
-    try {
-      const result = await api.importWorkspace();
-      if (!result) return;
-      await actions.bootstrap(readSavedSelection() ?? {});
-      void actions.loadCatalog();
-      notifySuccess(
-        `${result.importedProjects} proje eklendi${result.skippedProjects ? `, ${result.skippedProjects} mevcut proje atlandı` : ''}.`,
-      );
-    } catch (error) {
-      notifyError(error, 'Çalışma alanı içe aktarılamadı.');
-    } finally {
-      setWorking(null);
-    }
-  };
+  const pending = pendingResults(results.data ?? []).length;
+  const state = integrityState(integrity.data);
+  const open = (screen: string) => shellActions.push({ screen }, 'settings');
+  const needsProject = 'Önce bir proje seçin';
 
   return (
     <div className="m-screen m-settings">
       <div className="m-detail__scroll">
-        <section className="m-section" aria-labelledby="m-settings-look">
-          <h2 id="m-settings-look" className="m-section__title">
-            Görünüm
-          </h2>
+        <Section title="Görünüm">
           <ChipGrid mode="single" label="Tema" options={THEME_OPTIONS} value={theme} onChange={setTheme} columns={3} />
           <h3 className="m-section__subtitle">Titreşim</h3>
           <ChipGrid
@@ -96,84 +151,83 @@ export default function SettingsScreen() {
             onChange={setHaptics}
             columns={2}
           />
+        </Section>
+
+        <section className="m-section" aria-label="Proje ayarları">
+          <h2 className="m-section__title">Proje{project ? ` · ${project.name}` : ''}</h2>
+          <ul className="m-set-menu-list">
+            <MenuRow
+              icon="lock"
+              title="Revizyonlar"
+              subtitle={
+                revision
+                  ? `${revision.code} · ${REVISION_STATUS_TEXT[revision.status]} · ${revisions.length} revizyon`
+                  : needsProject
+              }
+              disabled={!project}
+              onClick={() => open('revisions')}
+            />
+            <MenuRow
+              icon="check"
+              title="Hesap kuralları ve sonuçları"
+              subtitle={
+                !revision
+                  ? needsProject
+                  : pending
+                    ? `${pending} öneri onayınızı bekliyor`
+                    : locked
+                      ? 'Kilitli revizyon · yalnız görüntülenir'
+                      : 'Kural, öneri, onay ve ezme'
+              }
+              badge={pending ? 'Kontrol bekliyor' : null}
+              tone="warning"
+              disabled={!revision}
+              onClick={() => open('calculations')}
+            />
+            <MenuRow
+              icon="project"
+              title="Sorumluluklar"
+              subtitle={revision ? 'Boyutlar, taraflar ve atamalar' : needsProject}
+              disabled={!revision}
+              onClick={() => open('responsibilities')}
+            />
+          </ul>
         </section>
 
-        {project && (
-          <section className="m-section" aria-labelledby="m-settings-revisions">
-            <h2 id="m-settings-revisions" className="m-section__title">
-              Revizyonlar · {project.name}
-            </h2>
-            <ul className="m-choice-list">
-              {revisions.map((revision) => (
-                <li key={revision.id}>
-                  <button
-                    type="button"
-                    className="m-choice"
-                    aria-current={revision.id === selected?.id ? 'true' : undefined}
-                    onClick={() => {
-                      shellActions.resetStacks();
-                      void actions.selectRevision(revision.id);
-                    }}
-                  >
-                    <span className="m-choice__text">
-                      <strong>{revision.code}</strong>
-                      <small>{REVISION_STATUS_LABEL[revision.status]}</small>
-                    </span>
-                    {revision.status !== 'Draft' && <Icon name="lock" label="Kilitli" />}
-                    {revision.id === selected?.id && <Icon name="check" label="Seçili" />}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="m-section" aria-labelledby="m-settings-workspace">
-          <h2 id="m-settings-workspace" className="m-section__title">
-            Çalışma alanı
-          </h2>
-          <div className="m-action-list">
-            <button
-              type="button"
-              className="m-action-row"
-              disabled={working !== null}
-              onClick={() => void exportWorkspace()}
-            >
-              <Icon name="upload" />
-              <span>
-                <strong>{working === 'export' ? 'Hazırlanıyor…' : 'Dışa aktar'}</strong>
-                <small>Bütün projeler ve kütüphane tek bir .metraj dosyasında</small>
-              </span>
-            </button>
-            <button
-              type="button"
-              className="m-action-row"
-              disabled={working !== null}
-              onClick={() => setConfirmImport(true)}
-            >
-              <Icon name="download" />
-              <span>
-                <strong>{working === 'import' ? 'İçe aktarılıyor…' : 'İçe aktar'}</strong>
-                <small>Başka bir cihazdan .metraj dosyası ekle</small>
-              </span>
-            </button>
-          </div>
+        <section className="m-section" aria-label="Genel ayarlar">
+          <h2 className="m-section__title">Genel</h2>
+          <ul className="m-set-menu-list">
+            <MenuRow
+              icon="library"
+              title="Malzeme fire payları"
+              subtitle={
+                wasteTable.ids.length ? `${listOf(wasteTable).length} aile kuralı` : 'Aile bazlı ortak fire oranları'
+              }
+              onClick={() => open('waste')}
+            />
+            <MenuRow
+              icon="download"
+              title="Yedekler ve güvenlik"
+              subtitle={`${INTEGRITY_TEXT[state]} · yedek, geri yükleme, temizleme`}
+              badge={state === 'warning' ? 'Uyarı' : null}
+              tone="danger"
+              onClick={() => open('backups')}
+            />
+            <MenuRow
+              icon="share"
+              title="Çalışma alanı"
+              subtitle="Dışa aktar, içe aktar, örnek proje"
+              onClick={() => open('workspace')}
+            />
+            <MenuRow
+              icon="settings"
+              title="Uygulama hakkında"
+              subtitle="Sürüm, veri konumu, gizlilik"
+              onClick={() => open('about')}
+            />
+          </ul>
         </section>
       </div>
-      <ActionSheet
-        open={confirmImport}
-        onClose={() => setConfirmImport(false)}
-        title="Çalışma alanı eklensin mi?"
-        description="Seçeceğiniz dosyadaki yeni projeler ve eksik kütüphane kayıtları eklenir. Mevcut veriler silinmez."
-        actions={[
-          {
-            id: 'pick',
-            label: 'Dosya seç ve içe aktar',
-            icon: 'download',
-            onSelect: () => void importWorkspace(),
-          },
-        ]}
-      />
     </div>
   );
 }
