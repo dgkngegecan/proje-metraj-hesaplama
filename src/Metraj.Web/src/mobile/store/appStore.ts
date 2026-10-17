@@ -276,9 +276,16 @@ export function createAppStore(deps: AppStoreDeps) {
     return selectRevision(preferred?.id ?? ordered[0] ?? null);
   }
 
-  /** Açılış: projeler → (hatırlanan veya ilk) proje → revizyon → ağaç. */
-  async function bootstrap(preferred: Partial<Selection> = {}) {
-    const loaded = await loadProjects();
+  /**
+   * Açılış: projeler → (hatırlanan veya ilk) proje → revizyon → ağaç.
+   * Tercih bir söz (promise) olabilir: hatırlanan seçim `/ui-state`'ten okunurken
+   * proje listesi paralel yüklenir, açılışa bir gidiş-dönüş eklenmez.
+   */
+  async function bootstrap(preferredInput: Partial<Selection> | Promise<Partial<Selection>> = {}) {
+    const [loaded, preferred] = await Promise.all([
+      loadProjects(),
+      Promise.resolve(preferredInput).catch((): Partial<Selection> => ({})),
+    ]);
     if (!loaded) return false;
     const projects = store.getState().entities.projects;
     const projectId =

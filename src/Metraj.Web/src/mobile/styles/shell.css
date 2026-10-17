@@ -1,0 +1,336 @@
+/*
+ * Kabuk yerleşimi: üst çubuk · (kilit şeridi) · içerik · alt gezinme.
+ * Ana eylemler başparmak bölgesindedir (alt gezinme ve ekranların alt eylem
+ * alanı). Sayfa kaymaz; her ekran kendi alanını kaydırır.
+ */
+.m-app {
+    /* Esnek sütun (ızgara değil): kilit şeridi yokken satırlar kaymasın. */
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+}
+
+/* ---------- Üst çubuk ---------- */
+.m-topbar {
+    flex: none;
+    position: relative;
+    z-index: var(--z-bars);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: calc(var(--topbar-height) + var(--safe-top));
+    padding: var(--safe-top) var(--space-2) 0;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-topbar__project {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--touch-min);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: var(--space-1);
+    align-items: center;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-md);
+    text-align: left;
+}
+
+.m-topbar__project .m-icon {
+    grid-row: 1 / span 2;
+    grid-column: 2;
+    color: var(--color-text-muted);
+}
+
+.m-topbar__eyebrow {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.m-topbar__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.m-revision-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--touch-min);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-pill);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.m-revision-chip.is-locked {
+    border-color: var(--color-warning-border);
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+}
+
+.m-busy-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 3px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity var(--duration-base);
+    pointer-events: none;
+}
+
+.m-busy-bar.is-active {
+    opacity: 1;
+}
+
+.m-busy-bar span {
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--color-primary);
+    animation: m-busy 1.1s var(--ease-out) infinite;
+}
+
+@keyframes m-busy {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(260%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .m-busy-bar span {
+        width: 100%;
+        animation: none;
+        opacity: 0.6;
+    }
+}
+
+.m-lock-banner {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    border-bottom: 1px solid var(--color-warning-border);
+    font-size: var(--text-sm);
+    line-height: var(--leading-tight);
+}
+
+.m-lock-banner p {
+    flex: 1;
+}
+
+.m-lock-banner strong {
+    font-weight: 700;
+}
+
+/* ---------- İçerik ---------- */
+.m-main {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.m-tabpanel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* `hidden` özniteliği display:flex'in altında kalmasın. */
+.m-tabpanel[hidden],
+.m-stack__layer[hidden] {
+    display: none;
+}
+
+.m-screen {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.m-stack__layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--color-bg);
+}
+
+.m-screen-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: var(--touch-comfort);
+    padding: var(--space-1) var(--space-2);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-screen-header__text {
+    flex: 1;
+    min-width: 0;
+    padding: 0 var(--space-1);
+}
+
+.m-screen-header__title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.m-screen-header__subtitle {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.m-screen-header__actions {
+    display: flex;
+    gap: var(--space-1);
+}
+
+.m-detail {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.m-detail__scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: var(--space-6);
+}
+
+/* Ekranın alt eylem alanı: başparmak bölgesinde, alt gezinmenin hemen üstünde. */
+.m-bottom-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+
+.m-bottom-actions--row {
+    flex-direction: row;
+}
+
+.m-bottom-actions--row > * {
+    flex: 1;
+}
+
+.m-section {
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.m-section + .m-section {
+    border-top: 1px solid var(--color-border);
+}
+
+.m-section__title {
+    font-size: var(--text-md);
+    font-weight: 700;
+}
+
+.m-section__subtitle {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    color: var(--color-text-muted);
+    margin-top: var(--space-2);
+}
+
+.m-section__empty {
+    padding: var(--space-2) 0;
+}
+
+.m-list-caption {
+    padding: var(--space-1) var(--space-4) var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}
+
+/* ---------- Alt gezinme ---------- */
+.m-bottom-nav {
+    flex: none;
+    z-index: var(--z-bars);
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-bottom: var(--safe-bottom);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+
+.m-bottom-nav__item {
+    min-height: var(--bottomnav-height);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+
+.m-bottom-nav__indicator {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 32px;
+    border-radius: var(--radius-pill);
+    transition: background-color var(--duration-fast);
+}
+
+.m-bottom-nav__item.is-active {
+    color: var(--color-text);
+}
+
+.m-bottom-nav__item.is-active .m-bottom-nav__indicator {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+}
+
+.m-bottom-nav__label {
+    white-space: nowrap;
+}

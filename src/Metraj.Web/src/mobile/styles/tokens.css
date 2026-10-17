@@ -1,0 +1,188 @@
+/*
+ * Mobil tasarım değişkenleri.
+ *
+ * - Dokunma hedefi en az 48 dp (Android WebView'da 1 CSS px = 1 dp).
+ * - Yazı tipi sistem yığınıdır: uygulama tamamen çevrimdışı, ağdan font yüklenmez.
+ * - Açık tema varsayılan ve dış mekânda okunur olacak kadar yüksek kontrastlı
+ *   (gövde metni ≥ 7:1, ikincil metin ≥ 7:1, birincil renk beyaz zeminde ≥ 4.5:1).
+ * - Koyu tema sistem tercihinden gelir; Ayarlar'dan `data-theme` ile zorlanabilir.
+ * - Bileşenler renk DEĞERİ değil, buradaki değişkenleri kullanır.
+ */
+:root {
+    color-scheme: light;
+
+    --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', 'Noto Sans Mono', Menlo, Consolas, monospace;
+
+    --touch-min: 48px;
+    --touch-comfort: 56px;
+    --touch-large: 64px;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-8: 32px;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-pill: 999px;
+
+    --text-xs: 0.8125rem;
+    --text-sm: 0.875rem;
+    --text-md: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.375rem;
+    --text-2xl: 1.75rem;
+    --text-display: 2.25rem;
+    --leading-tight: 1.25;
+    --leading-normal: 1.45;
+
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+
+    --topbar-height: 56px;
+    --bottomnav-height: 64px;
+    /* .m-bottom-actions: 56 px düğme + 2 × 12 px dolgu + çizgi. */
+    --bottom-actions-height: 81px;
+
+    --z-raised: 5;
+    --z-bars: 10;
+    --z-sheet: 40;
+    --z-snackbar: 50;
+
+    --duration-fast: 120ms;
+    --duration-base: 200ms;
+    --duration-slow: 280ms;
+    --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --ease-in: cubic-bezier(0.4, 0, 1, 1);
+
+    --color-bg: #f6f7f9;
+    --color-surface: #ffffff;
+    --color-surface-2: #eef1f5;
+    --color-surface-3: #e1e6ed;
+    --color-text: #0b1220;
+    --color-text-muted: #3a4658;
+    --color-border: #c3cbd7;
+    --color-border-strong: #7c899c;
+    --color-primary: #0b57d0;
+    --color-primary-strong: #0842a0;
+    --color-on-primary: #ffffff;
+    --color-primary-soft: #d8e4fb;
+    --color-danger: #b3261e;
+    --color-on-danger: #ffffff;
+    --color-danger-soft: #fbe1de;
+    --color-success: #146c2e;
+    --color-success-soft: #d9f0e0;
+    --color-warning: #7a4a00;
+    --color-warning-soft: #ffefcc;
+    --color-warning-border: #e0a43a;
+    --color-focus: #0b57d0;
+    --color-scrim: rgb(5 10 20 / 0.5);
+    --color-snackbar: #1b2330;
+    --color-on-snackbar: #f2f5f9;
+    --color-snackbar-action: #a8c7ff;
+    --color-skeleton: #e2e7ee;
+    --color-skeleton-shine: #f4f6f9;
+    --shadow-raised: 0 1px 3px rgb(5 10 20 / 0.14), 0 1px 2px rgb(5 10 20 / 0.08);
+    --shadow-sheet: 0 -6px 28px rgb(5 10 20 / 0.2);
+
+    /* Kart tipi renkleri (lib/cardTypes.ts ile aynı aile, açık zeminde okunur tonlar). */
+    --type-category: #7a3fd1;
+    --type-scope: #9a6200;
+    --type-system: #00739e;
+    --type-material: #127a4c;
+    --type-accessory: #b4235a;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        color-scheme: dark;
+        --color-bg: #0b0f17;
+        --color-surface: #141a24;
+        --color-surface-2: #1b2330;
+        --color-surface-3: #263041;
+        --color-text: #f2f5f9;
+        --color-text-muted: #b9c4d3;
+        --color-border: #2f3b4e;
+        --color-border-strong: #5f6e85;
+        --color-primary: #8ab4ff;
+        --color-primary-strong: #a8c7ff;
+        --color-on-primary: #0b1220;
+        --color-primary-soft: #1c2f52;
+        --color-danger: #ff8a80;
+        --color-on-danger: #1b0b0a;
+        --color-danger-soft: #3b1715;
+        --color-success: #7ed79a;
+        --color-success-soft: #13301e;
+        --color-warning: #ffcf7a;
+        --color-warning-soft: #33260c;
+        --color-warning-border: #8a6a28;
+        --color-focus: #a8c7ff;
+        --color-scrim: rgb(0 0 0 / 0.62);
+        --color-snackbar: #e8edf4;
+        --color-on-snackbar: #0b1220;
+        --color-snackbar-action: #0b57d0;
+        --color-skeleton: #1d2532;
+        --color-skeleton-shine: #283244;
+        --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.5);
+        --shadow-sheet: 0 -6px 28px rgb(0 0 0 / 0.55);
+        --type-category: #c9a6ff;
+        --type-scope: #ffcf73;
+        --type-system: #6fd3ff;
+        --type-material: #74e8b6;
+        --type-accessory: #ff9ebd;
+    }
+}
+
+/* Ayarlar'dan zorlanan koyu tema: yukarıdaki blokla aynı değerler. */
+:root[data-theme='dark'] {
+    color-scheme: dark;
+    --color-bg: #0b0f17;
+    --color-surface: #141a24;
+    --color-surface-2: #1b2330;
+    --color-surface-3: #263041;
+    --color-text: #f2f5f9;
+    --color-text-muted: #b9c4d3;
+    --color-border: #2f3b4e;
+    --color-border-strong: #5f6e85;
+    --color-primary: #8ab4ff;
+    --color-primary-strong: #a8c7ff;
+    --color-on-primary: #0b1220;
+    --color-primary-soft: #1c2f52;
+    --color-danger: #ff8a80;
+    --color-on-danger: #1b0b0a;
+    --color-danger-soft: #3b1715;
+    --color-success: #7ed79a;
+    --color-success-soft: #13301e;
+    --color-warning: #ffcf7a;
+    --color-warning-soft: #33260c;
+    --color-warning-border: #8a6a28;
+    --color-focus: #a8c7ff;
+    --color-scrim: rgb(0 0 0 / 0.62);
+    --color-snackbar: #e8edf4;
+    --color-on-snackbar: #0b1220;
+    --color-snackbar-action: #0b57d0;
+    --color-skeleton: #1d2532;
+    --color-skeleton-shine: #283244;
+    --shadow-raised: 0 1px 3px rgb(0 0 0 / 0.5);
+    --shadow-sheet: 0 -6px 28px rgb(0 0 0 / 0.55);
+    --type-category: #c9a6ff;
+    --type-scope: #ffcf73;
+    --type-system: #6fd3ff;
+    --type-material: #74e8b6;
+    --type-accessory: #ff9ebd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --duration-fast: 0ms;
+        --duration-base: 0ms;
+        --duration-slow: 0ms;
+    }
+}

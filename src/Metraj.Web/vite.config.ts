@@ -64,6 +64,13 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       input: entries,
+      output: {
+        // React iki girişte de ortak; adı belli bir parçada durur (aksi hâlde
+        // parça, içine düşen rastgele bir modülün adını alıyordu: "uiState-….js").
+        codeSplitting: {
+          groups: [{ name: 'react-vendor', test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/ }],
+        },
+      },
     },
   },
 });

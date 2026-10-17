@@ -30,16 +30,18 @@ export function readSavedSelection(): SavedSelection | null {
 
 let selectionPersistence: (() => void) | null = null;
 
-/** Seçim değiştikçe taslağa yazar (bir kez kurulur). */
-export function persistSelection() {
-  if (selectionPersistence) return selectionPersistence;
-  selectionPersistence = appStore.subscribe((state, previous) => {
+/** Seçim değiştikçe taslağa yazar. Tek abonelik kurulur; dönen işlev onu kaldırır. */
+export function persistSelection(): () => void {
+  selectionPersistence ??= appStore.subscribe((state, previous) => {
     if (state.selection === previous.selection) return;
     // Revizyon seçilene kadar ara durum (yeni proje, revizyon=null) yazılmaz.
     if (state.selection.projectId && !state.selection.revisionId) return;
     drafts.write(SELECTION_KEY, JSON.stringify(state.selection));
   });
-  return selectionPersistence;
+  return () => {
+    selectionPersistence?.();
+    selectionPersistence = null;
+  };
 }
 
 /**
