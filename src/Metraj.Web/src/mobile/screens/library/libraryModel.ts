@@ -166,7 +166,9 @@ export function cardSubtitle(item: LibraryItem): string {
   const { card } = item;
   const parts: string[] = [TYPE_META[card.cardType].label];
   if (card.customTypeName) parts[0] = `${parts[0]} · ${card.customTypeName}`;
-  parts.push(card.code, card.unit);
+  parts.push(card.code);
+  // Klasör türü kartların birimi "-"dir; anlamsız bir işaret göstermeyelim.
+  if (card.unit.trim() && card.unit.trim() !== '-') parts.push(card.unit);
   if (card.variantMode === 'Pipe') parts.push(`${card.variants?.length ?? 0} çap`);
   else if (card.variantMode === 'Fitting') parts.push(`${card.variants?.length ?? 0} çeşit`);
   if (item.deckName && item.deckName !== TYPE_META[card.cardType].label) parts.push(item.deckName);

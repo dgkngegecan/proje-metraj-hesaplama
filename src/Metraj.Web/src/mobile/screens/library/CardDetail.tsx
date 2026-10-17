@@ -25,7 +25,7 @@ function Facts({ rows }: { rows: ReadonlyArray<[string, string | null | undefine
   );
 }
 
-/** Kart ayrÄ±ntÄ±sÄ±: sÃ¼rÃ¼m, varyantlar, nitelikler. DÃ¼zenleme yeni bir sÃ¼rÃ¼m oluÅŸturur. */
+/** Kart ayrıntısı: sürüm, varyantlar, nitelikler. Düzenleme yeni bir sürüm oluşturur. */
 export function CardDetail({ cardId }: { cardId: string }) {
   const card = useCatalogCard(cardId);
   const attributes = useCatalogAttributes();
@@ -40,14 +40,14 @@ export function CardDetail({ cardId }: { cardId: string }) {
   if (!card) {
     return (
       <div className="m-detail">
-        <ScreenHeader title="Kart bulunamadÄ±" />
+        <ScreenHeader title="Kart bulunamadı" />
         <EmptyState
           icon="library"
-          title="Bu kart artÄ±k kÃ¼tÃ¼phanede yok"
-          message="SilinmiÅŸ ya da kÃ¼tÃ¼phane yeniden yÃ¼klenmiÅŸ olabilir."
+          title="Bu kart artık kütüphanede yok"
+          message="Silinmiş ya da kütüphane yeniden yüklenmiş olabilir."
           action={
             <button type="button" className="m-btn m-btn--secondary" onClick={() => shellActions.pop('library')}>
-              Listeye dÃ¶n
+              Listeye dön
             </button>
           }
         />
@@ -69,7 +69,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
           <button
             type="button"
             className="m-icon-button"
-            aria-label="Kart iÅŸlemleri"
+            aria-label="Kart işlemleri"
             aria-haspopup="dialog"
             onClick={() => setMenu(true)}
           >
@@ -81,15 +81,14 @@ export function CardDetail({ cardId }: { cardId: string }) {
         {!card.isActive && (
           <div className="m-detail__notice">
             <Notice tone="warning">
-              Bu kart pasif: yeni projelerde seÃ§ilemez ve yeni sÃ¼rÃ¼m eklenemez. Mevcut projelerdeki kullanÄ±mÄ±
-              korunur.
+              Bu kart pasif: yeni projelerde seçilemez ve yeni sürüm eklenemez. Mevcut projelerdeki kullanımı korunur.
             </Notice>
           </div>
         )}
         {card.supersededByCode && (
           <div className="m-detail__notice">
             <Notice tone="info">
-              Bu kartÄ±n yerine <strong>{card.supersededByCode}</strong> geÃ§ti; yeni projelerde onu kullanÄ±n.
+              Bu kartın yerine <strong>{card.supersededByCode}</strong> geçti; yeni projelerde onu kullanın.
             </Notice>
           </div>
         )}
@@ -97,39 +96,39 @@ export function CardDetail({ cardId }: { cardId: string }) {
         <Section title="Genel">
           <Facts
             rows={[
-              ['TÃ¼r', `${meta.label}${card.customTypeName ? ` Â· ${card.customTypeName}` : ''}`],
+              ['Tür', `${meta.label}${card.customTypeName ? ` · ${card.customTypeName}` : ''}`],
               ['Birim', card.unit],
-              ['Fire payÄ±', `%${quantity(card.wasteRatePct)}`],
+              ['Fire payı', `%${quantity(card.wasteRatePct)}`],
               ['Malzeme ailesi', card.materialType],
-              ['GiriÅŸ davranÄ±ÅŸÄ±', attributeValueLabel('InputBehavior', card.inputBehavior)],
-              ['SatÄ±n alma dÃ¶nÃ¼ÅŸÃ¼mÃ¼', attributeValueLabel('SalesConversion', card.salesConversion)],
-              ['Rapor davranÄ±ÅŸÄ±', attributeValueLabel('ReportBehavior', card.reportBehavior)],
+              ['Giriş davranışı', attributeValueLabel('InputBehavior', card.inputBehavior)],
+              ['Satın alma dönüşümü', attributeValueLabel('SalesConversion', card.salesConversion)],
+              ['Rapor davranışı', attributeValueLabel('ReportBehavior', card.reportBehavior)],
               ['Boy / paket kapasitesi', card.containerParameter != null ? quantity(card.containerParameter) : null],
-              ['Poz numarasÄ±', card.positionNumber],
+              ['Poz numarası', card.positionNumber],
               ['Aile kodu', card.familyCode],
             ]}
           />
         </Section>
 
-        <Section title="SÃ¼rÃ¼mler">
+        <Section title="Sürümler">
           <p>
-            GÃ¼ncel sÃ¼rÃ¼m: <strong className="m-num">v{card.latestVersion}</strong>
+            Güncel sürüm: <strong className="m-num">v{card.latestVersion}</strong>
             {card.isActive ? '' : ' (pasif)'}
           </p>
           <p className="m-muted">
-            Her dÃ¼zenleme yeni bir sÃ¼rÃ¼m oluÅŸturur. Projelerde kullanÄ±lan kartlar eklendikleri sÃ¼rÃ¼mÃ¼ korur;
-            yeni sÃ¼rÃ¼m yalnÄ±z sonradan eklenen kullanÄ±mlarda geÃ§erlidir.
+            Her düzenleme yeni bir sürüm oluşturur. Projelerde kullanılan kartlar eklendikleri sürümü korur; yeni sürüm
+            yalnız sonradan eklenen kullanımlarda geçerlidir.
           </p>
         </Section>
 
         {card.variantMode && card.variantMode !== 'None' && (
           <Section
             title={
-              card.variantMode === 'Pipe' ? `Ã‡aplar ve boylar (${variants.length})` : `Ã‡eÅŸitler (${variants.length})`
+              card.variantMode === 'Pipe' ? `Çaplar ve boylar (${variants.length})` : `Çeşitler (${variants.length})`
             }
           >
             {variants.length === 0 ? (
-              <p className="m-muted">TanÄ±mlÄ± varyant yok.</p>
+              <p className="m-muted">Tanımlı varyant yok.</p>
             ) : (
               <ul className="m-variant-list">
                 {shownVariants.map((variant) => (
@@ -137,11 +136,11 @@ export function CardDetail({ cardId }: { cardId: string }) {
                     <strong>{variant.label || variant.code}</strong>
                     <small>
                       {variant.code}
-                      {variant.standardLength ? ` Â· boy ${quantity(variant.standardLength)} m` : ''}
+                      {variant.standardLength ? ` · boy ${quantity(variant.standardLength)} m` : ''}
                       {variant.compatibleDiameters?.length
-                        ? ` Â· uyumlu: ${variant.compatibleDiameters.join(', ')}`
+                        ? ` · uyumlu: ${variant.compatibleDiameters.join(', ')}`
                         : ''}
-                      {variant.sourceCardName ? ` Â· kaynak: ${variant.sourceCardName}` : ''}
+                      {variant.sourceCardName ? ` · kaynak: ${variant.sourceCardName}` : ''}
                     </small>
                   </li>
                 ))}
@@ -154,7 +153,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
                 aria-expanded={allVariants}
                 onClick={() => setAllVariants(!allVariants)}
               >
-                {allVariants ? 'Daha az gÃ¶ster' : `TÃ¼mÃ¼nÃ¼ gÃ¶ster (${variants.length})`}
+                {allVariants ? 'Daha az göster' : `Tümünü göster (${variants.length})`}
               </button>
             )}
           </Section>
@@ -171,8 +170,8 @@ export function CardDetail({ cardId }: { cardId: string }) {
           ) : (
             <p className="m-muted">
               {card.customTypeName
-                ? 'Bu karta ek nitelik girilmemiÅŸ.'
-                : 'Standart tÃ¼r kartlarÄ±nda ek nitelik yoktur; Ã¶zel tÃ¼r seÃ§ilirse alanlar aÃ§Ä±lÄ±r.'}
+                ? 'Bu karta ek nitelik girilmemiş.'
+                : 'Standart tür kartlarında ek nitelik yoktur; özel tür seçilirse alanlar açılır.'}
             </p>
           )}
         </Section>
@@ -191,7 +190,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
           onClick={() => shellActions.push({ screen: 'card-form', params: { id: card.id } }, 'library')}
         >
           <Icon name="edit" size={20} />
-          DÃ¼zenle (yeni sÃ¼rÃ¼m)
+          Düzenle (yeni sürüm)
         </button>
       </div>
 
@@ -206,7 +205,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
                   id: 'deactivate',
                   label: 'Pasife al',
                   icon: 'close' as const,
-                  description: 'Yeni projelerde seÃ§ilemez; mevcut kullanÄ±mlar korunur.',
+                  description: 'Yeni projelerde seçilemez; mevcut kullanımlar korunur.',
                   onSelect: () => {
                     deactivateCard(card);
                     shellActions.pop('library');
@@ -219,7 +218,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
             label: 'Sil',
             icon: 'trash' as const,
             tone: 'danger' as const,
-            description: 'KalÄ±cÄ± olarak kaldÄ±rÄ±r (kullanÄ±mdaysa pasife alÄ±r).',
+            description: 'Kalıcı olarak kaldırır (kullanımdaysa pasife alır).',
             onSelect: () => setDeleting(card),
           },
         ]}

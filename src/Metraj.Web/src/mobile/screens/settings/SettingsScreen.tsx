@@ -140,19 +140,6 @@ function SettingsHome() {
   return (
     <div className="m-screen m-settings">
       <div className="m-detail__scroll">
-        <Section title="Görünüm">
-          <ChipGrid mode="single" label="Tema" options={THEME_OPTIONS} value={theme} onChange={setTheme} columns={3} />
-          <h3 className="m-section__subtitle">Titreşim</h3>
-          <ChipGrid
-            mode="single"
-            label="Titreşim"
-            options={HAPTIC_OPTIONS}
-            value={haptics}
-            onChange={setHaptics}
-            columns={2}
-          />
-        </Section>
-
         <section className="m-section" aria-label="Proje ayarları">
           <h2 className="m-section__title">Proje{project ? ` · ${project.name}` : ''}</h2>
           <ul className="m-set-menu-list">
@@ -227,6 +214,19 @@ function SettingsHome() {
             />
           </ul>
         </section>
+
+        <Section title="Görünüm">
+          <ChipGrid mode="single" label="Tema" options={THEME_OPTIONS} value={theme} onChange={setTheme} columns={3} />
+          <h3 className="m-section__subtitle">Titreşim</h3>
+          <ChipGrid
+            mode="single"
+            label="Titreşim"
+            options={HAPTIC_OPTIONS}
+            value={haptics}
+            onChange={setHaptics}
+            columns={2}
+          />
+        </Section>
       </div>
     </div>
   );

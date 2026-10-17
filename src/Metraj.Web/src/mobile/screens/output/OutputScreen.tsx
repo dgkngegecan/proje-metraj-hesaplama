@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, type DownloadResult } from '../../../api';
 import type { ReportData } from '../../../types';
-import { ChipGrid, Icon, haptic } from '../../components';
+import { Icon, haptic } from '../../components';
 import {
   EmptyState,
   ErrorState,
@@ -178,28 +178,27 @@ export default function OutputScreen() {
       )}
 
       {(hasRadiators || hasChecks) && (
-        <div className="m-out-views">
-          <ChipGrid
-            mode="single"
-            label="Rapor görünümü"
-            columns={1 + Number(hasRadiators) + Number(hasChecks)}
-            value={activeView}
-            onChange={(next) => setView(next as View)}
-            options={[
-              { value: 'materials', label: 'Malzeme', hint: `${stats.materials} kalem` },
-              ...(hasRadiators ? [{ value: 'radiators', label: 'Radyatör', hint: `${stats.radiatorRows} ölçü` }] : []),
-              ...(hasChecks
-                ? [
-                    {
-                      value: 'checks',
-                      label: 'Hesaplar',
-                      hint: `${data.calculationChecks.length} kayıt`,
-                      badge: stats.pending || undefined,
-                    },
-                  ]
-                : []),
-            ]}
-          />
+        <div className="m-chip-strip m-out-views" role="group" aria-label="Rapor görünümü">
+          {(
+            [
+              ['materials', `Malzeme ${stats.materials}`],
+              ...(hasRadiators ? [['radiators', `Radyatör ${stats.radiatorRows}`]] : []),
+              ...(hasChecks ? [['checks', `Hesaplar ${data.calculationChecks.length}`]] : []),
+            ] as Array<[View, string]>
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className="m-pill"
+              aria-pressed={activeView === value}
+              onClick={() => {
+                haptic('tick');
+                setView(value);
+              }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       )}
 

@@ -127,7 +127,7 @@
 .m-lib-picker {
     display: flex;
     flex-direction: column;
-    height: min(60dvh, 520px);
+    height: calc(100dvh - var(--safe-top) - 220px);
 }
 
 .m-lib-pick {

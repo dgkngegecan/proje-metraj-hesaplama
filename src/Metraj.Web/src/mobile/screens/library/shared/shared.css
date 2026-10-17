@@ -2,6 +2,11 @@
  * Kütüphane, Çıktı ve Ayarlar ekranlarının ortak parçaları (ConfirmSheet, form alanları,
  * bilgi bandı). Renk/boşluk DEĞERİ yok; hepsi styles/tokens.css değişkenleridir.
  */
+/* Panel altındaki eylemler (Vazgeç / Onayla) eşit genişlikte, başparmakla kolay bulunur. */
+.m-sheet__footer > .m-btn {
+    flex: 1;
+}
+
 .m-field__hint {
     font-size: var(--text-sm);
     color: var(--color-text-muted);

@@ -23,7 +23,7 @@ const TYPE_OPTIONS = (Object.keys(TYPE_META) as CardType[]).map((type) => ({
   label: TYPE_META[type].label,
 }));
 
-/** Ã–zel kart tÃ¼rleri: ÅŸablon listesi, ekleme ve kaldÄ±rma. KaldÄ±rma mevcut kartlara ve projelere dokunmaz. */
+/** Özel kart türleri: şablon listesi, ekleme ve kaldırma. Kaldırma mevcut kartlara ve projelere dokunmaz. */
 export function CardTypesScreen() {
   const { types, load } = useCatalog();
   const active = types.filter((type) => type.isActive);
@@ -31,13 +31,13 @@ export function CardTypesScreen() {
 
   return (
     <div className="m-detail">
-      <ScreenHeader title="Ã–zel kart tÃ¼rleri" subtitle={`${active.length} tÃ¼r`} />
+      <ScreenHeader title="Özel kart türleri" subtitle={`${active.length} tür`} />
       <div className="m-detail__scroll">
         {active.length === 0 ? (
           <EmptyState
             icon="library"
-            title={load.status === 'loading' ? 'YÃ¼kleniyorâ€¦' : 'HenÃ¼z Ã¶zel tÃ¼r yok'}
-            message="TÃ¼r, aynÄ± bilgileri taÅŸÄ±yan kartlar iÃ§in ÅŸablondur: hangi alanlarÄ±n istendiÄŸini ve hangi kartlarÄ±n altÄ±na baÄŸlanabileceÄŸini belirler."
+            title={load.status === 'loading' ? 'Yükleniyor…' : 'Henüz özel tür yok'}
+            message="Tür, aynı bilgileri taşıyan kartlar için şablondur: hangi alanların istendiğini ve hangi kartların altına bağlanabileceğini belirler."
           />
         ) : (
           <ul className="m-row-list m-lib-types">
@@ -46,24 +46,24 @@ export function CardTypesScreen() {
                 <div className="m-lib-type__text">
                   <strong>{type.name}</strong>
                   <small>
-                    {type.code} Â· temel tÃ¼r: {TYPE_META[type.baseCardType].label}
+                    {type.code} · temel tür: {TYPE_META[type.baseCardType].label}
                   </small>
                   <small>
-                    {type.attributeKeys.length} bilgi alanÄ± Â·{' '}
+                    {type.attributeKeys.length} bilgi alanı ·{' '}
                     {type.allowedParentCardIds.length
-                      ? `${type.allowedParentCardIds.length} Ã¼st kart kÄ±sÄ±tÄ±`
-                      : 'Ã¼st kart kÄ±sÄ±tÄ± yok'}{' '}
-                    Â·{' '}
+                      ? `${type.allowedParentCardIds.length} üst kart kısıtı`
+                      : 'üst kart kısıtı yok'}{' '}
+                    ·{' '}
                     {type.allowedChildCardIds.length
-                      ? `${type.allowedChildCardIds.length} alt kart kÄ±sÄ±tÄ±`
-                      : 'alt kart kÄ±sÄ±tÄ± yok'}
+                      ? `${type.allowedChildCardIds.length} alt kart kısıtı`
+                      : 'alt kart kısıtı yok'}
                   </small>
                   {type.description && <small>{type.description}</small>}
                 </div>
                 <button
                   type="button"
                   className="m-icon-button"
-                  aria-label={`${type.name} tÃ¼rÃ¼nÃ¼ kaldÄ±r`}
+                  aria-label={`${type.name} türünü kaldır`}
                   onClick={() => setRemoving(type)}
                 >
                   <Icon name="trash" />
@@ -80,24 +80,24 @@ export function CardTypesScreen() {
           onClick={() => shellActions.push({ screen: 'type-form' }, 'library')}
         >
           <Icon name="plus" size={20} />
-          Yeni kart tÃ¼rÃ¼
+          Yeni kart türü
         </button>
       </div>
       <ConfirmSheet
         open={removing !== null}
         onClose={() => setRemoving(null)}
-        title="Kart tÃ¼rÃ¼ kaldÄ±rÄ±lsÄ±n mÄ±?"
+        title="Kart türü kaldırılsın mı?"
         description={
           removing
-            ? `â€œ${removing.name}â€ yeni kart seÃ§imlerinden kaldÄ±rÄ±lacak. Mevcut kartlar ve projeler korunur.`
+            ? `“${removing.name}” yeni kart seçimlerinden kaldırılacak. Mevcut kartlar ve projeler korunur.`
             : undefined
         }
-        confirmLabel="TÃ¼rÃ¼ kaldÄ±r"
+        confirmLabel="Türü kaldır"
         onConfirm={async () => {
           if (!removing) return;
           const result = await perform(() => api.delete(`/catalog/types/${removing.id}`), {
-            success: 'Kart tÃ¼rÃ¼ kaldÄ±rÄ±ldÄ±.',
-            error: 'Kart tÃ¼rÃ¼ kaldÄ±rÄ±lamadÄ±.',
+            success: 'Kart türü kaldırıldı.',
+            error: 'Kart türü kaldırılamadı.',
           });
           if (!result.ok) return false;
           await actions.loadCatalog();
@@ -107,7 +107,7 @@ export function CardTypesScreen() {
   );
 }
 
-/** Yeni kart tÃ¼rÃ¼ formu. Taslak kalÄ±cÄ±dÄ±r; kayÄ±tta temizlenir. */
+/** Yeni kart türü formu. Taslak kalıcıdır; kayıtta temizlenir. */
 export function TypeForm() {
   const { cards } = useCatalog();
   const attributes = useCatalogAttributes();
@@ -131,7 +131,7 @@ export function TypeForm() {
     }
     setSaving(true);
     const result = await perform(() => api.post<CatalogCardType>('/catalog/types', buildTypePayload(draft)), {
-      success: 'Yeni kart tÃ¼rÃ¼ kÃ¼tÃ¼phaneye eklendi.',
+      success: 'Yeni kart türü kütüphaneye eklendi.',
     });
     setSaving(false);
     if (!result.ok) return;
@@ -142,7 +142,7 @@ export function TypeForm() {
 
   return (
     <div className="m-detail">
-      <ScreenHeader title="Yeni kart tÃ¼rÃ¼" subtitle="Global kÃ¼tÃ¼phane" />
+      <ScreenHeader title="Yeni kart türü" subtitle="Global kütüphane" />
       <div className="m-detail__scroll">
         <form
           className="m-form m-lib-form"
@@ -152,30 +152,30 @@ export function TypeForm() {
             void submit();
           }}
         >
-          <Section title="TÃ¼r">
+          <Section title="Tür">
             <TextField
-              label="KÄ±sa kod"
+              label="Kısa kod"
               value={draft.code}
               error={errors.code}
-              placeholder="Ã–rn. RADYATOR"
+              placeholder="Örn. RADYATOR"
               autoCapitalize="characters"
               autoComplete="off"
               spellCheck={false}
               onChange={(code) => set({ code })}
             />
             <TextField
-              label="TÃ¼r adÄ±"
+              label="Tür adı"
               value={draft.name}
               error={errors.name}
-              placeholder="Ã–rn. Panel radyatÃ¶r"
+              placeholder="Örn. Panel radyatör"
               autoComplete="off"
               onChange={(name) => set({ name })}
             />
             <div className="m-field">
-              <span className="m-field__label">Temel kart davranÄ±ÅŸÄ±</span>
+              <span className="m-field__label">Temel kart davranışı</span>
               <ChipGrid
                 mode="single"
-                label="Temel kart davranÄ±ÅŸÄ±"
+                label="Temel kart davranışı"
                 columns={3}
                 value={draft.baseCardType}
                 options={TYPE_OPTIONS}
@@ -183,45 +183,43 @@ export function TypeForm() {
               />
             </div>
             <TextAreaField
-              label="AÃ§Ä±klama"
+              label="Açıklama"
               rows={2}
               value={draft.description}
-              placeholder="Bu tÃ¼r neyi temsil eder?"
+              placeholder="Bu tür neyi temsil eder?"
               onChange={(description) => set({ description })}
             />
           </Section>
 
-          <Section title="BaÄŸlanabileceÄŸi kartlar">
+          <Section title="Bağlanabileceği kartlar">
             <p className="m-muted">
-              Ãœst/alt kart seÃ§imleri ek aÄŸaÃ§ kÄ±sÄ±tÄ± getirir. BoÅŸ bÄ±rakÄ±rsanÄ±z temel beÅŸli kural Ã§alÄ±ÅŸÄ±r.
+              Üst/alt kart seçimleri ek ağaç kısıtı getirir. Boş bırakırsanız temel beşli kural çalışır.
             </p>
             <button type="button" className="m-action-row" onClick={() => setPicker('parentCardIds')}>
               <Icon name="chevronRight" />
               <span>
-                <strong>Ä°zin verilen Ã¼st kartlar</strong>
-                <small>
-                  {draft.parentCardIds.length ? `${draft.parentCardIds.length} kart seÃ§ili` : 'KÄ±sÄ±t yok'}
-                </small>
+                <strong>İzin verilen üst kartlar</strong>
+                <small>{draft.parentCardIds.length ? `${draft.parentCardIds.length} kart seçili` : 'Kısıt yok'}</small>
               </span>
             </button>
             <button type="button" className="m-action-row" onClick={() => setPicker('childCardIds')}>
               <Icon name="chevronRight" />
               <span>
-                <strong>Ä°zin verilen alt kartlar</strong>
-                <small>{draft.childCardIds.length ? `${draft.childCardIds.length} kart seÃ§ili` : 'KÄ±sÄ±t yok'}</small>
+                <strong>İzin verilen alt kartlar</strong>
+                <small>{draft.childCardIds.length ? `${draft.childCardIds.length} kart seçili` : 'Kısıt yok'}</small>
               </span>
             </button>
           </Section>
 
           <Section title="Kartta istenecek bilgiler">
             <p className="m-muted">
-              Kod, ad ve birim motorun zorunlu alanlarÄ±dÄ±r; diÄŸerlerini ihtiyacÄ±nÄ±za gÃ¶re iÅŸaretleyin.
+              Kod, ad ve birim motorun zorunlu alanlarıdır; diğerlerini ihtiyacınıza göre işaretleyin.
             </p>
             {attributes.status === 'error' && <Notice tone="error">{attributes.error}</Notice>}
             {(attributes.data ?? []).map((attribute) => (
               <CheckRow
                 key={attribute.key}
-                label={`${attribute.label}${attribute.isRequired ? ' Â· zorunlu' : ''}`}
+                label={`${attribute.label}${attribute.isRequired ? ' · zorunlu' : ''}`}
                 description={attribute.description}
                 checked={attribute.isRequired || draft.attributeKeys.includes(attribute.key)}
                 disabled={attribute.isRequired}
@@ -242,7 +240,7 @@ export function TypeForm() {
               setShowErrors(false);
             }}
           >
-            TaslaÄŸÄ± sil
+            Taslağı sil
           </button>
         )}
         <button
@@ -252,12 +250,12 @@ export function TypeForm() {
           onClick={() => void submit()}
         >
           {saving ? <Spinner size={20} /> : <Icon name="check" size={20} />}
-          {saving ? 'Kaydediliyorâ€¦' : 'TÃ¼rÃ¼ kaydet'}
+          {saving ? 'Kaydediliyor…' : 'Türü kaydet'}
         </button>
       </div>
       <CardPickerSheet
         open={picker !== null}
-        title={picker === 'parentCardIds' ? 'Ä°zin verilen Ã¼st kartlar' : 'Ä°zin verilen alt kartlar'}
+        title={picker === 'parentCardIds' ? 'İzin verilen üst kartlar' : 'İzin verilen alt kartlar'}
         cards={activeCards}
         selected={picker ? draft[picker] : []}
         onToggle={(id) => picker && set({ [picker]: toggleId(draft[picker], id) })}
@@ -268,7 +266,7 @@ export function TypeForm() {
   );
 }
 
-/** Kart seÃ§ici: yÃ¼zlerce kart olabileceÄŸi iÃ§in aramalÄ± ve sanallaÅŸtÄ±rÄ±lmÄ±ÅŸ. */
+/** Kart seçici: yüzlerce kart olabileceği için aramalı ve sanallaştırılmış. */
 function CardPickerSheet({
   open,
   title,
@@ -316,8 +314,8 @@ function CardPickerSheet({
           searchText={(card) => `${card.name} ${card.code} ${card.materialType ?? ''}`}
           searchPlaceholder="Kart ara"
           estimateSize={64}
-          emptyState={<EmptyState icon="library" title="Ã–nce kÃ¼tÃ¼phaneye kart ekleyin" />}
-          noResultsState={<EmptyState icon="search" title="EÅŸleÅŸen kart yok" />}
+          emptyState={<EmptyState icon="library" title="Önce kütüphaneye kart ekleyin" />}
+          noResultsState={<EmptyState icon="search" title="Eşleşen kart yok" />}
           renderItem={(card) => {
             const checked = selected.includes(card.id);
             return (

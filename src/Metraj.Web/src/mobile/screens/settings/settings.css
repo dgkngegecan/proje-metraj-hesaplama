@@ -253,7 +253,7 @@
 .m-picker-list {
     display: flex;
     flex-direction: column;
-    height: min(60dvh, 520px);
+    height: calc(100dvh - var(--safe-top) - 220px);
 }
 
 .m-picker-list .m-tree-row[aria-pressed='true'] {

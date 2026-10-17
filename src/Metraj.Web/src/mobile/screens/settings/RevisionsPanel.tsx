@@ -26,6 +26,8 @@ export function RevisionsPanel() {
   const revisions = useRevisionsOf(project?.id ?? null);
   const load = useLoad(project ? loadKeys.revisions(project.id) : 'revisions:none');
   const [approving, setApproving] = useState(false);
+  // Sunucu aynı anda tek taslağa izin verir; düğmeyi kapatıp nedenini yazmak, hata almaktan iyidir.
+  const hasDraft = revisions.some((revision) => revision.status === 'Draft');
 
   const choose = (revision: Revision) => {
     if (revision.id === selected?.id) return;
@@ -106,10 +108,21 @@ export function RevisionsPanel() {
             Onaylanan revizyon korunur; değişiklik için yeni bir düzenleme kopyası açılır. Kopya, seçili revizyonun
             kartlarını ve ölçümlerini taşır.
           </Notice>
+          {hasDraft && (
+            <p id="m-set-draft-hint" className="m-muted">
+              Zaten düzenlenebilir bir taslak var. Yeni kopya açmak için önce onu onaylayın.
+            </p>
+          )}
         </div>
       </div>
       <div className="m-bottom-actions m-bottom-actions--row">
-        <button type="button" className="m-btn m-btn--secondary m-btn--large" onClick={() => void createDraft()}>
+        <button
+          type="button"
+          className="m-btn m-btn--secondary m-btn--large"
+          disabled={hasDraft}
+          aria-describedby={hasDraft ? 'm-set-draft-hint' : undefined}
+          onClick={() => void createDraft()}
+        >
           <Icon name="plus" size={20} />
           Yeni taslak
         </button>

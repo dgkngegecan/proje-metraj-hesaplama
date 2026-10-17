@@ -9,7 +9,14 @@ import { Notice, Section, SelectField, TextField } from '../library/shared/FormP
 import { perform } from '../library/shared/perform';
 import { PickerField, PlacementPicker } from './PlacementPicker';
 import { resourceKeys, useResponsibilities } from './settingsData';
-import { ASSIGNMENT_STATE_LABEL, validateAssignment, validateNamed, type AssignmentState } from './settingsModel';
+import {
+  ASSIGNMENT_STATE_LABEL,
+  decidedAssignmentCount,
+  orderAssignments,
+  validateAssignment,
+  validateNamed,
+  type AssignmentState,
+} from './settingsModel';
 
 type Sheet = 'dimension' | 'party' | 'assignment' | null;
 const PREVIEW = 30;
@@ -50,6 +57,7 @@ export function ResponsibilitiesPanel() {
     );
 
   const { dimensions, parties, assignments } = data.data;
+  const ordered = orderAssignments(assignments);
   const reload = () => actions.invalidateResources(resourceKeys.responsibilities(revisionId));
 
   return (
@@ -114,7 +122,7 @@ export function ResponsibilitiesPanel() {
         </Section>
 
         <Section
-          title={`Atamalar (${assignments.length})`}
+          title={`Atamalar (${decidedAssignmentCount(assignments)} / ${assignments.length})`}
           actions={
             !locked && (
               <button
@@ -133,7 +141,7 @@ export function ResponsibilitiesPanel() {
           {assignments.length ? (
             <>
               <ul className="m-set-list">
-                {(showAll ? assignments : assignments.slice(0, PREVIEW)).map((assignment) => (
+                {(showAll ? ordered : ordered.slice(0, PREVIEW)).map((assignment) => (
                   <li key={assignment.id}>
                     <strong>{assignment.placementName ?? 'Kart'}</strong>
                     <small>

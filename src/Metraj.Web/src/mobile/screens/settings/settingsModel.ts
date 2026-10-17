@@ -50,7 +50,7 @@ export const CALCULATION_STATUS_LABEL: Record<CalculationResult['status'], strin
   Overridden: 'Elle düzeltildi',
   Rejected: 'Uygulanmadı',
   Stale: 'Güncel değil',
-  Superseded: 'Yenisiyle değişti',
+  Superseded: 'Yenisiyle değiştirildi',
 };
 
 export type StatusTone = 'warning' | 'success' | 'neutral' | 'danger';
@@ -148,6 +148,17 @@ export const ASSIGNMENT_STATE_LABEL = {
 } as const;
 
 export type AssignmentState = keyof typeof ASSIGNMENT_STATE_LABEL;
+
+/**
+ * Sunucu bir boyut eklenince bütün kartlar için "Atanmamış" kaydı da üretir; gerçek
+ * atamalar (sorumlu, hariç, opsiyonel) bu gürültünün altında kalmasın diye öne alınır.
+ */
+export function orderAssignments<T extends { state: AssignmentState }>(assignments: readonly T[]): T[] {
+  return [...assignments].sort((a, b) => Number(a.state === 'Unassigned') - Number(b.state === 'Unassigned'));
+}
+
+export const decidedAssignmentCount = (assignments: readonly { state: AssignmentState }[]) =>
+  assignments.filter((assignment) => assignment.state !== 'Unassigned').length;
 
 export function validateNamed(draft: { code: string; name: string }, noun: 'Boyut' | 'Taraf'): string | null {
   return !draft.code.trim() || !draft.name.trim() ? `${noun} için kod ve ad yazın.` : null;

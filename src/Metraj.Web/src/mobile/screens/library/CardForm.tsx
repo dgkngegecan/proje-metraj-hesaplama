@@ -29,7 +29,7 @@ import { perform } from './shared/perform';
 import { useCatalog, useCatalogAttributes, useCatalogCard } from './useCatalog';
 
 interface StoredDraft {
-  /** TaslaÄŸÄ±n dayandÄ±ÄŸÄ± sÃ¼rÃ¼m: kart bu arada deÄŸiÅŸtiyse eski taslak kullanÄ±lmaz. */
+  /** Taslağın dayandığı sürüm: kart bu arada değiştiyse eski taslak kullanılmaz. */
   baseVersion: number;
   draft: CardDraftState;
 }
@@ -41,15 +41,15 @@ const TYPE_OPTIONS = (Object.keys(TYPE_META) as CardType[]).map((type) => ({
 
 const MODE_OPTIONS = [
   { value: 'None', label: 'Standart', hint: 'Tek kart' },
-  { value: 'Pipe', label: 'Boru', hint: 'Ã‡ap ve boy' },
-  { value: 'Fitting', label: 'Fitting', hint: 'Ã‡ap ve Ã§eÅŸit' },
+  { value: 'Pipe', label: 'Boru', hint: 'Çap ve boy' },
+  { value: 'Fitting', label: 'Fitting', hint: 'Çap ve çeşit' },
 ] as const;
 
-const UNIT_SUGGESTIONS = ['adet', 'm', 'mÂ²', 'kg', 'takÄ±m', 'dilim'];
+const UNIT_SUGGESTIONS = ['adet', 'm', 'm²', 'kg', 'takım', 'dilim'];
 
 /**
- * Tam ekran kart formu: yeni kart ve yeni sÃ¼rÃ¼m. Taslak kalÄ±cÄ±dÄ±r (`useDraft`): geri
- * dÃ¶nmek ya da uygulamanÄ±n kapanmasÄ± yazÄ±lanÄ± kaybettirmez; "TaslaÄŸÄ± sil" ile atÄ±lÄ±r.
+ * Tam ekran kart formu: yeni kart ve yeni sürüm. Taslak kalıcıdır (`useDraft`): geri
+ * dönmek ya da uygulamanın kapanması yazılanı kaybettirmez; "Taslağı sil" ile atılır.
  */
 export function CardForm({ cardId }: { cardId: string | null }) {
   const card = useCatalogCard(cardId);
@@ -66,7 +66,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
   const dirty = restored !== null && draftChanged(initial, restored);
   const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
-  // Form aÃ§Ä±ldÄ±ÄŸÄ±nda zaten bir taslak vardÄ± mÄ± (bilgi bandÄ± iÃ§in); sonradan yazÄ±lan sayÄ±lmaz.
+  // Form açıldığında zaten bir taslak vardı mı (bilgi bandı için); sonradan yazılan sayılmaz.
   const [hadDraft] = useState(() => dirty);
 
   const errors = validateCardDraft(draft);
@@ -81,19 +81,19 @@ export function CardForm({ cardId }: { cardId: string | null }) {
   if (cardId && !card) {
     return (
       <div className="m-detail">
-        <ScreenHeader title="Kart bulunamadÄ±" />
-        <EmptyState icon="library" title="Bu kart artÄ±k kÃ¼tÃ¼phanede yok" />
+        <ScreenHeader title="Kart bulunamadı" />
+        <EmptyState icon="library" title="Bu kart artık kütüphanede yok" />
       </div>
     );
   }
   if (card && !card.isActive) {
     return (
       <div className="m-detail">
-        <ScreenHeader title="DÃ¼zenlenemez" />
+        <ScreenHeader title="Düzenlenemez" />
         <EmptyState
           icon="library"
-          title="Pasif karta yeni sÃ¼rÃ¼m eklenemez"
-          message="KartÄ± kullanmak iÃ§in yeni bir kart oluÅŸturun."
+          title="Pasif karta yeni sürüm eklenemez"
+          message="Kartı kullanmak için yeni bir kart oluşturun."
         />
       </div>
     );
@@ -122,9 +122,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
           ? api.post<CatalogCard>(`/catalog/cards/${card.id}/versions`, payload)
           : api.post<CatalogCard>('/catalog/cards', payload),
       {
-        success: card
-          ? `â€œ${payload.name}â€ yeni sÃ¼rÃ¼m olarak kaydedildi.`
-          : `â€œ${payload.name}â€ kÃ¼tÃ¼phaneye eklendi.`,
+        success: card ? `“${payload.name}” yeni sürüm olarak kaydedildi.` : `“${payload.name}” kütüphaneye eklendi.`,
       },
     );
     setSaving(false);
@@ -141,13 +139,13 @@ export function CardForm({ cardId }: { cardId: string | null }) {
     setShowErrors(false);
   };
 
-  const variantLabel = draft.variantMode === 'Pipe' ? 'Ã‡aplar ve ticari boylar' : 'Fitting Ã§eÅŸitleri';
+  const variantLabel = draft.variantMode === 'Pipe' ? 'Çaplar ve ticari boylar' : 'Fitting çeşitleri';
 
   return (
     <div className="m-detail">
       <ScreenHeader
-        title={card ? 'KartÄ± dÃ¼zenle' : 'Yeni kart'}
-        subtitle={card ? `${card.code} Â· v${card.latestVersion} â†’ v${card.latestVersion + 1}` : 'KÃ¼tÃ¼phane'}
+        title={card ? 'Kartı düzenle' : 'Yeni kart'}
+        subtitle={card ? `${card.code} · v${card.latestVersion} → v${card.latestVersion + 1}` : 'Kütüphane'}
       />
       <div className="m-detail__scroll" ref={scrollRef}>
         <form id={formId} className="m-form m-lib-form" onSubmit={(event) => void submit(event)} noValidate>
@@ -156,17 +154,16 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               tone="info"
               action={
                 <button type="button" className="m-btn m-btn--ghost m-btn--small" onClick={discardDraft}>
-                  TaslaÄŸÄ± sil
+                  Taslağı sil
                 </button>
               }
             >
-              YarÄ±m kalan taslaÄŸÄ±nÄ±z geri yÃ¼klendi.
+              Yarım kalan taslağınız geri yüklendi.
             </Notice>
           )}
           {card && (
             <Notice tone="info">
-              Kaydedince â€œ{card.name}â€ iÃ§in yeni bir sÃ¼rÃ¼m oluÅŸur. Projelerdeki mevcut kullanÄ±mlar eski
-              sÃ¼rÃ¼mde kalÄ±r.
+              Kaydedince “{card.name}” için yeni bir sürüm oluşur. Projelerdeki mevcut kullanımlar eski sürümde kalır.
             </Notice>
           )}
 
@@ -175,7 +172,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               label="Ad"
               value={draft.name}
               error={shown.name}
-              placeholder="Ã–rn. Siyah boru"
+              placeholder="Örn. Siyah boru"
               autoComplete="off"
               enterKeyHint="next"
               onChange={(name) => patchDraft({ name })}
@@ -184,7 +181,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               label={card ? 'Katalog kodu (sabit)' : 'Katalog kodu'}
               value={draft.code}
               disabled={Boolean(card)}
-              hint={card ? 'Kart kimliÄŸi sÃ¼rÃ¼mler arasÄ±nda korunur.' : 'BoÅŸ bÄ±rakÄ±rsanÄ±z otomatik Ã¼retilir.'}
+              hint={card ? 'Kart kimliği sürümler arasında korunur.' : 'Boş bırakırsanız otomatik üretilir.'}
               autoCapitalize="characters"
               autoComplete="off"
               spellCheck={false}
@@ -192,11 +189,11 @@ export function CardForm({ cardId }: { cardId: string | null }) {
             />
             <div className="m-field">
               <span className="m-field__label" id={`${formId}-type`}>
-                Temel tÃ¼r
+                Temel tür
               </span>
               <ChipGrid
                 mode="single"
-                label="Temel tÃ¼r"
+                label="Temel tür"
                 columns={3}
                 value={draft.type}
                 options={TYPE_OPTIONS}
@@ -206,16 +203,14 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               />
             </div>
             <SelectField
-              label="Ã–zel tÃ¼r"
+              label="Özel tür"
               value={draft.customTypeId}
-              hint={
-                selectedType ? `â€œ${selectedType.name}â€ tÃ¼rÃ¼nÃ¼n ek alanlarÄ± aÅŸaÄŸÄ±da aÃ§Ä±ldÄ±.` : undefined
-              }
+              hint={selectedType ? `“${selectedType.name}” türünün ek alanları aşağıda açıldı.` : undefined}
               options={[
-                { value: '', label: 'Standart tÃ¼r' },
+                { value: '', label: 'Standart tür' },
                 ...activeTypes.map((type) => ({
                   value: type.id,
-                  label: `${type.name} Â· ${TYPE_META[type.baseCardType].label}`,
+                  label: `${type.name} · ${TYPE_META[type.baseCardType].label}`,
                 })),
               ]}
               onChange={selectCustomType}
@@ -228,7 +223,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               autoComplete="off"
               onChange={(unit) => patchDraft({ unit })}
             />
-            <div className="m-chip-strip" role="group" aria-label="HazÄ±r birimler">
+            <div className="m-chip-strip" role="group" aria-label="Hazır birimler">
               {UNIT_SUGGESTIONS.map((unit) => (
                 <button
                   key={unit}
@@ -244,13 +239,13 @@ export function CardForm({ cardId }: { cardId: string | null }) {
             <TextField
               label="Malzeme ailesi"
               value={draft.materialType}
-              placeholder="Ã–rn. Galvaniz Ã‡elik Boru"
-              hint="AynÄ± ailedeki kartlara ortak fire payÄ± uygulanabilir (Ayarlar â†’ Fire paylarÄ±)."
+              placeholder="Örn. Galvaniz Çelik Boru"
+              hint="Aynı ailedeki kartlara ortak fire payı uygulanabilir (Ayarlar → Fire payları)."
               autoComplete="off"
               onChange={(materialType) => patchDraft({ materialType })}
             />
             <DecimalField
-              label="VarsayÄ±lan fire payÄ±"
+              label="Varsayılan fire payı"
               suffix="%"
               value={draft.wasteRatePct.trim() === '' ? null : Number(draft.wasteRatePct.replace(',', '.'))}
               error={shown.wasteRatePct}
@@ -261,15 +256,15 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               label="Not"
               value={draft.notes}
               rows={2}
-              placeholder="Kartla ilgili kÄ±sa not"
+              placeholder="Kartla ilgili kısa not"
               onChange={(notes) => patchDraft({ notes })}
             />
           </Section>
 
-          <Section title="Varyant davranÄ±ÅŸÄ±">
+          <Section title="Varyant davranışı">
             <ChipGrid
               mode="single"
-              label="Varyant davranÄ±ÅŸÄ±"
+              label="Varyant davranışı"
               columns={3}
               value={draft.variantMode}
               options={MODE_OPTIONS}
@@ -277,13 +272,12 @@ export function CardForm({ cardId }: { cardId: string | null }) {
             />
             {draft.variantMode === 'Pipe' && (
               <p className="m-muted">
-                Her satÄ±r projede seÃ§ilebilir bir Ã§ap oluÅŸturur; metre, boy uzunluÄŸuna bÃ¶lÃ¼nÃ¼p yukarÄ±
-                yuvarlanÄ±r.
+                Her satır projede seçilebilir bir çap oluşturur; metre, boy uzunluğuna bölünüp yukarı yuvarlanır.
               </p>
             )}
             {draft.variantMode === 'Fitting' && (
               <p className="m-muted">
-                Uyumlu Ã§aplarÄ± virgÃ¼lle yazÄ±n: DN25, DN32. BoÅŸ bÄ±rakÄ±rsanÄ±z seÃ§ili boru Ã§apÄ±nda gÃ¶sterilir.
+                Uyumlu çapları virgülle yazın: DN25, DN32. Boş bırakırsanız seçili boru çapında gösterilir.
               </p>
             )}
             {draft.variantMode !== 'None' && (
@@ -305,14 +299,14 @@ export function CardForm({ cardId }: { cardId: string | null }) {
                         className="m-btn m-btn--secondary m-btn--small"
                         onClick={() => setDraft(applyDiameterPreset(draft, 'steel'))}
                       >
-                        Ã‡elik / galvaniz standardÄ±
+                        Çelik / galvaniz standardı
                       </button>
                       <button
                         type="button"
                         className="m-btn m-btn--secondary m-btn--small"
                         onClick={() => setDraft(applyDiameterPreset(draft, 'pprc'))}
                       >
-                        PPR / PPR-C standardÄ±
+                        PPR / PPR-C standardı
                       </button>
                     </>
                   ) : (
@@ -321,7 +315,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
                       className="m-btn m-btn--secondary m-btn--small"
                       onClick={() => setDraft(applyFittingPreset(draft))}
                     >
-                      YaygÄ±n fittingleri ekle
+                      Yaygın fittingleri ekle
                     </button>
                   )}
                 </div>
@@ -339,14 +333,14 @@ export function CardForm({ cardId }: { cardId: string | null }) {
                 </ul>
                 <button type="button" className="m-btn m-btn--secondary" onClick={() => setDraft(addVariant(draft))}>
                   <Icon name="plus" size={20} />
-                  {draft.variantMode === 'Pipe' ? 'Ã–zel Ã§ap ekle' : 'Ã–zel fitting ekle'}
+                  {draft.variantMode === 'Pipe' ? 'Özel çap ekle' : 'Özel fitting ekle'}
                 </button>
               </>
             )}
           </Section>
 
           {dynamic.length > 0 && (
-            <Section title="Bu tÃ¼rÃ¼n ek bilgileri">
+            <Section title="Bu türün ek bilgileri">
               {dynamic.map((attribute) => {
                 const control = attributeControl(attribute.key);
                 const value = draft.attributeValues[attribute.key] ?? '';
@@ -359,7 +353,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
                       label={attribute.label}
                       hint={attribute.description}
                       value={value}
-                      options={[{ value: '', label: 'VarsayÄ±lanÄ± kullan' }, ...control.options]}
+                      options={[{ value: '', label: 'Varsayılanı kullan' }, ...control.options]}
                       onChange={set}
                     />
                   );
@@ -398,12 +392,12 @@ export function CardForm({ cardId }: { cardId: string | null }) {
             disabled={saving}
             onClick={discardDraft}
           >
-            TaslaÄŸÄ± sil
+            Taslağı sil
           </button>
         )}
         <button type="submit" form={formId} className="m-btn m-btn--primary m-btn--large" disabled={saving}>
           {saving ? <Spinner size={20} /> : <Icon name="check" size={20} />}
-          {saving ? 'Kaydediliyorâ€¦' : card ? 'Yeni sÃ¼rÃ¼m olarak kaydet' : 'KartÄ± kaydet'}
+          {saving ? 'Kaydediliyor…' : card ? 'Yeni sürüm olarak kaydet' : 'Kartı kaydet'}
         </button>
       </div>
     </div>
@@ -423,7 +417,7 @@ function VariantEditor({
   onChange: (change: Partial<CatalogCardVariant>) => void;
   onRemove: () => void;
 }) {
-  const noun = mode === 'Pipe' ? 'Ã‡ap' : 'Fitting';
+  const noun = mode === 'Pipe' ? 'Çap' : 'Fitting';
   return (
     <li className="m-lib-variant-editor">
       <div className="m-lib-variant-editor__head">
@@ -433,14 +427,14 @@ function VariantEditor({
         <button
           type="button"
           className="m-icon-button"
-          aria-label={`${noun} ${index + 1} satÄ±rÄ±nÄ± sil`}
+          aria-label={`${noun} ${index + 1} satırını sil`}
           onClick={onRemove}
         >
           <Icon name="trash" />
         </button>
       </div>
       <TextField
-        label={mode === 'Pipe' ? 'Ã‡ap kodu' : 'Fitting kodu'}
+        label={mode === 'Pipe' ? 'Çap kodu' : 'Fitting kodu'}
         value={variant.code}
         placeholder={mode === 'Pipe' ? 'DN25' : 'ELBOW-90'}
         autoCapitalize="characters"
@@ -449,9 +443,9 @@ function VariantEditor({
         onChange={(code) => onChange({ code })}
       />
       <TextField
-        label={mode === 'Pipe' ? 'Ã‡ap etiketi' : 'Fitting adÄ±'}
+        label={mode === 'Pipe' ? 'Çap etiketi' : 'Fitting adı'}
         value={variant.label}
-        placeholder={mode === 'Pipe' ? 'DN25 / 1"' : '90Â° Dirsek'}
+        placeholder={mode === 'Pipe' ? 'DN25 / 1"' : '90° Dirsek'}
         autoComplete="off"
         onChange={(label) => onChange({ label })}
       />
@@ -472,7 +466,7 @@ function VariantEditor({
   );
 }
 
-/** "DN25, DN32" yazÄ±mÄ±: yazarken virgÃ¼l kaybolmasÄ±n diye metin yerelde tutulur. */
+/** "DN25, DN32" yazımı: yazarken virgül kaybolmasın diye metin yerelde tutulur. */
 function DiameterListField({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const [text, setText] = useState(value.join(', '));
   const external = value.join('|');
@@ -483,13 +477,13 @@ function DiameterListField({ value, onChange }: { value: string[]; onChange: (va
   }
   return (
     <TextField
-      label="Uyumlu Ã§aplar"
+      label="Uyumlu çaplar"
       value={text}
       placeholder="DN25, DN32"
       autoComplete="off"
       autoCapitalize="characters"
       spellCheck={false}
-      hint="VirgÃ¼lle ayÄ±rÄ±n. BoÅŸsa seÃ§ili boru Ã§apÄ±nda gÃ¶sterilir."
+      hint="Virgülle ayırın. Boşsa seçili boru çapında gösterilir."
       onChange={(next) => {
         setText(next);
         const parsed = parseDiameterList(next);

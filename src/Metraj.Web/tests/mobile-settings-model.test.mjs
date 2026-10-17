@@ -23,6 +23,8 @@ import {
   ruleSummary,
   sampleMessage,
   sortResults,
+  decidedAssignmentCount,
+  orderAssignments,
   validateAssignment,
   validateCalculationLink,
   validateNamed,
@@ -121,6 +123,25 @@ test('sorumluluk: boyut/taraf adı ve atama zorunlulukları', () => {
   assert.equal(validateAssignment('d', ''), 'Boyut ve kart seçin.');
   assert.equal(validateAssignment('d', 'p'), null);
   assert.deepEqual(Object.keys(ASSIGNMENT_STATE_LABEL), ['Assigned', 'Excluded', 'Optional', 'Unassigned']);
+});
+
+test('atamalar: gerçek kararlar "Atanmamış" gürültüsünün önüne alınır, sıra korunur', () => {
+  const list = [
+    { id: 1, state: 'Unassigned' },
+    { id: 2, state: 'Assigned' },
+    { id: 3, state: 'Unassigned' },
+    { id: 4, state: 'Excluded' },
+  ];
+  assert.deepEqual(
+    orderAssignments(list).map((a) => a.id),
+    [2, 4, 1, 3],
+  );
+  assert.equal(decidedAssignmentCount(list), 2);
+  assert.deepEqual(
+    list.map((a) => a.id),
+    [1, 2, 3, 4],
+    'girdi değişmez',
+  );
 });
 
 test('fire payı: aile adı zorunlu, oran 0-1000 arası, virgül kabul', () => {
