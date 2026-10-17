@@ -158,6 +158,37 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 - Testler: xUnit `[Fact]` + `TestDatabase.CreateAsync`; ön yüzde `node:test` ile `.ts` doğrudan içe aktarılır.
 - Yorumlar Türkçe ve "neden / önceden ne oluyordu" anlatır.
 
+## Dalga 2 sonuçları (2026-10-17)
+
+Üç dal `feature/android-mobile`'a birleşti. Masaüstü: derleme 0 uyarı, xUnit 202/202; arayüz testleri 252/252; mobil paket denetimi geçti (ilk JS < 100 kB gzip, React Flow yok). Android: `scripts/build-android.ps1` ile arm64 APK 34,3 MB, x64 37,5 MB; 16 KB hizalı; tek izin androidx'in imza düzeyindeki iç izni (INTERNET yok).
+
+**Not:** `isolation: worktree` alt ajan worktree'lerini `main`'den açıyor, mevcut daldan değil. Dalga 2 ajanları bunu fark edip `git merge --ff-only feature/android-mobile` ile düzeltti. Dalga 3'te ajanlara ilk iş olarak bunu yaptırın.
+
+- **Ajan 4:** `src/Metraj.Android` (kök ad alanı `Metraj.Mobile`), `Metraj.Mobile.sln`, `scripts/build-android.ps1`. Açılış: hazırlık iki öncelikli iş parçacığında, WebView ile paralel; EF, JSON tür bilgisi ve router ısındırması. Köprü gidiş-dönüşü ısınmış GET 5–7 ms, yazma 25–40 ms.
+- **Ajan 5:** `screens/project` (ağaç, kart ekleme, eylem menüsü, giriş sayfası, bağlam, boru/fitting/radyatör, geçmiş, notlar).
+- **Ajan 6:** `screens/{library,output,settings}`.
+- **Orkestratör düzeltmeleri:** `npm test` altında süreye bağlı kırılgan arama testi; **yerleşimli projelerde "bütün projeleri temizle" 500 hatası** (masaüstünde de vardı; RESTRICT öz-başvuru, test eklendi).
+
+### Birleşik uygulamanın emülatör duman testi (orkestratör, x64 Release)
+
+| Adım | Sonuç |
+|---|---|
+| Temiz kurulum | Kabuk t+3,3 s, `ready` t+4,5 s; göç + 733 kart tohumlama çekirdeği t+14,9 s'de hazır etti; boş durum ekranı ve "Örnek projeyi aç" |
+| Örnek proje → ağaç → iç seviye | Yol göstergesi, Net/Fireli/Alım rozetleri doğru |
+| Giriş sayfası → tuş takımı `2,5+3×2` | Önizleme `= 8,5 m`; kayıt sonrası Net 45,25 → 53,75 m, fireli 56,4375 m, 15 boy; kayıt 615 ms (ilk yazma), özet tazeleme 24 ms |
+| Özet → PDF | Cihazda üretildi (89 KB, 2,4 s); "Dosya hazır" paneli → Android paylaşım ekranı |
+| Geri tuşu | Paylaşım kapandı → önceki sekme; çökme yok |
+
+### Dalga 3'e devredilen işler
+
+1. **Okunur dosya adları:** rapor/çalışma alanı indirmeleri `metraj-<guid>-<guid>.pdf` adıyla paylaşılıyor (masaüstünde de). Router `DownloadName`'i proje kodu + revizyon + kapsam + tarih olmalı; Ajan 1'in sabitleme testleri buna göre güncellenir.
+2. **Açılış performansı:** sıcak açılışta ilk veri t+4,1–4,3 s (hedef 3,5 s); ilk EF sorgu derlemesi ~1,7–2,1 s; ilk katalog isteği 2,5 s (733 kartın ilk JSON dönüşümü); ilk kurulumda ~15 s boş kabuk (göç + tohumlama) → ilerleme göstergesi ya da önceden tohumlanmış DB.
+3. **Sunucu tarihleri** `Kind=Unspecified` ile Z'siz gidiyor; mobil UTC kabul ediyor, masaüstü yerel saat sanıyor. API'de UTC olarak yazılmalı.
+4. **Eksik uç noktalar:** kart sürüm geçmişi (`GET /catalog/cards/{id}/versions`), `/api/health`'te sürüm ve veri konumu.
+5. **Alan eksikleri:** şaft ve hat no için ayrı ölçüm alanı yok (nota yazılıyor).
+6. **Cihaz doğrulaması:** gerçek ARM telefon, 16 KB sayfalı cihaz, eski WebView'da hata ekranı, çentik/yatay ekran, gerçek parmakla kaydırma ve uzun basma.
+7. **Küçük ekran:** Çıktı ekranında liste alanı dar.
+
 ## Dalga 1 sonuçları (2026-10-17)
 
 Üç dal `feature/android-mobile`'a birleşti. Masaüstü: derleme 0 uyarı, xUnit 201/201, arayüz testleri 147/147, mobil paket denetimi geçti. Güvenlik denetimi (`NuGetAudit`) artık kapatılmıyor.
