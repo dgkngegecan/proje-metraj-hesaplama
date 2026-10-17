@@ -247,3 +247,12 @@ export interface MaterialWasteSetting {
   wasteRatePct: number;
   updatedAtUtc: string;
 }
+
+/** `POST /api/workspace/import` yanıtı (mevcut veriye ekleyerek içe aktarma). */
+export interface WorkspaceImportResult {
+  importedProjects: number;
+  skippedProjects: number;
+  importedCatalogCards: number;
+  importedCardVersions: number;
+  importedWasteSettings: number;
+}
