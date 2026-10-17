@@ -67,7 +67,10 @@ public sealed class MetrajServices : IDisposable
     /// <summary>Tek uygulama veritabanı için servislerin tamamını kurar.</summary>
     /// <remarks>
     /// Masaüstündeki eski <c>RegisterWorkspaceServices</c>'in birebir karşılığı:
-    /// aynı somut sınıflar, aynı bağlam fabrikası ve aynı kapı örneği.
+    /// aynı somut sınıflar, aynı bağlam fabrikası ve aynı kapı örneği. Tek fark
+    /// <see cref="StarterCatalogWorkspaceService"/>'in veritabanı yoluyla kurulmasıdır:
+    /// standart paket değişmemişse açılış denetimi ve "Eksik standartları tamamla"
+    /// EF Core'u hiç başlatmadan döner (davranış aynı, yalnız hız farklı).
     /// </remarks>
     /// <param name="databasePath">SQLite veritabanının tam yolu.</param>
     /// <param name="backupDirectory">
@@ -85,7 +88,7 @@ public sealed class MetrajServices : IDisposable
             Projects = new ProjectWorkspaceService(contextFactory),
             Catalog = new CatalogWorkspaceService(contextFactory),
             CatalogCardTypes = new CatalogCardTypeWorkspaceService(contextFactory),
-            StarterCatalog = new StarterCatalogWorkspaceService(contextFactory),
+            StarterCatalog = new StarterCatalogWorkspaceService(databasePath),
             ProjectTree = new ProjectTreeWorkspaceService(contextFactory),
             PlacementContextNotes = new PlacementContextNoteWorkspaceService(contextFactory),
             Responsibilities = new ResponsibilityWorkspaceService(contextFactory),

@@ -1,5 +1,6 @@
 ﻿using System.Data.Common;
 using System.Globalization;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 
@@ -20,6 +21,22 @@ public static class ApplicationSchemaMigrator
     private const string UiStateVersion = "20260909-ui-state";
     private const string ResponsibilityScopedIndexesVersion = "20260909-responsibility-scoped-indexes";
     private const string PlacementContextNotesVersion = "20260912-placement-context-notes";
+    private const string StarterCatalogSeedStampVersion = "20261017-starter-catalog-seed-stamp";
+
+    /// <summary>Standart kart paketinin en son eksiksiz tohumlandığı manifest özetini tutan tek satırlık tablo.</summary>
+    internal const string StarterCatalogSeedStampTable = "__StarterCatalogSeedStamp";
+
+    /// <summary>
+    /// Damgayı geçersiz kılan tetikleyiciler. Damga yalnız bu dördü yerindeyken
+    /// güvenilir; biri eksikse tohumlama kısa yolu kullanılmaz.
+    /// </summary>
+    internal static IReadOnlyList<string> StarterCatalogSeedStampTriggers { get; } =
+    [
+        "TR_CatalogCardDefinitions_StarterSeedStamp_Delete",
+        "TR_CatalogCardDefinitions_StarterSeedStamp_Update",
+        "TR_CatalogCardVersions_StarterSeedStamp_Delete",
+        "TR_CatalogCardVersions_StarterSeedStamp_Update"
+    ];
 
     /// <summary>
     /// Bu uygulama sürümünün tanıdığı şema adımları. Geri yükleme doğrulaması da
@@ -39,7 +56,8 @@ public static class ApplicationSchemaMigrator
         RevisionEffectivePolicyVersion,
         UiStateVersion,
         ResponsibilityScopedIndexesVersion,
-        PlacementContextNotesVersion
+        PlacementContextNotesVersion,
+        StarterCatalogSeedStampVersion
     ];
 
     /// <summary>
@@ -76,13 +94,19 @@ public static class ApplicationSchemaMigrator
     /// sorulur: her açılışta koşulsuz yedek almak, kullanıcının kasıtlı
     /// yedeklerini kotadan düşürüyor ve açılışı gereksiz yere uzatıyordu.
     /// </summary>
+    /// <remarks>
+    /// İki ham SQL sorgusu çalıştırır ve EF Core'a DOKUNMAZ. Önceden bağlantıyı
+    /// almak için bir <see cref="MetrajDbContext"/> kuruluyordu; sorgular
+    /// milisaniyelik olduğu hâlde ölçülen sürenin hemen hepsi EF Core'un ilk
+    /// servis kurulumuydu (Android'de tam AOT ile sıcak açılışta 2,7 s). Bağlantı
+    /// dizesi bağlamınkiyle birebir aynıdır, dolayısıyla aynı havuzu paylaşır.
+    /// </remarks>
     public static async Task<bool> IsUpToDateAsync(string databasePath, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(databasePath);
         if (!File.Exists(databasePath)) return false;
 
-        await using MetrajDbContext context = MetrajDbContextFactory.Create(databasePath);
-        DbConnection connection = context.Database.GetDbConnection();
+        await using var connection = new SqliteConnection(MetrajDbContextFactory.BuildConnectionString(databasePath));
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         await using (DbCommand probe = connection.CreateCommand())
@@ -128,6 +152,7 @@ public static class ApplicationSchemaMigrator
         await EnsureUiStateAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsureResponsibilityScopedIndexesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await EnsurePlacementContextNotesAsync(context, transaction, cancellationToken).ConfigureAwait(false);
+        await EnsureStarterCatalogSeedStampAsync(context, transaction, cancellationToken).ConfigureAwait(false);
         await context.Database.ExecuteSqlRawAsync(
             """
             CREATE TABLE IF NOT EXISTS "__AppSchemaVersions" (
@@ -347,6 +372,53 @@ public static class ApplicationSchemaMigrator
             CREATE INDEX IF NOT EXISTS "IX_PlacementContextNotes_PlacementId_CreatedAtUtc_Id"
                 ON "PlacementContextNotes" ("PlacementId", "CreatedAtUtc", "Id");
             """, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Standart kart paketi damgasını ve onu geçersiz kılan tetikleyicileri kurar.
+    /// </summary>
+    /// <remarks>
+    /// Önceden açılıştaki tohumlama, eklenecek bir şey olmasa bile her seferinde
+    /// 733 kartlık manifesti kuruyor ve aktif katalogun tamamını sürümleriyle
+    /// okuyordu (Android'de tam AOT ile sıcak açılışta 1,1 s). Tohumlama artık
+    /// eksiksiz bittiğinde manifestin özetini buraya yazar; özet değişmemişse bir
+    /// sonraki tohumlama hiçbir şey okumadan döner.
+    ///
+    /// Damga yalnız şu soruya cevap verir: "tam tohumlama şimdi çalışsa bir şey
+    /// ekler mi?" Ekleme kararı yalnız KODLARA (silinmiş/yeniden adlandırılmış kart)
+    /// ve aile kartlarının etkinliğine/1. sürüm niteliklerine bağlıdır. Bunları
+    /// değiştiren her yazım -- hangi servisten, içe aktarmadan ya da eski bir
+    /// uygulama sürümünden gelirse gelsin -- tetikleyici sayesinde damgayı siler.
+    /// Ekleme (INSERT) tohumlamanın ekleyeceklerini yalnız azaltabildiği için
+    /// damgaya dokunmaz. Tetikleyiciler BEFORE türündedir: EF Core SQLite'ta
+    /// değişiklikleri RETURNING ile yazar ve belgelerine göre AFTER tetikleyicili
+    /// tablolar için modelde ayrıca HasTrigger bildirimi ister; BEFORE tetikleyicisi
+    /// buna gerek bırakmaz (kart silme/pasife alma testleri EF üzerinden geçer).
+    /// </remarks>
+    private static async Task EnsureStarterCatalogSeedStampAsync(MetrajDbContext context, IDbContextTransaction transaction, CancellationToken cancellationToken)
+    {
+        DbConnection connection = await GetOpenConnectionAsync(context, cancellationToken).ConfigureAwait(false);
+        string invalidate = $"BEGIN DELETE FROM \"{StarterCatalogSeedStampTable}\"; END;";
+        string[] statements =
+        [
+            $"""
+            CREATE TABLE IF NOT EXISTS "{StarterCatalogSeedStampTable}" (
+                "Id" INTEGER NOT NULL CONSTRAINT "PK_{StarterCatalogSeedStampTable}" PRIMARY KEY CHECK ("Id" = 1),
+                "ManifestDigest" TEXT NOT NULL,
+                "TargetCount" INTEGER NOT NULL,
+                "StampedAtUtc" TEXT NOT NULL
+            );
+            """,
+            $"CREATE TRIGGER IF NOT EXISTS \"{StarterCatalogSeedStampTriggers[0]}\" BEFORE DELETE ON \"CatalogCardDefinitions\" {invalidate}",
+            $"CREATE TRIGGER IF NOT EXISTS \"{StarterCatalogSeedStampTriggers[1]}\" BEFORE UPDATE OF \"Code\", \"IsActive\" ON \"CatalogCardDefinitions\" {invalidate}",
+            $"CREATE TRIGGER IF NOT EXISTS \"{StarterCatalogSeedStampTriggers[2]}\" BEFORE DELETE ON \"CatalogCardVersions\" {invalidate}",
+            $"CREATE TRIGGER IF NOT EXISTS \"{StarterCatalogSeedStampTriggers[3]}\" BEFORE UPDATE OF \"CatalogCardDefinitionId\", \"VersionNumber\", \"AttributeValuesJson\" ON \"CatalogCardVersions\" {invalidate}"
+        ];
+
+        foreach (string statement in statements)
+        {
+            await ExecuteAsync(connection, transaction, statement, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     /// <summary>Bağlantıyı açık hâlde döndürür.</summary>
