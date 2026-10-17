@@ -640,3 +640,19 @@ test('hesap bağı ön kontrolleri masaüstüyle aynı mesajları verir', () => 
   assert.match(checkCalculationLink('a', 'a').error, /aynı olamaz/);
   assert.equal(checkCalculationLink('a', 'b').ok, true);
 });
+
+test('sunucunun saat dilimi eksiz zaman damgası UTC sayılır; karışık biçimler doğru sıralanır', async () => {
+  const { parseUtc } = await import('../src/mobile/screens/project/measurementRows.ts');
+  assert.equal(parseUtc('2026-10-17T14:45:38.4138484'), Date.parse('2026-10-17T14:45:38.4138484Z'));
+  assert.equal(parseUtc('2026-10-17T14:45:38Z'), Date.parse('2026-10-17T14:45:38Z'));
+  assert.equal(parseUtc('2026-10-17T17:45:38+03:00'), Date.parse('2026-10-17T14:45:38Z'));
+  assert.ok(Number.isNaN(parseUtc('')));
+  const sorted = newestFirst([
+    { id: 'server', createdAtUtc: '2026-10-17T14:50:17.5598283' },
+    { id: 'tmp', createdAtUtc: '2026-10-17T14:55:00.000Z' },
+  ]);
+  assert.deepEqual(
+    sorted.map((item) => item.id),
+    ['tmp', 'server'],
+  );
+});

@@ -4,7 +4,7 @@ import type { Measurement } from '../../../types';
 import { ActionSheet, SwipeRow, type KeypadResult, KeypadSheet } from '../../components';
 import { isTemporaryId } from '../../store';
 import { measurementContextSummary } from './context.ts';
-import { newestFirst, quantityToExpression } from './measurementRows.ts';
+import { newestFirst, parseUtc, quantityToExpression } from './measurementRows.ts';
 
 const PAGE = 20;
 
@@ -16,8 +16,8 @@ const timeFormat = new Intl.DateTimeFormat('tr-TR', {
 });
 
 function formatTime(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : timeFormat.format(date);
+  const time = parseUtc(value);
+  return Number.isNaN(time) ? '' : timeFormat.format(new Date(time));
 }
 
 const exactPositive = (result: KeypadResult) =>

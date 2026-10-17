@@ -206,10 +206,12 @@ export function FittingEntry({
           >
             {saving ? 'Kaydediliyor…' : total ? `Hepsini ekle · ${quantity(total)} adet` : 'Adetleri girin'}
           </button>
-          <p className="m-muted m-proj-note">
-            Bekleyen adetler kart ve çap değiştirseniz de saklanır; yalnız başarıyla eklenince temizlenir.
-          </p>
         </div>
+      )}
+      {!locked && (
+        <p className="m-muted m-proj-note">
+          Bekleyen adetler kart ve çap değiştirseniz de saklanır; yalnız başarıyla eklenince temizlenir.
+        </p>
       )}
       <KeypadSheet
         open={typing !== null}

@@ -146,10 +146,21 @@ export function quantityToExpression(value: number): string {
   return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 20, useGrouping: false }).format(value);
 }
 
+/**
+ * Sunucu `DateTime`'ı saat dilimi eki OLMADAN yazıyor ("2026-10-17T14:45:38.41");
+ * tarayıcı bunu yerel saat sayar ve ekranda UTC farkı kadar kayık saat görünür.
+ * Eksiz zaman damgaları UTC kabul edilir (sunucu hep UTC yazar).
+ */
+export function parseUtc(value: string | null | undefined): number {
+  if (!value) return Number.NaN;
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  return Date.parse(hasZone ? value : `${value}Z`);
+}
+
 /** Geçmiş listesi sırası: en yeni önce, eşitlikte kimlik. */
 export function newestFirst(measurements: readonly Measurement[]): Measurement[] {
   const time = (value: string) => {
-    const parsed = Date.parse(value);
+    const parsed = parseUtc(value);
     return Number.isFinite(parsed) ? parsed : 0;
   };
   return [...measurements].sort((a, b) => time(b.createdAtUtc) - time(a.createdAtUtc) || b.id.localeCompare(a.id));

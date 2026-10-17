@@ -277,10 +277,6 @@ export function RadiatorEntry({
       )}
       {!locked && (
         <div className="m-proj-savebar">
-          <p className="m-muted m-proj-note">
-            {radiatorTypeLabel(group.type)} · {group.height} mm · {pending.rows.length} uzunluk — yalnız bu tip ve
-            yükseklik kaydedilir.
-          </p>
           <button
             type="button"
             className="m-btn m-btn--primary m-btn--large m-btn--block"
@@ -294,6 +290,12 @@ export function RadiatorEntry({
                 : 'Adetleri girin'}
           </button>
         </div>
+      )}
+      {!locked && (
+        <p className="m-muted m-proj-note">
+          Kaydet yalnız seçili tip ve yüksekliği ({radiatorTypeLabel(group.type)} · {group.height} mm) gönderir; diğer
+          adetler bekler.
+        </p>
       )}
 
       <BottomSheet

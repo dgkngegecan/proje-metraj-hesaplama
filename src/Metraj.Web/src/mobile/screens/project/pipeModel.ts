@@ -2,7 +2,7 @@ import type { CatalogCardVariant, Measurement, MeasurementSummary, Placement } f
 import { STEEL_DIAMETERS, variantName } from '../../../lib/catalogData.ts';
 import { diameterCode } from '../../../lib/fittingChoices.ts';
 import { measurementVariantOf } from '../../../lib/format.ts';
-import type { EntryRow } from './measurementRows.ts';
+import { parseUtc, type EntryRow } from './measurementRows.ts';
 
 /**
  * Boru çapı/boyutu seçimi (saf). Masaüstü Inspector'daki "Boru çapları" kutusunun
@@ -51,7 +51,7 @@ export function orderByRecentUse<T extends Pick<CatalogCardVariant, 'code' | 'la
     if (!value) continue;
     const index = variants.findIndex((variant) => matchesVariant(value, variant));
     if (index < 0) continue;
-    const time = Date.parse(measurement.createdAtUtc);
+    const time = parseUtc(measurement.createdAtUtc);
     const stamp = Number.isFinite(time) ? time : 0;
     if (stamp >= (lastUsed.get(index) ?? -1)) lastUsed.set(index, stamp);
   }

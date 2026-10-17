@@ -1,11 +1,14 @@
 import { useCallback, useMemo } from 'react';
-import { draftKey, useDraft, useSelection } from '../../store';
+import { draftKey, useAppStore, useDraft, useSelection } from '../../store';
+import { selectMeasurementsOfRevision } from '../../store/selectors.ts';
+import { newestFirst } from './measurementRows.ts';
 import {
   CONTEXT_DRAFT_KIND,
   CONTEXT_RECENTS_DRAFT_KIND,
   normalizeContext,
   normalizeRecents,
   pushRecentValue,
+  seedRecents,
   withValue,
   type ContextKey,
   type ContextRecents,
@@ -26,21 +29,24 @@ export interface MeasureContextApi {
  * (masaüstüyle aynı kural). Taslak deposu hazır olmadan okunmaz (`useDraft` bunu yapar).
  */
 export function useMeasureContext(): MeasureContextApi {
-  const { projectId } = useSelection();
+  const { projectId, revisionId } = useSelection();
   const id = projectId ?? 'none';
+  const revisionMeasurements = useAppStore((state) => selectMeasurementsOfRevision(state, revisionId));
   const [rawContext, setRawContext] = useDraft<unknown>(draftKey(CONTEXT_DRAFT_KIND, id), null);
   const [rawRecents, setRawRecents] = useDraft<unknown>(draftKey(CONTEXT_RECENTS_DRAFT_KIND, id), null);
   const context = useMemo(() => normalizeContext(rawContext), [rawContext]);
-  const recents = useMemo(() => normalizeRecents(rawRecents), [rawRecents]);
+  const saved = useMemo(() => normalizeRecents(rawRecents), [rawRecents]);
+  // Kaydedilmiş son değerlerin ardına, revizyondaki girişlerde geçen konumlar (en yeni önce) eklenir.
+  const recents = useMemo(() => seedRecents(saved, newestFirst(revisionMeasurements)), [saved, revisionMeasurements]);
 
   const setField = useCallback(
     (key: ContextKey, value: string) => {
       const next = withValue(context, key, value);
       if (next === context) return;
       setRawContext(next);
-      if (next[key]) setRawRecents(pushRecentValue(recents, key, next[key]));
+      if (next[key]) setRawRecents(pushRecentValue(saved, key, next[key]));
     },
-    [context, recents, setRawContext, setRawRecents],
+    [context, saved, setRawContext, setRawRecents],
   );
   const clearAll = useCallback(() => setRawContext(null), [setRawContext]);
 

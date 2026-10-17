@@ -195,3 +195,24 @@ test('bağlam: son değerler başa alınır, harf farkı tek sayılır, sekizle 
   assert.deepEqual(parsed.floor, ['x', 'y']);
   assert.deepEqual(parsed.block, []);
 });
+
+test('bağlam: değer zaten önek taşıyorsa özet "Kat Kat 1" üretmez', () => {
+  const context = { ...emptyContext(), floor: 'Kat 1', block: 'A', zone: 'zon z2' };
+  assert.equal(contextSummary(context), 'Blok A · Kat 1 · zon z2');
+});
+
+test('bağlam: ölçümlerde geçen konumlar son değerlerin ardına eklenir, yinelenmez, sınırlıdır', async () => {
+  const { seedRecents } = await import('../src/mobile/screens/project/context.ts');
+  const recents = pushRecentValue(emptyRecents(), 'floor', 'Kat 3');
+  const seeded = seedRecents(recents, [
+    { floor: 'Kat 2', block: 'A' },
+    { floor: 'kat 3', block: 'A' },
+    { floor: 'Kat 1', room: null },
+    { floor: '  ', block: 'B' },
+  ]);
+  assert.deepEqual(seeded.floor, ['Kat 3', 'Kat 2', 'Kat 1']);
+  assert.deepEqual(seeded.block, ['A', 'B']);
+  assert.equal(seedRecents(emptyRecents(), []).floor.length, 0);
+  const many = Array.from({ length: 20 }, (_, i) => ({ room: `Oda ${i}` }));
+  assert.equal(seedRecents(emptyRecents(), many).room.length, 8);
+});

@@ -261,7 +261,7 @@ function Entry({ placement, revisionId }: { placement: Placement; revisionId: st
           </section>
         )}
 
-        {isFitting && canMeasure && draftsReady && (
+        {isFitting && canMeasure && draftsReady && !locked && (
           <FittingEntry
             placement={placement}
             placements={placements}
@@ -270,7 +270,7 @@ function Entry({ placement, revisionId }: { placement: Placement; revisionId: st
             context={measureContext.context}
           />
         )}
-        {isRadiator && canMeasure && draftsReady && (
+        {isRadiator && canMeasure && draftsReady && !locked && (
           <RadiatorEntry
             placement={placement}
             revisionId={revisionId}

@@ -128,15 +128,19 @@ export function composeNotes(rowNotes: string | null | undefined, context: Measu
   return [rowNotes, ...contextNoteSegments(context)].filter(Boolean).join(' · ') || null;
 }
 
+/** Değer zaten "Kat 1" gibi öneki taşıyorsa ("Kat Kat 1" olmasın) ikinci kez eklenmez. */
+const prefixed = (prefix: string) => (value: string) =>
+  value.toLocaleLowerCase('tr').startsWith(prefix.toLocaleLowerCase('tr')) ? value : `${prefix} ${value}`;
+
 const SHORT_LABEL: Record<ContextKey, (value: string) => string> = {
-  block: (value) => `Blok ${value}`,
-  floor: (value) => `Kat ${value}`,
+  block: prefixed('Blok'),
+  floor: prefixed('Kat'),
   room: (value) => value,
-  zone: (value) => `Zon ${value}`,
-  shaft: (value) => `Şaft ${value}`,
-  line: (value) => `Hat ${value}`,
-  sheet: (value) => `Pafta ${value}`,
-  drawingRevision: (value) => `Rev ${value}`,
+  zone: prefixed('Zon'),
+  shaft: prefixed('Şaft'),
+  line: prefixed('Hat'),
+  sheet: prefixed('Pafta'),
+  drawingRevision: prefixed('Rev'),
   note: (value) => value,
 };
 
@@ -145,6 +149,36 @@ export function contextSummary(context: MeasureContext): string {
   return CONTEXT_KEYS.filter((key) => context[key])
     .map((key) => SHORT_LABEL[key](context[key]))
     .join(' · ');
+}
+
+type ContextSource = Partial<
+  Record<'block' | 'floor' | 'room' | 'zone' | 'sheet' | 'drawingRevision', string | null | undefined>
+>;
+
+const SEEDED_KEYS = ['block', 'floor', 'room', 'zone', 'sheet', 'drawingRevision'] as const;
+
+/**
+ * Henüz hiç çip seçilmemiş projede bile seçenek çıksın: son kullanılanların
+ * ardına, revizyondaki mevcut ölçümlerde geçen değerler (verilen sırayla; en
+ * yeni önce verilmeli) eklenir. Böylece masaüstünde veya önceki girişlerde
+ * yazılmış "Kat 1 / Kat 2" telefonda tek dokunuşla seçilir.
+ */
+export function seedRecents(recents: ContextRecents, measurements: readonly ContextSource[]): ContextRecents {
+  let result = recents;
+  for (const key of SEEDED_KEYS) {
+    const seen = new Set(recents[key].map((item) => item.toLocaleLowerCase('tr')));
+    const extra: string[] = [];
+    for (const measurement of measurements) {
+      if (recents[key].length + extra.length >= MAX_RECENT_VALUES) break;
+      const value = cleanValue(key, measurement[key] ?? '');
+      const folded = value.toLocaleLowerCase('tr');
+      if (!value || seen.has(folded)) continue;
+      seen.add(folded);
+      extra.push(value);
+    }
+    if (extra.length) result = { ...result, [key]: [...recents[key], ...extra] };
+  }
+  return result;
 }
 
 /** Bir ölçüm satırının bağlam özeti (geçmiş listesi için). */
