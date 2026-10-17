@@ -1,6 +1,6 @@
 import type { Node } from '@xyflow/react';
 
-import type { CardType, Placement } from '../types';
+import type { Placement } from '../types';
 
 /** Uygulamanın dört ana ekranı. */
 export type View = 'flow' | 'catalog' | 'settings' | 'control';
@@ -14,11 +14,5 @@ export type FlowBreakdownEntry = { id: string; quantity: number; createdAtUtc: s
 /** Kart üzerinde aynı etiket altında toplanan ölçümler. */
 export type FlowBreakdown = { label: string; quantity: number; entries: FlowBreakdownEntry[] };
 
-/** Kart tipinin görünen adı, rengi ve simgesi. */
-export const TYPE_META: Record<CardType, { label: string; color: string; icon: string }> = {
-  Category: { label: 'Kategori', color: '#b58cff', icon: '◆' },
-  Scope: { label: 'Kapsam', color: '#ffc65b', icon: '◈' },
-  System: { label: 'Sistem', color: '#50caff', icon: '◉' },
-  Material: { label: 'Malzeme', color: '#62e3ad', icon: '●' },
-  Accessory: { label: 'Ek parça', color: '#ff86aa', icon: '✦' },
-};
+/** Kart tipinin görünen adı, rengi ve simgesi (bkz. `cardTypes.ts`). */
+export { TYPE_META } from './cardTypes';

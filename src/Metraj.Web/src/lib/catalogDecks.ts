@@ -1,5 +1,5 @@
 import type { CatalogCard, CatalogCardVariant } from '../types';
-import { TYPE_META } from './uiTypes';
+import { TYPE_META } from './cardTypes.ts';
 
 export const normalizeCatalogText = (value: string) =>
   value
