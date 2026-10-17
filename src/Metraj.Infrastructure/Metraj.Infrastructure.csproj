@@ -7,5 +7,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="PDFsharp-MigraDoc" />
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+    <!-- Derlenmiş modeli (CompiledModel/) üreten araç için; tüketicilere ve çıktıya akmaz. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
   </ItemGroup>
 </Project>

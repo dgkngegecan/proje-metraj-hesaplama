@@ -1,5 +1,7 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using Metraj.Infrastructure.CompiledModel;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Design;
 
 namespace Metraj.Infrastructure;
 
@@ -30,11 +32,20 @@ public static class MetrajDbContextFactory
     }
 
     /// <summary>Creates a context configured for a local SQLite database path.</summary>
+    /// <remarks>
+    /// Model, <c>OnModelCreating</c>'den çalışma zamanında kurulmaz; derleme anında
+    /// üretilmiş <see cref="MetrajDbContextModel"/> kullanılır. Önceden süreçteki ilk
+    /// bağlam, 17 varlık türünün modelini kurallarla baştan kuruyordu; Android'de
+    /// bu açılışın en pahalı kalemlerindendi. Model değişirse derlenmiş model
+    /// yenilenmelidir (docs/derleme.md); yenilenmezse
+    /// <c>CompiledModelConsistencyTests</c> kırılır.
+    /// </remarks>
     public static MetrajDbContext Create(string databasePath)
     {
         string connectionString = BuildConnectionString(databasePath);
 
         var options = new DbContextOptionsBuilder<MetrajDbContext>()
+            .UseModel(MetrajDbContextModel.Instance)
             .UseSqlite(connectionString)
             .Options;
 
@@ -53,9 +64,26 @@ public static class MetrajDbContextFactory
     {
         ArgumentNullException.ThrowIfNull(connection);
         var options = new DbContextOptionsBuilder<MetrajDbContext>()
+            .UseModel(MetrajDbContextModel.Instance)
             .UseSqlite(connection)
             .Options;
 
         return new MetrajDbContext(options);
     }
+}
+
+/// <summary>
+/// <c>dotnet ef dbcontext optimize</c> için tasarım zamanı fabrikası; uygulama kullanmaz.
+/// </summary>
+/// <remarks>
+/// Araç bağlamı kurabilmek için bunu arar (bağlamın kurucusu seçenek ister ve
+/// bu bir sınıf kütüphanesi, barındırıcısı yok). Modeli <c>OnModelCreating</c>'den
+/// kurar; veritabanına bağlanmaz, bu yüzden bellek içi bir veri kaynağı yeterli.
+/// Yenileme komutu: docs/derleme.md.
+/// </remarks>
+public sealed class MetrajDesignTimeDbContextFactory : IDesignTimeDbContextFactory<MetrajDbContext>
+{
+    /// <inheritdoc />
+    public MetrajDbContext CreateDbContext(string[] args) =>
+        new(new DbContextOptionsBuilder<MetrajDbContext>().UseSqlite("Data Source=:memory:").Options);
 }
