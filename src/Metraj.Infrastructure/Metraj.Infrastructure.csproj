@@ -7,5 +7,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="PDFsharp-MigraDoc" />
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+    <!-- PDFsharp'ın geçişli Pkcs 8.0.1'indeki güvenlik açıklarını kapatır (bkz. Directory.Packages.props). -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 </Project>
