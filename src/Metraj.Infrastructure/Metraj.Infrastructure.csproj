@@ -7,6 +7,7 @@
     <PackageReference Include="Microsoft.Data.Sqlite" />
     <PackageReference Include="PDFsharp-MigraDoc" />
     <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" />
+<<<<<<< HEAD
     <!-- PDFsharp'ın geçişli Pkcs 8.0.1'indeki güvenlik açıklarını kapatır (bkz. Directory.Packages.props). -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
@@ -18,5 +19,9 @@
     -->
     <EmbeddedResource Include="Fonts\*.ttf" LogicalName="Metraj.Infrastructure.Fonts.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Fonts\LICENSE" LogicalName="Metraj.Infrastructure.Fonts.LICENSE" />
+=======
+    <!-- Derlenmiş modeli (CompiledModel/) üreten araç için; tüketicilere ve çıktıya akmaz. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+>>>>>>> worktree-agent-a221f70e6fec6b95c
   </ItemGroup>
 </Project>

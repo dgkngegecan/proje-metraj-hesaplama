@@ -1,6 +1,12 @@
+using System.Data.Common;
+using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using Metraj.Application;
 using Metraj.Domain;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Metraj.Infrastructure;
 
@@ -10,10 +16,132 @@ namespace Metraj.Infrastructure;
 /// </summary>
 public sealed partial class StarterCatalogWorkspaceService(Func<MetrajDbContext> contextFactory) : IStarterCatalogWorkspace
 {
+    /// <summary>
+    /// Tam tohumlamanın NEYİ ekleyeceğine karar veren kuralın sürümü. <see cref="SeedAsync"/>
+    /// içindeki ekleme kuralı (hangi kodun ne zaman ekleneceği) değişirse artırılır;
+    /// böylece eski kuralla damgalanmış veritabanları bir kez tam tohumlanır.
+    /// </summary>
+    private const string SeedRevision = "seed-1";
+
     private readonly Func<MetrajDbContext> contextFactory =
         contextFactory ?? throw new ArgumentNullException(nameof(contextFactory));
 
-    public async Task<StarterCatalogSeedResult> SeedAsync(CancellationToken cancellationToken = default)
+    // Verildiğinde damga EF Core başlatılmadan, ham bağlantıyla okunur.
+    private readonly string? stampConnectionString;
+
+    /// <summary>Servisi veritabanı yoluyla kurar; tohumlama kısa yolu EF Core'u hiç başlatmaz.</summary>
+    /// <remarks>
+    /// Bağlam fabrikası alan kurucuda kısa yol bile bir <see cref="MetrajDbContext"/>
+    /// kurmak zorundadır (damgayı okuyacak bağlantı için) ve ilk bağlam EF Core'un
+    /// servis kurulumunu tetikler. Yol verildiğinde damga, bağlamla aynı bağlantı
+    /// dizesine sahip ham bir <see cref="SqliteConnection"/> ile okunur.
+    /// </remarks>
+    /// <param name="databasePath">SQLite veritabanının tam yolu.</param>
+    public StarterCatalogWorkspaceService(string databasePath)
+        : this(() => MetrajDbContextFactory.Create(databasePath), databasePath)
+    {
+    }
+
+    /// <summary>Tam tohumlama için bağlam fabrikası, damga için veritabanı yolu.</summary>
+    /// <param name="contextFactory">Tam tohumlamanın kullandığı bağlam fabrikası.</param>
+    /// <param name="databasePath">Damganın ham bağlantıyla okunacağı veritabanı; fabrikanınkiyle aynı olmalı.</param>
+    public StarterCatalogWorkspaceService(Func<MetrajDbContext> contextFactory, string databasePath)
+        : this(contextFactory)
+    {
+        stampConnectionString = MetrajDbContextFactory.BuildConnectionString(databasePath);
+    }
+
+    /// <summary>Standart kart manifestinin içerik özeti (SHA-256, onaltılık).</summary>
+    /// <remarks>
+    /// Tam tohumlamanın ekleyebileceği her kod manifestten gelir: aile kodları ve
+    /// ailesiz kaynak kartlar hedeftir, aile üyeleri ise ailesi yönetilmiyorsa
+    /// eklenen eski kartlardır. Kartların İÇERİĞİ (ad, varyant, not) yalnız eklenirken
+    /// okunur, var olan karta hiç dokunulmaz. Bu yüzden özet manifest metninden,
+    /// aile sürümünden ve <see cref="SeedRevision"/>'dan hesaplanır: kart eklenir,
+    /// çıkarılır ya da ailesi değişirse özet değişir ve bir sonraki açılış tam
+    /// tohumlar. Hesap 799 kartlık listeyi ve konsolidasyonu KURMAZ.
+    /// </remarks>
+    public static string ManifestDigest => StarterManifestFingerprint.Value;
+
+    public Task<StarterCatalogSeedResult> SeedAsync(CancellationToken cancellationToken = default) =>
+        // Kısa yol ayrı bir metotta: bu yöntem 799 kartlık statik listeye ve
+        // konsolidasyona dokunmadığı sürece onların kurulumu da tetiklenmez.
+        SeedUnlessStampedAsync(cancellationToken);
+
+    private async Task<StarterCatalogSeedResult> SeedUnlessStampedAsync(CancellationToken cancellationToken)
+    {
+        int? stampedTargetCount = await ReadMatchingStampAsync(cancellationToken);
+        if (stampedTargetCount is int targetCount)
+        {
+            // Özet aynı ve damgadan beri kodu, etkinliği ya da aile niteliklerini
+            // değiştiren bir yazım olmadı: tam tohumlama hiçbir şey eklemezdi ve
+            // bütün hedefleri "zaten var" sayardı. Aynı sonuç, katalog okunmadan.
+            return new StarterCatalogSeedResult(0, targetCount, []);
+        }
+
+        return await SeedCatalogAsync(cancellationToken);
+    }
+
+    /// <summary>Geçerli damganın hedef kart sayısını okur; damga yoksa, eskiyse ya da güvenilmezse <see langword="null"/>.</summary>
+    private async Task<int?> ReadMatchingStampAsync(CancellationToken cancellationToken)
+    {
+        if (stampConnectionString is not null)
+        {
+            await using var connection = new SqliteConnection(stampConnectionString);
+            await connection.OpenAsync(cancellationToken);
+            return await ReadMatchingStampAsync(connection, transaction: null, cancellationToken);
+        }
+
+        await using MetrajDbContext context = contextFactory();
+        DbConnection contextConnection = context.Database.GetDbConnection();
+        await contextConnection.OpenAsync(cancellationToken);
+        return await ReadMatchingStampAsync(contextConnection, transaction: null, cancellationToken);
+    }
+
+    private static async Task<int?> ReadMatchingStampAsync(DbConnection connection, DbTransaction? transaction, CancellationToken cancellationToken)
+    {
+        // Damga tablosu ya da tetikleyicilerinden biri yoksa (göç edilmemiş eski bir
+        // veritabanı, elle düşürülmüş bir tetikleyici) damgaya güvenilemez.
+        if (!await HasStampInfrastructureAsync(connection, transaction, cancellationToken)) return null;
+
+        await using DbCommand read = connection.CreateCommand();
+        read.Transaction = transaction;
+        read.CommandText = $"SELECT \"TargetCount\" FROM \"{ApplicationSchemaMigrator.StarterCatalogSeedStampTable}\" WHERE \"Id\" = 1 AND \"ManifestDigest\" = $digest;";
+        DbParameter digest = read.CreateParameter();
+        digest.ParameterName = "$digest";
+        digest.Value = ManifestDigest;
+        read.Parameters.Add(digest);
+        object? value = await read.ExecuteScalarAsync(cancellationToken);
+        return value is null or DBNull ? null : Convert.ToInt32(value, CultureInfo.InvariantCulture);
+    }
+
+    private static async Task<bool> HasStampInfrastructureAsync(DbConnection connection, DbTransaction? transaction, CancellationToken cancellationToken)
+    {
+        await using DbCommand probe = connection.CreateCommand();
+        probe.Transaction = transaction;
+        probe.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE (type = 'table' AND name = $table) OR (type = 'trigger' AND name IN ($t0, $t1, $t2, $t3));";
+        AddParameter(probe, "$table", ApplicationSchemaMigrator.StarterCatalogSeedStampTable);
+        IReadOnlyList<string> triggers = ApplicationSchemaMigrator.StarterCatalogSeedStampTriggers;
+        for (int index = 0; index < triggers.Count; index++)
+        {
+            AddParameter(probe, $"$t{index}", triggers[index]);
+        }
+
+        long found = Convert.ToInt64(await probe.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+        return found == 1 + triggers.Count;
+    }
+
+    private static void AddParameter(DbCommand command, string name, object value)
+    {
+        DbParameter parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+
+    /// <summary>Tam tohumlama: eksik standartları ekler ve sonunda damgayı yazar.</summary>
+    /// <remarks>Ekleme kuralı damgadan önceki hâliyle birebir aynıdır.</remarks>
+    private async Task<StarterCatalogSeedResult> SeedCatalogAsync(CancellationToken cancellationToken)
     {
         await using MetrajDbContext context = contextFactory();
         // One transaction publishes the full upgrade. Existing rows are never changed.
@@ -40,10 +168,53 @@ public sealed partial class StarterCatalogWorkspaceService(Func<MetrajDbContext>
             added.Add(entry.Source);
         }
         await context.SaveChangesAsync(cancellationToken);
+        // Damga aynı işlemde yazılır: eklemelerle birlikte görünür ya da hiç görünmez.
+        // Okumalar ile damga arasında başka bir bağlantı kart silerse SQLite'ın
+        // serileştirilebilir işlemi bu işlemin yazmasını reddeder (SQLITE_BUSY): eski
+        // bir okumaya dayanan damga işlenemez. Damgadan SONRA gelen silme ise
+        // tetikleyiciyle damgayı yeniden siler.
+        await WriteStampAsync(context, transaction, Consolidation.Value.Targets.Count, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         var addedCodes = added.ToHashSet(StringComparer.OrdinalIgnoreCase);
         int existingTargets = Consolidation.Value.Targets.Count(draft => !addedCodes.Contains(draft.Code));
         return new StarterCatalogSeedResult(added.Count, existingTargets, added);
+    }
+
+    private static async Task WriteStampAsync(MetrajDbContext context, IDbContextTransaction transaction, int targetCount, CancellationToken cancellationToken)
+    {
+        DbConnection connection = context.Database.GetDbConnection();
+        DbTransaction dbTransaction = transaction.GetDbTransaction();
+        // Göç edilmemiş bir veritabanında (tablo ya da tetikleyici yok) damga yazılmaz;
+        // tetikleyicisiz bir damga, sonradan silinen bir kartı gizleyebilirdi.
+        if (!await HasStampInfrastructureAsync(connection, dbTransaction, cancellationToken)) return;
+
+        await using DbCommand write = connection.CreateCommand();
+        write.Transaction = dbTransaction;
+        write.CommandText =
+            $"INSERT OR REPLACE INTO \"{ApplicationSchemaMigrator.StarterCatalogSeedStampTable}\" (\"Id\", \"ManifestDigest\", \"TargetCount\", \"StampedAtUtc\") VALUES (1, $digest, $count, $stamped);";
+        AddParameter(write, "$digest", ManifestDigest);
+        AddParameter(write, "$count", targetCount);
+        AddParameter(write, "$stamped", DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        await write.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    /// <summary>Manifest özetinin tek kopyası.</summary>
+    /// <remarks>
+    /// Ayrı bir sınıfta durur: dış sınıfın statik alanlarına (799 kartlık liste)
+    /// erişmediği için onları kurdurmaz. Yalnız derleme zamanı sabitlerini okur.
+    /// Satır sonları normalleştirilir; konsolidasyon da manifesti satır sonundan
+    /// bağımsız okur, dolayısıyla CRLF/LF farkı özeti değiştirmemeli.
+    /// </remarks>
+    private static class StarterManifestFingerprint
+    {
+        public static readonly string Value = Compute();
+
+        private static string Compute()
+        {
+            string canonical = string.Join('\n', SeedRevision, FamilyRevision,
+                ConsolidationManifest.Replace("\r\n", "\n", StringComparison.Ordinal));
+            return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
+        }
     }
 
     private sealed record StarterCard(
