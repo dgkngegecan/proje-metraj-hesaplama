@@ -33,6 +33,25 @@
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.13" />
   </ItemGroup>
 
+  <!--
+    Yalnız Android kabuğu (src/Metraj.Android, Metraj.Mobile.sln). Masaüstü
+    çözümü bu paketleri geri yüklemez. AndroidX bağlamaları net10.0-android36.0
+    hedefini taşıyan son sürümlerdir; birbirlerinin geçişli bağımlılıkları
+    (Core 1.19.0.1, Kotlin StdLib 2.4.0.1) aynı servis hattındadır.
+  -->
+  <ItemGroup Label="Android">
+    <PackageVersion Include="Xamarin.AndroidX.Activity" Version="1.13.0.1" />
+    <PackageVersion Include="Xamarin.AndroidX.Core" Version="1.19.0.1" />
+    <PackageVersion Include="Xamarin.AndroidX.Core.SplashScreen" Version="1.2.0.3" />
+    <PackageVersion Include="Xamarin.AndroidX.WebKit" Version="1.17.0" />
+    <!--
+      Infrastructure'ın kullandığı SQLitePCLRaw.lib.e_sqlite3 yalnız masaüstü/Linux
+      (glibc) ikililerini getirir; Android'e bionic ikilisi bu paketten gelir.
+      Sürüm yukarıdaki lib.e_sqlite3 ile aynı kalmalı.
+    -->
+    <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3.android" Version="2.1.13" />
+  </ItemGroup>
+
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />

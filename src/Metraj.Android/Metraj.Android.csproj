@@ -1,0 +1,194 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    ANDROID UYGULAMA KABUĞU (saf .NET for Android, MAUI değil).
+
+    Çekirdek (Domain / Application / Infrastructure) ve uç nokta mantığı
+    (Metraj.Host → MetrajRequestRouter) masaüstüyle AYNI projelerdir. Bu proje
+    yalnız şunları ekler: WebView, WebMessageListener köprüsü, dosya paylaşımı
+    (FileProvider / SAF), açılış sırası ve yaşam döngüsü olayları.
+
+    Bilerek Metraj.sln'de DEĞİL (Metraj.Mobile.sln): masaüstü CI'ı Android iş
+    yükü gerektirmesin. Derleme: scripts/build-android.ps1, belge: docs/derleme.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>26</SupportedOSPlatformVersion>
+    <OutputType>Exe</OutputType>
+    <!--
+      Kök ad alanı bilerek "Metraj.Android" değil: o ad alanının içinde
+      "Android.OS" gibi bir ad önce Metraj.Android.OS olarak aranır ve bağlamalar
+      bulunamaz. Derleme ve paket adı yine Metraj.Android.
+    -->
+    <RootNamespace>Metraj.Mobile</RootNamespace>
+    <ApplicationId>dev.projemetraj.app</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <!-- APK (doğrudan kurulum ve emülatör testi). Release varsayılanı AAB'dir. -->
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <!--
+      Yayın arm64; emülatör testi için -p:RuntimeIdentifier=android-x64 verilir
+      (scripts/build-android.ps1 -Abi x64). Tek mimarili APK hem boyutu hem
+      tam AOT süresini yarıya indirir.
+    -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">android-arm64</RuntimeIdentifier>
+    <!-- Çeviri uydu derlemeleri (EF Core, ClosedXML) APK'ya girmesin; arayüz Türkçe ve hata metinleri DomainMessageCatalog'dan. -->
+    <SatelliteResourceLanguages>tr</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!--
+      Tam AOT. Dalga 0 ölçümü: profilli AOT'ta sıcak açılışta şema denetimi
+      4.988 ms, tam AOT'ta 2.709 ms; Excel 5,4 s → 2,2 s. APK büyür (~2x) ama
+      bütçe (arm64 < 60 MB) içinde kalır.
+    -->
+    <RunAOTCompilation>true</RunAOTCompilation>
+    <AndroidEnableProfiledAot>false</AndroidEnableProfiledAot>
+    <!--
+      Kısmi kırpma: EF Core (derlenmiş model olsa da sorgu derleme yansıması),
+      System.Text.Json (router'ın DefaultJsonTypeInfoResolver'ı), ClosedXML ve
+      PDFsharp ayrıntılı kırpmaya dayanıklı değil. Spike bu ayarla çalıştı.
+    -->
+    <TrimMode>partial</TrimMode>
+  </PropertyGroup>
+
+  <!--
+    WebView hata ayıklaması (chrome://inspect) Debug'da açık, Release'te kapalı.
+    Ölçüm için Release derlemesinde açıkça istenebilir:
+    -p:MetrajWebViewDebugging=true (scripts/build-android.ps1 -WebViewDebugging).
+    Yayın APK'sı bu bayrakla üretilmez.
+  -->
+  <PropertyGroup Condition="'$(MetrajWebViewDebugging)' == 'true' OR '$(Configuration)' == 'Debug'">
+    <DefineConstants>$(DefineConstants);METRAJ_WEBVIEW_DEBUGGING</DefineConstants>
+  </PropertyGroup>
+
+  <!--
+    İMZALAMA. Android'in varsayılan debug anahtarı %LOCALAPPDATA% (C:) altında
+    üretilir; bu makinede C: dolu ve anahtar depoya da girmemeli. Anahtar her
+    yapılandırmada dışarıdan verilir:
+      METRAJ_ANDROID_KEYSTORE           anahtar deposunun yolu (ör. D:\toolchain\android-keys\metraj-debug.keystore)
+      METRAJ_ANDROID_KEY_ALIAS          takma ad (varsayılan: metraj)
+      METRAJ_ANDROID_KEYSTORE_PASSWORD  parola; "env:AD" biçimi önerilir (komut satırına/günlüğe düşmez)
+    Aynı adlar MSBuild özelliği (-p:) olarak da verilebilir. Verilmezse derleme
+    imzalama adımından önce açık bir hatayla durur.
+  -->
+  <PropertyGroup>
+    <MetrajAndroidKeyAlias Condition="'$(MetrajAndroidKeyAlias)' == ''">$(METRAJ_ANDROID_KEY_ALIAS)</MetrajAndroidKeyAlias>
+    <MetrajAndroidKeyAlias Condition="'$(MetrajAndroidKeyAlias)' == ''">metraj</MetrajAndroidKeyAlias>
+    <MetrajAndroidKeystore Condition="'$(MetrajAndroidKeystore)' == ''">$(METRAJ_ANDROID_KEYSTORE)</MetrajAndroidKeystore>
+    <MetrajAndroidKeystorePassword Condition="'$(MetrajAndroidKeystorePassword)' == ''">$(METRAJ_ANDROID_KEYSTORE_PASSWORD)</MetrajAndroidKeystorePassword>
+    <AndroidKeyStore>true</AndroidKeyStore>
+    <AndroidSigningKeyStore>$(MetrajAndroidKeystore)</AndroidSigningKeyStore>
+    <AndroidSigningKeyAlias>$(MetrajAndroidKeyAlias)</AndroidSigningKeyAlias>
+    <AndroidSigningStorePass>$(MetrajAndroidKeystorePassword)</AndroidSigningStorePass>
+    <!-- PKCS12 anahtar deposunda anahtar parolası depo parolasıyla aynıdır. -->
+    <AndroidSigningKeyPass>$(MetrajAndroidKeystorePassword)</AndroidSigningKeyPass>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Metraj.Host\Metraj.Host.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Xamarin.AndroidX.Activity" />
+    <PackageReference Include="Xamarin.AndroidX.Core" />
+    <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" />
+    <PackageReference Include="Xamarin.AndroidX.WebKit" />
+    <!-- Bionic SQLite ikilisi. Dalga 0: bu olmadan DllNotFoundException: e_sqlite3. -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3.android" />
+    <!--
+      Infrastructure'ın güvenlik yaması için doğrudan kullandığı paket linux-x64
+      (glibc) ikilisini de getiriyor; aynı adla APK'ya önce o giriyor ve Android
+      ikilisini eziyordu (DB açılmıyordu). XA0141 (16 KB sayfa) uyarısı da
+      yalnız o ikiliden geliyordu. Yönetilen kısım kalır, yerel kısım dışlanır.
+    -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" ExcludeAssets="native" />
+  </ItemGroup>
+
+  <!--
+    ARAYÜZ VARLIKLARI.
+
+    Telefon arayüzü src/Metraj.Web/dist'ten (mobile.html + assets/) APK'nın
+    "web/" klasörüne girer ve WebViewAssetLoader ile
+    https://appassets.androidplatform.net/web/mobile.html olarak sunulur.
+    Metraj.Api.csproj'daki desenin aynısı: dist yoksa ya da kaynaktan eskiyse
+    npm derlemesi çalışır (artımlı), -p:BuildFrontend=false ile atlanır; her
+    durumda dist'te mobile.html ya da JavaScript yoksa build DURUR. Arayüzsüz
+    bir APK boş beyaz bir ekran açar ve bunu cihazda teşhis etmek zordur.
+  -->
+  <PropertyGroup>
+    <BuildFrontend Condition="'$(BuildFrontend)' == ''">true</BuildFrontend>
+    <FrontendRoot>$(MSBuildThisFileDirectory)..\Metraj.Web\</FrontendRoot>
+    <FrontendDist>$(FrontendRoot)dist\</FrontendDist>
+    <!-- npm TIRNAKSIZ çağrılır: tırnak içinde npm.cmd kendi konumunu çalışma dizini sanıyor. -->
+    <NpmCommand Condition="'$(NpmCommand)' == '' AND '$(OS)' == 'Windows_NT'">npm.cmd</NpmCommand>
+    <NpmCommand Condition="'$(NpmCommand)' == ''">npm</NpmCommand>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrontendSource Include="$(FrontendRoot)src\**\*" />
+    <FrontendSource Include="$(FrontendRoot)index.html" />
+    <FrontendSource Include="$(FrontendRoot)mobile.html" />
+    <FrontendSource Include="$(FrontendRoot)package.json" />
+    <FrontendSource Include="$(FrontendRoot)package-lock.json" />
+    <FrontendSource Include="$(FrontendRoot)vite.config.ts" />
+    <FrontendSource Include="$(FrontendRoot)tsconfig*.json" />
+  </ItemGroup>
+
+  <Target Name="RestoreMobileFrontendPackages"
+          Condition="'$(BuildFrontend)' == 'true' AND !Exists('$(FrontendRoot)node_modules')">
+    <Message Importance="high" Text="Arayüz bağımlılıkları kuruluyor (npm ci)..." />
+    <Exec Command="$(NpmCommand) ci" WorkingDirectory="$(FrontendRoot)" />
+  </Target>
+
+  <!-- Artımlı: dist/mobile.html bütün arayüz kaynağından yeniyse npm çalışmaz. -->
+  <Target Name="BuildMobileFrontend"
+          Condition="'$(BuildFrontend)' == 'true'"
+          DependsOnTargets="RestoreMobileFrontendPackages"
+          Inputs="@(FrontendSource)"
+          Outputs="$(FrontendDist)mobile.html">
+    <Message Importance="high" Text="Arayüz derleniyor (npm run build)..." />
+    <Exec Command="$(NpmCommand) run build" WorkingDirectory="$(FrontendRoot)" />
+  </Target>
+
+  <!--
+    Varlıklar dist derlendikten SONRA eklenir: değerlendirme anındaki bir joker
+    ifade, aynı derlemede üretilen dosyaları göremezdi (ilk temiz derlemede
+    arayüzsüz APK).
+  -->
+  <Target Name="IncludeMobileFrontendAssets"
+          DependsOnTargets="BuildMobileFrontend"
+          BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <_MetrajWebAsset Include="$(FrontendDist)**\*" />
+      <_MetrajWebScript Include="$(FrontendDist)assets\*.js" />
+    </ItemGroup>
+
+    <Error Condition="!Exists('$(FrontendDist)mobile.html')"
+           Text="Telefon arayüzü eksik: $(FrontendDist)mobile.html bulunamadı. Arayüzsüz bir APK üretmektense build durduruldu. Çözüm: src/Metraj.Web içinde 'npm ci &amp;&amp; npm run build' çalıştırın ya da -p:BuildFrontend=true ile derleyin." />
+    <!-- Virüs koruması derlenmiş paketi karantinaya alabiliyor: HTML yerindeyken JS yoksa uygulama boş ekran açar. -->
+    <Error Condition="'@(_MetrajWebScript)' == ''"
+           Text="Telefon arayüzünde JavaScript paketi yok ($(FrontendDist)assets). mobile.html var ama uygulama kodu eksik; bu hâlde APK boş bir ekran açar. Build durduruldu. Çözüm: src/Metraj.Web içinde 'npm run build' çalıştırın." />
+
+    <ItemGroup>
+      <AndroidAsset Include="@(_MetrajWebAsset)" Link="Assets\web\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+  </Target>
+
+  <!-- Varsayılan C: debug anahtarına düşmemek için: anahtar verilmediyse imzalamadan ÖNCE dur. -->
+  <Target Name="RequireMetrajSigningKey" BeforeTargets="_ResolveAndroidSigningKey;BeforeBuild">
+    <Error Condition="'$(MetrajAndroidKeystore)' == ''"
+           Text="Android imzalama anahtarı verilmedi. METRAJ_ANDROID_KEYSTORE ve METRAJ_ANDROID_KEYSTORE_PASSWORD ortam değişkenlerini (ya da -p:MetrajAndroidKeystore=... -p:MetrajAndroidKeystorePassword=...) verin; ayrıntı: docs/derleme.md → Android. Varsayılan debug anahtarı C: altına yazılacağı için kullanılmıyor." />
+    <Error Condition="'$(MetrajAndroidKeystore)' != '' AND !Exists('$(MetrajAndroidKeystore)')"
+           Text="Android imzalama anahtarı bulunamadı: $(MetrajAndroidKeystore)" />
+    <Error Condition="'$(MetrajAndroidKeystorePassword)' == ''"
+           Text="Android imzalama parolası verilmedi (METRAJ_ANDROID_KEYSTORE_PASSWORD; 'env:AD' biçimi önerilir)." />
+    <!--
+      apksigner aynı "file:" dosyası hem depo hem anahtar parolası olarak verilince
+      ikincisini dosyanın İKİNCİ satırından okuyup "end of file" ile düşüyor; .NET
+      ise anahtar parolasını zorunlu tutuyor (XA4314). scripts/build-android.ps1
+      "file:" girdisini kendi sürecinde bir ortam değişkenine çevirip "env:" verir.
+    -->
+    <Error Condition="$(MetrajAndroidKeystorePassword.StartsWith('file:'))"
+           Text="İmzalama parolası MSBuild'e 'file:' biçiminde verilemez (apksigner aynı dosyadan ikinci parolayı ayrı satırda arıyor). 'env:AD' kullanın ya da scripts/build-android.ps1 -KeyStorePassword file:YOL ile derleyin." />
+  </Target>
+</Project>

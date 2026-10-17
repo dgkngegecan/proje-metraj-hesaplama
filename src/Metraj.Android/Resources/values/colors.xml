@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Arayüzün zemin rengiyle (src/mobile/styles/tokens.css → color-bg değişkeni) aynı:
+  açılış ekranı ile WebView'ın ilk boyaması arasında renk sıçraması olmasın.
+-->
+<resources>
+  <color name="metraj_bg">#F6F7F9</color>
+  <color name="metraj_text">#0B1220</color>
+  <color name="metraj_text_muted">#3A4658</color>
+  <color name="metraj_primary">#0B57D0</color>
+  <color name="metraj_icon_bg">#FFF7EA</color>
+</resources>

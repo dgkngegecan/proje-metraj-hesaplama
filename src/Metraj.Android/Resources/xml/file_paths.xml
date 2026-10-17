@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider yalnız dışa aktarım klasörünü açar (CacheDir/exports/<tutamaç>/<ad>).
+  Veritabanı, yedekler ve günlükler (FilesDir) hiçbir zaman paylaşılamaz.
+-->
+<paths>
+  <cache-path name="exports" path="exports/" />
+</paths>

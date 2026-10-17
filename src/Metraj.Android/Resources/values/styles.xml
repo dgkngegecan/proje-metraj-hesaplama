@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!--
+    Açılış teması (androidx.core.splashscreen). Etkinlik bu temayla başlar;
+    installSplashScreen() sonrası postSplashScreenTheme'e geçer. Açılış ekranı
+    arayüz "ready" diyene ya da ~4 s'lik güvenlik süresine kadar kalır.
+  -->
+  <style name="Theme.Metraj.Starting" parent="Theme.SplashScreen">
+    <item name="windowSplashScreenBackground">@color/metraj_bg</item>
+    <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    <item name="postSplashScreenTheme">@style/Theme.Metraj</item>
+  </style>
+
+  <!--
+    Uygulama teması. AppCompat gerekmez (arayüz web). WebView, targetSdk 33+
+    ile prefers-color-scheme'i temanın isLightTheme özniteliğinden alır;
+    values-night'taki koyu üst tema bu yüzden var.
+  -->
+  <style name="Theme.Metraj" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <item name="android:windowBackground">@color/metraj_bg</item>
+    <item name="android:colorAccent">@color/metraj_primary</item>
+    <item name="android:colorPrimary">@color/metraj_primary</item>
+  </style>
+</resources>
