@@ -43,6 +43,8 @@
   <ItemGroup>
     <FrontendSource Include="$(FrontendRoot)src\**\*" />
     <FrontendSource Include="$(FrontendRoot)index.html" />
+    <!-- Mobil giriş; yalnız bu dosya değiştiğinde de artımlı derleme arayüzü yeniden üretmeli. -->
+    <FrontendSource Include="$(FrontendRoot)mobile.html" />
     <FrontendSource Include="$(FrontendRoot)package.json" />
     <FrontendSource Include="$(FrontendRoot)package-lock.json" />
     <FrontendSource Include="$(FrontendRoot)vite.config.ts" />

@@ -87,8 +87,10 @@ public partial class App : System.Windows.Application
             // Katalog proje kapsamından bağımsız, bu kullanıcıdaki tek SQLite veritabanında
             // tutulur. Uygulama ilk açılışta standart terim paketini bir kez ekler; sonraki
             // projeler aynı kartları kullanır ve hiçbir katalog kaydı sıfırlanmaz.
+            // Yol alan kurucu, paket değişmemişse damgayı ham bağlantıyla okuyup döner;
+            // önceden fabrika alan kurucu kısa yolda bile EF Core'u (~330 ms) başlatıyordu.
             window.ReportProgress("Standart kart kütüphanesi denetleniyor…");
-            await new StarterCatalogWorkspaceService(() => MetrajDbContextFactory.Create(databasePath)).SeedAsync();
+            await new StarterCatalogWorkspaceService(databasePath).SeedAsync();
 
             window.ReportProgress("Veri bütünlüğü denetleniyor…");
             DatabaseIntegrityCheckResult integrity =
