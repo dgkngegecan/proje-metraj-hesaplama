@@ -15,6 +15,9 @@ obj/
 
 # React development dependencies and cache
 src/Metraj.Web/node_modules/
+# Playwright çıktıları (iz, ekran görüntüsü, HTML/JUnit raporu)
+src/Metraj.Web/e2e/.results/
+src/Metraj.Web/playwright-report/
 src/Metraj.Web/.npm-cache/
 
 # Local SQLite project data (not fixtures)
