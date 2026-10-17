@@ -1,0 +1,153 @@
+/* Kütüphane ekranına özgü stiller; ortak parçalar shared/ altındadır. */
+.m-lib {
+    background: var(--color-bg);
+}
+
+.m-lib-head {
+    display: flex;
+    flex-direction: column;
+}
+
+.m-lib-filter-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.m-code-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+}
+
+.m-code-list li {
+    padding: 2px var(--space-2);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+}
+
+.m-variant-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.m-variant {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-variant:last-child {
+    border-bottom: 0;
+}
+
+.m-variant small {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+}
+
+.m-lib-form {
+    gap: 0;
+}
+
+.m-lib-form > .m-notice {
+    margin: var(--space-3) var(--space-4) 0;
+}
+
+.m-lib-variant-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.m-lib-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+
+.m-lib-variants {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.m-lib-variant-editor {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.m-lib-variant-editor__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.m-lib-type {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 72px;
+    padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+}
+
+.m-lib-type__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.m-lib-type__text small {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+}
+
+.m-lib-picker {
+    display: flex;
+    flex-direction: column;
+    height: min(60dvh, 520px);
+}
+
+.m-lib-pick {
+    border: 0;
+    background: var(--color-surface);
+    cursor: pointer;
+}
+
+.m-lib-pick__box {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--color-border-strong);
+}
+
+.m-lib-pick.is-selected .m-lib-pick__box {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-on-primary);
+}
