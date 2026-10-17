@@ -8,6 +8,28 @@ namespace Metraj.Infrastructure;
 /// <summary>Creates EF Core contexts for the single application SQLite database.</summary>
 public static class MetrajDbContextFactory
 {
+    /// <summary>
+    /// EF Core'un derlenmiş modeli aynı iş parçacığında başlatması için açılan anahtar.
+    /// </summary>
+    private const string CompiledModelSameThreadInitializationSwitch = "Microsoft.EntityFrameworkCore.Issue31751";
+
+    /// <summary>Derlenmiş model ilk kez okunmadan önce başlatma anahtarını açar.</summary>
+    /// <remarks>
+    /// Üretilen <see cref="MetrajDbContextModel"/> statik kurucusu, varsayılan olarak
+    /// modeli 10 MB yığınlı YENİ bir iş parçacığında kurup <c>Join</c> ile bekler.
+    /// Android'deki Mono çalışma zamanında o iş parçacığı hâlâ başlatılmakta olan
+    /// sınıfa eriştiği anda bekler; iki iş parçacığı birbirini sonsuza dek bekliyordu
+    /// (emülatörde göç adımında %0 işlemciyle asılı kaldı, masaüstündeki CoreCLR'da
+    /// görülmez). Model 20 varlıkla küçük; aynı iş parçacığında kurmak yığını
+    /// zorlamıyor. Anahtar her platformda açılır ki masaüstü testleri Android'in
+    /// kullandığı yolu sınasın. Statik kurucu, sınıfın herhangi bir üyesine ilk
+    /// erişimden önce, yani <c>MetrajDbContextModel.Instance</c> okunmadan önce çalışır.
+    /// </remarks>
+    static MetrajDbContextFactory()
+    {
+        AppContext.SetSwitch(CompiledModelSameThreadInitializationSwitch, true);
+    }
+
     /// <summary>Bir veritabanı yolu için kullanılan bağlantı dizesini üretir.</summary>
     /// <remarks>
     /// Bağlantı dizesi elle birleştirilmez: noktalı virgül bir ayraçtır ve
