@@ -83,6 +83,30 @@ internal static class AppStartup
         return completion.Task;
     }
 
+    /// <summary>Eşzamansız bir işi normal öncelikli, ayrılmış bir iş parçacığında sonuna kadar çalıştırır.</summary>
+    private static Task RunOnThread(string name, Func<Task> work)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try
+            {
+                work().GetAwaiter().GetResult();
+                completion.SetResult();
+            }
+            catch (Exception exception)
+            {
+                completion.SetException(exception);
+            }
+        })
+        {
+            IsBackground = true,
+            Name = name
+        };
+        thread.Start();
+        return completion.Task;
+    }
+
     /// <summary>
     /// Veritabanı dosyasına dokunmadan EF Core'un iç servis sağlayıcısını ve
     /// derlenmiş modelini, System.Text.Json'ın da açılış yanıtlarının tür
@@ -165,6 +189,16 @@ internal static class AppStartup
             // (rota eşleme, kapı ve System.Text.Json'ın yansımalı tür bilgisinin ilk
             // kurulumu). Arayüzün açılışta yaptığı iki istek burada bir kez çalıştırılır.
             var router = new MetrajRequestRouter(services, new LogcatLogger());
+            if (projects.Count > 0)
+            {
+                // İkinci aşama, beklenmez: proje ağacının açılış istekleri ilk kullanımda
+                // her biri ayrı bir EF sorgu derlemesi ödüyordu (emülatörde revizyonlar
+                // 0,76 s, ölçümler 0,75 s, yerleşimler 2,0 s, özetler 2,1 s; ağaç t+7,5 s).
+                // Derleme maliyeti sorgunun biçimine bağlı, kimliğe değil: en yeni projenin
+                // son revizyonuyla paralel ısındırılır.
+                _ = WarmProjectTreeAsync(router, projects[0]);
+            }
+
             await WarmRouteAsync(router, "/api/projects");
             await WarmRouteAsync(router, "/api/ui-state");
             MetrajLog.Mark("çekirdek hazır");
@@ -175,6 +209,37 @@ internal static class AppStartup
         {
             MetrajLog.Error("Açılış hazırlığı başarısız oldu.", exception);
             throw;
+        }
+    }
+
+    /// <summary>Proje ağacının açılış isteklerini iki ayrılmış iş parçacığında ısındırır; hata yalnız günlüğe yazılır.</summary>
+    /// <remarks>
+    /// İş parçacığı havuzu bilerek kullanılmaz: dört Task.Run 4 çekirdekli emülatörde
+    /// havuzu doldurdu ve arayüzün kendi ilk isteği (GET /api/projects) sırada
+    /// bekleyip 1,1 s gecikti. Ağır iki sorgu (yerleşimler, özetler) ayrı
+    /// iş parçacıklarında, normal öncelikte.
+    /// </remarks>
+    private static async Task WarmProjectTreeAsync(MetrajRequestRouter router, ProjectListItem project)
+    {
+        try
+        {
+            string revision = $"/api/revisions/{project.LatestRevisionId}";
+            await Task.WhenAll(
+                RunOnThread("metraj-isindirma-agac1", async () =>
+                {
+                    await WarmRouteAsync(router, $"/api/projects/{project.Id}/revisions");
+                    await WarmRouteAsync(router, $"{revision}/placements");
+                }),
+                RunOnThread("metraj-isindirma-agac2", async () =>
+                {
+                    await WarmRouteAsync(router, $"{revision}/measurements");
+                    await WarmRouteAsync(router, $"{revision}/measurement-summaries");
+                }));
+            MetrajLog.Mark("ısındırma: proje ağacı hazır");
+        }
+        catch (Exception exception)
+        {
+            MetrajLog.Warn($"Proje ağacı ısındırması atlandı: {exception.Message}");
         }
     }
 
