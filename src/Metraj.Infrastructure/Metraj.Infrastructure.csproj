@@ -10,4 +10,13 @@
     <!-- PDFsharp'ın geçişli Pkcs 8.0.1'indeki güvenlik açıklarını kapatır (bkz. Directory.Packages.props). -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
+  <ItemGroup>
+    <!--
+      Liberation Sans 2.1.5 (SIL OFL 1.1). PDF yazı tipleri sistemden değil bu
+      gömülü kaynaklardan okunur; lisans metni de ikili ile birlikte taşınır.
+      Kaynak adı "Metraj.Infrastructure.Fonts.<dosya adı>" olarak sabitlenir.
+    -->
+    <EmbeddedResource Include="Fonts\*.ttf" LogicalName="Metraj.Infrastructure.Fonts.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Fonts\LICENSE" LogicalName="Metraj.Infrastructure.Fonts.LICENSE" />
+  </ItemGroup>
 </Project>

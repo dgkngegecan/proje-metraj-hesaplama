@@ -706,12 +706,17 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
                 return;
             }
 
-            if (!OperatingSystem.IsWindows())
+            // Önceden Windows sistem fontları kullanılıyor, Windows dışında istisna
+            // fırlatılıyordu (Android'de PDF üretilemedi). Artık her platformda
+            // gömülü Liberation Sans (Arial ile metrik uyumlu) çözücüsü atanır.
+            // GlobalFontSettings süreç geneli ve tek seferliktir; çözücü kilit
+            // altında yalnızca bir kez atanır. MigraDoc da aynı çözücüyü kullanır.
+            GlobalFontSettings.UseWindowsFontsUnderWindows = false;
+            if (GlobalFontSettings.FontResolver is not EmbeddedFontResolver)
             {
-                throw new PlatformNotSupportedException("PDF raporu bu masaüstü uygulamasında Windows yazı tiplerini kullanır.");
+                GlobalFontSettings.FontResolver = new EmbeddedFontResolver();
             }
 
-            GlobalFontSettings.UseWindowsFontsUnderWindows = true;
             pdfFontsConfigured = true;
         }
     }
