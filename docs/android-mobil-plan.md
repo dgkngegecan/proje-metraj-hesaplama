@@ -37,6 +37,7 @@ Aynı dalgadaki yazıcı ajanlar ayrı worktree'lerde çalışır ve birbirinin 
 - Her ajan yalnız kendi dosya alanına yazar (aşağıdaki tablo), kendi worktree dalında Türkçe, açıklayıcı commit'ler atar, **push etmez**.
 - Mevcut 133 xUnit testi ve `src/Metraj.Web/tests` testleri sözleşmedir: değiştirilmez, silinmez, gevşetilmez. Davranış bilerek değişiyorsa ajan durur ve raporunda söyler.
 - GateGuard kancası ilk Bash/Write çağrısında olgu ister: istenen olguları yazıp aynı çağrıyı tekrarlayın.
+- **Gerçek çekirdeğe karşı geliştirme:** `tools/Metraj.DevServer` yerel API'yi penceresiz başlatır (göç + standart katalog dahil). `dotnet run --project tools/Metraj.DevServer -c Release -- --db D:\toolchain\tmp\<ad>\metraj.db --url-file D:\toolchain\tmp\<ad>\url.txt [--fresh]` adresi yazdırır. Gömülü arayüz `{adres}/mobile.html`'de; canlı geliştirme için `METRAJ_API_URL={adres} npm run dev` ve `http://localhost:5173/mobile.html`. Örnek veri: `POST {adres}/api/synthetic-clean-water`. Arayüz testleri `npm test` ile çalışır (`node --test tests/` Node 24'te dizini dosya sanıyor).
 
 | Ajan | Yazabileceği alan |
 |---|---|
