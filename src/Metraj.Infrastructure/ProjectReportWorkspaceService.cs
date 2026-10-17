@@ -94,12 +94,17 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
     public async Task<ProjectReportExportResult> ExportWordAsync(Guid revisionId, string outputPath, CancellationToken cancellationToken = default) =>
         await ExportAsync(await BuildReportDataAsync(revisionId, cancellationToken), outputPath, ReportFormat.Word, "Word", cancellationToken);
 
-    public async Task<ProjectReportData> BuildSubtreeReportDataAsync(Guid revisionId, Guid rootPlacementId, CancellationToken cancellationToken = default)
+    public async Task<ProjectReportData> BuildSubtreeReportDataAsync(Guid revisionId, Guid rootPlacementId, CancellationToken cancellationToken = default) =>
+        (await BuildSubtreeCoreAsync(revisionId, rootPlacementId, cancellationToken)).Data;
+
+    /// <summary>Alt ağaç verisi ve kök yerleşim; kök, indirme adındaki kapsam parçası için döner.</summary>
+    private async Task<(ProjectReportData Data, PlacementListItem Root)> BuildSubtreeCoreAsync(Guid revisionId, Guid rootPlacementId, CancellationToken cancellationToken)
     {
         ProjectReportData full = await BuildReportDataAsync(revisionId, cancellationToken);
         var tree = new ProjectTreeWorkspaceService(contextFactory);
         IReadOnlyList<PlacementListItem> placements = await tree.ListPlacementsAsync(revisionId, cancellationToken);
-        if (!placements.Any(x => x.Id == rootPlacementId)) throw new DomainRuleViolationException("report.root", "Report root placement was not found.");
+        PlacementListItem root = placements.FirstOrDefault(x => x.Id == rootPlacementId)
+            ?? throw new DomainRuleViolationException("report.root", "Report root placement was not found.");
         var ids = new HashSet<Guid> { rootPlacementId };
         bool changed;
         do
@@ -115,7 +120,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         // tamamından yeni bir sözlük kuruyordu.
         HashSet<Guid> ancestorsOfSelected = CollectAncestors(ids, placements);
         IReadOnlyList<PlacementListItem> selectedPlacements = placements.Where(x => ids.Contains(x.Id) || ancestorsOfSelected.Contains(x.Id)).ToList();
-        return full with
+        ProjectReportData data = full with
         {
             SourceMeasurements = sources,
             Summaries = summaries,
@@ -126,19 +131,27 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
             Responsibilities = full.Responsibilities.Where(x => x.PlacementId is Guid id && ids.Contains(id)).ToList(),
             CalculationChecks = full.CalculationChecks.Where(x => ids.Contains(x.TargetPlacementId)).ToList()
         };
+        return (data, root);
     }
 
     /// <inheritdoc />
-    public async Task<ProjectReportExportResult> ExportSubtreeExcelAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
-        await ExportAsync(await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken), outputPath, ReportFormat.Excel, "Excel-Subtree", cancellationToken);
+    public Task<ProjectReportExportResult> ExportSubtreeExcelAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
+        ExportSubtreeAsync(revisionId, rootPlacementId, outputPath, ReportFormat.Excel, "Excel-Subtree", cancellationToken);
 
     /// <inheritdoc />
-    public async Task<ProjectReportExportResult> ExportSubtreePdfAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
-        await ExportAsync(await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken), outputPath, ReportFormat.Pdf, "PDF-Subtree", cancellationToken);
+    public Task<ProjectReportExportResult> ExportSubtreePdfAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
+        ExportSubtreeAsync(revisionId, rootPlacementId, outputPath, ReportFormat.Pdf, "PDF-Subtree", cancellationToken);
 
     /// <inheritdoc />
-    public async Task<ProjectReportExportResult> ExportSubtreeWordAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
-        await ExportAsync(await BuildSubtreeReportDataAsync(revisionId, rootPlacementId, cancellationToken), outputPath, ReportFormat.Word, "Word-Subtree", cancellationToken);
+    public Task<ProjectReportExportResult> ExportSubtreeWordAsync(Guid revisionId, Guid rootPlacementId, string outputPath, CancellationToken cancellationToken = default) =>
+        ExportSubtreeAsync(revisionId, rootPlacementId, outputPath, ReportFormat.Word, "Word-Subtree", cancellationToken);
+
+    private async Task<ProjectReportExportResult> ExportSubtreeAsync(
+        Guid revisionId, Guid rootPlacementId, string outputPath, ReportFormat format, string auditLabel, CancellationToken cancellationToken)
+    {
+        (ProjectReportData data, PlacementListItem root) = await BuildSubtreeCoreAsync(revisionId, rootPlacementId, cancellationToken);
+        return await ExportAsync(data, outputPath, format, auditLabel, cancellationToken, root);
+    }
 
     private enum ReportFormat
     {
@@ -158,7 +171,8 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         string outputPath,
         ReportFormat format,
         string auditLabel,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        PlacementListItem? scopeRoot = null)
     {
         string path = ValidateOutputPath(outputPath, format switch
         {
@@ -181,7 +195,7 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
         }
 
         await AddExportAuditAsync(report, path, auditLabel, cancellationToken);
-        return ToExportResult(report, path);
+        return ToExportResult(report, path, scopeRoot);
     }
 
     private static void WriteWorkbook(string path, ProjectReportData report)
@@ -1392,11 +1406,17 @@ public sealed class ProjectReportWorkspaceService : IProjectReportWorkspace
 
     private static string FormatQuantity(decimal value) => value.ToString("0.######", CultureInfo.InvariantCulture);
 
-    private static ProjectReportExportResult ToExportResult(ProjectReportData report, string path) => new(
+    private static ProjectReportExportResult ToExportResult(ProjectReportData report, string path, PlacementListItem? scopeRoot = null) => new(
         path,
         report.SourceMeasurements.Count,
         report.Summaries.Count,
-        report.GeneratedAtUtc);
+        report.GeneratedAtUtc)
+    {
+        ProjectCode = report.ProjectCode,
+        RevisionCode = report.RevisionCode,
+        ScopeCode = scopeRoot?.CardCode,
+        ScopeName = scopeRoot?.DisplayName
+    };
 
     private static string ValidateOutputPath(string outputPath, string expectedExtension)
     {

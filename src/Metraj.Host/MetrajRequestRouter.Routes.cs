@@ -370,8 +370,11 @@ public sealed partial class MetrajRequestRouter
             throw;
         }
 
+        // Geçici yol GUID'li ve benzersiz kalır; yalnız kullanıcıya önerilen ad okunurdur.
+        // Önceden ad olarak geçici dosyanın adı (metraj-<guid>-<guid>.pdf) dönüyordu.
+        string downloadName = ReportFileNames.For(result, DateTime.Now, Path.GetExtension(result.OutputPath));
         return new RouterResponse(200, contentType, null,
-            new RouterFile(result.OutputPath, contentType, Path.GetFileName(result.OutputPath), DeleteWhenDone: true));
+            new RouterFile(result.OutputPath, contentType, downloadName, DeleteWhenDone: true));
     }
 
     private static void TryDeleteTemporaryFile(string path)

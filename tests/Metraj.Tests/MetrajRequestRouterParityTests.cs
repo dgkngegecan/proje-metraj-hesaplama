@@ -118,8 +118,8 @@ public sealed partial class MetrajRequestRouterParityTests
 
         foreach ((string path, string pattern, string signature) in new[]
         {
-            ($"/api/revisions/{seed.RevisionId}/report/excel", $"^metraj-{seed.RevisionId:N}-[0-9a-f]{{32}}\\.xlsx$", "PK"),
-            ($"/api/revisions/{seed.RevisionId}/report/word?placementId={seed.PlacementId}", $"^metraj-{seed.RevisionId:N}-{seed.PlacementId:N}-[0-9a-f]{{32}}\\.docx$", "PK"),
+            ($"/api/revisions/{seed.RevisionId}/report/excel", "^P-PARITY_R0_\\d{4}-\\d{2}-\\d{2}_\\d{4}\\.xlsx$", "PK"),
+            ($"/api/revisions/{seed.RevisionId}/report/word?placementId={seed.PlacementId}", "^P-PARITY_R0_Eşdeğerlik-borusu_\\d{4}-\\d{2}-\\d{2}_\\d{4}\\.docx$", "PK"),
             ("/api/workspace/export", "^ProjeMetraj-\\d{8}-\\d{6}\\.metraj$", "SQLite format 3")
         })
         {
@@ -133,7 +133,9 @@ public sealed partial class MetrajRequestRouterParityTests
             RouterFile file = Assert.IsType<RouterFile>(direct.File);
             Assert.Equal(viaHttp.Content.Headers.ContentType?.ToString(), file.ContentType);
             Assert.Equal(file.ContentType, direct.ContentType);
-            Assert.Matches(pattern, viaHttp.Content.Headers.ContentDisposition?.FileName ?? "");
+            // Türkçe karakterli adlar RFC 6266 gereği filename* ile gelir; ASCII adlarda ikisi aynıdır.
+            ContentDispositionHeaderValue? disposition = viaHttp.Content.Headers.ContentDisposition;
+            Assert.Matches(pattern, disposition?.FileNameStar ?? disposition?.FileName ?? "");
             Assert.Matches(pattern, file.DownloadName);
             Assert.True(file.DeleteWhenDone);
 

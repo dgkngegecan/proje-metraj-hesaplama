@@ -169,10 +169,11 @@ public sealed class LocalApiHttpContractTests
         AssertEmpty(await SendAsync(client, "GET", $"api/revisions/{seed.RevisionId}/report/pdf?placementId={seed.PlacementId}&placementId={seed.PlacementId}"), HttpStatusCode.BadRequest);
         Reply whole = await SendAsync(client, "GET", $"api/revisions/{seed.RevisionId}/report/excel?baska=1");
         Assert.Equal(HttpStatusCode.OK, whole.Status);
-        Assert.DoesNotContain(seed.PlacementId.ToString("N"), whole.Message.Content.Headers.ContentDisposition?.FileName ?? "", StringComparison.Ordinal);
+        // Kapsam artık dosya adında kök yerleşimin görünen adıyla görünür (önceden GUID'iyle).
+        Assert.DoesNotContain("Sözleşme-borusu", whole.Message.Content.Headers.ContentDisposition?.FileNameStar ?? "", StringComparison.Ordinal);
         Reply scoped = await SendAsync(client, "GET", $"api/revisions/{seed.RevisionId}/report/word?placementId={seed.PlacementId}");
         Assert.Equal(HttpStatusCode.OK, scoped.Status);
-        Assert.Contains(seed.PlacementId.ToString("N"), scoped.Message.Content.Headers.ContentDisposition?.FileName ?? "", StringComparison.Ordinal);
+        Assert.Contains("Sözleşme-borusu", scoped.Message.Content.Headers.ContentDisposition?.FileNameStar ?? "", StringComparison.Ordinal);
     }
 
     [Fact]
@@ -220,18 +221,24 @@ public sealed class LocalApiHttpContractTests
         Assert.Equal("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", excel.Content.Headers.ContentType?.ToString());
         ContentDispositionHeaderValue? disposition = excel.Content.Headers.ContentDisposition;
         Assert.Equal("attachment", disposition?.DispositionType);
-        Assert.Matches($"^metraj-{seed.RevisionId:N}-[0-9a-f]{{32}}\\.xlsx$", disposition?.FileName ?? "");
+        // Okunur ad: {ProjeKodu}_R{RevizyonNo}_{yyyy-MM-dd_HHmm}.{uzantı}; GUID'li geçici ad kullanıcıya sızmaz.
+        Assert.Matches("^P-HTTP_R0_\\d{4}-\\d{2}-\\d{2}_\\d{4}\\.xlsx$", disposition?.FileName ?? "");
         Assert.Equal(disposition?.FileName, disposition?.FileNameStar);
         byte[] excelBytes = await excel.Content.ReadAsByteArrayAsync();
         Assert.Equal(excel.Content.Headers.ContentLength, excelBytes.Length);
         Assert.Equal("PK", Encoding.ASCII.GetString(excelBytes, 0, 2));
-        Assert.True(await DisappearsAsync(Path.Combine(Path.GetTempPath(), disposition!.FileName!)),
+        // İndirme adı artık geçici dosyanın adı değil: geçici dosyalar revizyon GUID'iyle aranır.
+        Assert.True(await NoTemporaryFilesAsync(seed.RevisionId),
             "Geçici rapor dosyası yanıttan sonra silinmeliydi.");
 
         using HttpResponseMessage subtree = await client.GetAsync($"api/revisions/{seed.RevisionId}/report/subtree/{seed.PlacementId}/pdf");
         Assert.Equal(HttpStatusCode.OK, subtree.StatusCode);
         Assert.Equal("application/pdf", subtree.Content.Headers.ContentType?.ToString());
-        Assert.Matches($"^metraj-{seed.RevisionId:N}-{seed.PlacementId:N}-[0-9a-f]{{32}}\\.pdf$", subtree.Content.Headers.ContentDisposition?.FileName ?? "");
+        // Alt ağaç adı kök yerleşimin görünen adıdır; Türkçe harfler korunur (RFC 6266 filename*).
+        Assert.Matches("^P-HTTP_R0_Sözleşme-borusu_\\d{4}-\\d{2}-\\d{2}_\\d{4}\\.pdf$",
+            subtree.Content.Headers.ContentDisposition?.FileNameStar ?? "");
+        _ = await subtree.Content.ReadAsByteArrayAsync();
+        Assert.True(await NoTemporaryFilesAsync(seed.RevisionId), "Alt ağaç geçici dosyası da silinmeliydi.");
 
         using HttpResponseMessage export = await client.GetAsync("api/workspace/export");
         Assert.Equal(HttpStatusCode.OK, export.StatusCode);
@@ -290,14 +297,16 @@ public sealed class LocalApiHttpContractTests
     }
 
     /// <summary>Sunucu akışı istemci son baytı aldıktan hemen sonra kapatır; kısa bir süre beklenir.</summary>
-    private static async Task<bool> DisappearsAsync(string path)
+    /// <summary>Bu revizyonun GUID'li geçici rapor dosyalarının hiçbiri kalmadı mı (silme akış kapanınca olur).</summary>
+    private static async Task<bool> NoTemporaryFilesAsync(Guid revisionId)
     {
-        for (int attempt = 0; attempt < 40 && File.Exists(path); attempt++)
+        string pattern = $"metraj-{revisionId:N}-*";
+        for (int attempt = 0; attempt < 40 && Directory.GetFiles(Path.GetTempPath(), pattern).Length > 0; attempt++)
         {
             await Task.Delay(50);
         }
 
-        return !File.Exists(path);
+        return Directory.GetFiles(Path.GetTempPath(), pattern).Length == 0;
     }
 
     private static (HttpStatusCode Status, string Body) Pair(Reply reply) => (reply.Status, reply.Body);
