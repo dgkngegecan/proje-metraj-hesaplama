@@ -57,11 +57,34 @@ public sealed class SyntheticCleanWaterWorkspaceService : ISyntheticCleanWaterWo
         CatalogCardVersion rootCard = CreateRootCard(now);
         cards.Add("ROOT", rootCard);
 
+        // "Bütün projeleri temizle" kartları korur. Örnek proje temizlendikten sonra
+        // yeniden açılırsa SYN-* kart tanımları zaten vardır; yeniden eklemek
+        // CatalogCardDefinitions.Code benzersizlik hatasıyla 500 veriyordu. Var olan
+        // ilk sürümler yeniden kullanılır, yalnız eksik olanlar eklenir.
+        string[] cardCodes = cards.Values.Select(x => x.CatalogCardDefinition!.Code).ToArray();
+        Dictionary<string, CatalogCardVersion> existingByCode = await context.CatalogCardVersions
+            .Include(x => x.CatalogCardDefinition)
+            .Where(x => x.VersionNumber == 1 && cardCodes.Contains(x.CatalogCardDefinition!.Code))
+            .ToDictionaryAsync(x => x.CatalogCardDefinition!.Code, StringComparer.Ordinal, cancellationToken);
+        var newCards = new List<CatalogCardVersion>();
+        foreach (string key in cards.Keys.ToArray())
+        {
+            string code = cards[key].CatalogCardDefinition!.Code;
+            if (existingByCode.TryGetValue(code, out CatalogCardVersion? existingCard))
+            {
+                cards[key] = existingCard;
+            }
+            else
+            {
+                newCards.Add(cards[key]);
+            }
+        }
+
         var placementBySourceId = new Dictionary<string, ProjectPlacement>(StringComparer.OrdinalIgnoreCase);
         var root = new ProjectPlacement
         {
-            Id = Guid.NewGuid(), ProjectRevisionId = revision.Id, CatalogCardVersionId = rootCard.Id,
-            DisplayNameOverride = project.Name, Notes = "SYNTHETIC reference fixture", CatalogCardVersion = rootCard
+            Id = Guid.NewGuid(), ProjectRevisionId = revision.Id, CatalogCardVersionId = cards["ROOT"].Id,
+            DisplayNameOverride = project.Name, Notes = "SYNTHETIC reference fixture", CatalogCardVersion = cards["ROOT"]
         };
         placementBySourceId.Add("ROOT", root);
         foreach (IGrouping<string, SyntheticMeasurementRow> group in rows.GroupBy(x => x.PlacementId, StringComparer.OrdinalIgnoreCase).OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
@@ -88,8 +111,8 @@ public sealed class SyntheticCleanWaterWorkspaceService : ISyntheticCleanWaterWo
         await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
         context.Add(project);
         context.Add(revision);
-        context.CatalogCardDefinitions.AddRange(cards.Values.Select(x => x.CatalogCardDefinition!));
-        context.CatalogCardVersions.AddRange(cards.Values);
+        context.CatalogCardDefinitions.AddRange(newCards.Select(x => x.CatalogCardDefinition!));
+        context.CatalogCardVersions.AddRange(newCards);
         context.ProjectPlacements.AddRange(placements);
         context.Measurements.AddRange(measurements);
         await context.SaveChangesAsync(cancellationToken);

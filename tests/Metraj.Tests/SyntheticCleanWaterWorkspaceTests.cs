@@ -31,6 +31,27 @@ public sealed class SyntheticCleanWaterWorkspaceTests
     }
 
     [Fact]
+    public async Task ReimportsTheSampleAfterAllProjectsWereClearedBecauseTheCardsAreKept()
+    {
+        // "Bütün projeleri temizle" kartları korur; örnek proje yeniden açılınca SYN-* kartları
+        // zaten vardır. Önceden bu, CatalogCardDefinitions.Code benzersizlik hatasıyla 500 veriyordu.
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-synthetic-cw-reimport");
+        using var services = Metraj.Host.MetrajServices.Create(database.Path);
+
+        SyntheticCleanWaterImportResult first = await services.SyntheticCleanWater.ImportAsync();
+        await services.DatabaseMaintenance.ResetProjectDataAsync();
+        SyntheticCleanWaterImportResult second = await services.SyntheticCleanWater.ImportAsync();
+
+        Assert.False(second.AlreadyExisted);
+        Assert.NotEqual(first.Project.Id, second.Project.Id);
+        Assert.Equal(first.ImportedPlacementCount, second.ImportedPlacementCount);
+        Assert.Equal(first.ImportedMeasurementCount, second.ImportedMeasurementCount);
+        MeasurementSummaryItem pipe = (await services.Measurements.ListSummariesAsync(second.Project.LatestRevisionId))
+            .Single(x => x.PlacementName == "PPRC Boru DN25 — A Blok");
+        Assert.Equal(45.25m, pipe.NetQuantity);
+    }
+
+    [Fact]
     public async Task ImportsAllSyntheticRowsOnceAndPreservesAuthoritativeGroupCalculations()
     {
         await using TestDatabase database = await TestDatabase.CreateAsync("metraj-synthetic-cw");
