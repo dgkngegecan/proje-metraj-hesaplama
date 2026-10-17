@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Koyu tema: tokens.css'teki prefers-color-scheme: dark değerleri. -->
+<resources>
+  <color name="metraj_bg">#0B0F17</color>
+  <color name="metraj_text">#F2F5F9</color>
+  <color name="metraj_text_muted">#B9C4D3</color>
+  <color name="metraj_primary">#8AB4FF</color>
+</resources>
