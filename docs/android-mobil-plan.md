@@ -158,6 +158,13 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 - Testler: xUnit `[Fact]` + `TestDatabase.CreateAsync`; ön yüzde `node:test` ile `.ts` doğrudan içe aktarılır.
 - Yorumlar Türkçe ve "neden / önceden ne oluyordu" anlatır.
 
+## Dalga 3 sonuçları: Ajan 7 (2026-10-18)
+
+- **Telefon uçtan uca testleri:** `src/Metraj.Web/e2e/` (Playwright 1.63.0, Pixel 7 emülasyonu), `npm run test:e2e`, 16 test (8 yolculuk + yavaş açılış). Ayrıntı: `docs/derleme.md`.
+- **Okunur dosya adları:** `{ProjeKodu}_R{RevizyonKodu}[_{Kapsam}]_{yyyy-MM-dd_HHmm}.{uzantı}` (`ReportFileNames`); revizyon kodu `R0`, `R1`… olarak arayüzde görünen koddur; kapsam alt ağaç kökünün görünen adıdır (boşsa kart kodu). Geçici dosya yolu GUID'li kalır. Masaüstü, tarayıcı ve Android paylaşım ekranı aynı adı gösterir.
+- **Açılış:** ilk kurulum şablon veritabanıyla (derlemede üretilir, APK'ya `assets/metraj-template.db` olarak girer): çekirdek hazır süresi temiz kurulumda 4,2-6,8 s (sakin makine; yüklü makinede 32 s) → 1,6 s. Sıcak açılışta değişiklik yok (ilk veri ~1,9-2,2 s, bütçe 3,5 s). Dört ağaç sorgusunu ayrı iş parçacıklarında ve proje sorgusuyla paralel ısındırma denendi, ölçülebilir kazanç vermedi, geri alındı.
+- **Bulunan hata:** "bütün projeleri temizle"den sonra örnek proje yeniden açılınca 500 (kart tanımı benzersizlik hatası); düzeltildi.
+
 ## Dalga 2 sonuçları (2026-10-17)
 
 Üç dal `feature/android-mobile`'a birleşti. Masaüstü: derleme 0 uyarı, xUnit 202/202; arayüz testleri 252/252; mobil paket denetimi geçti (ilk JS < 100 kB gzip, React Flow yok). Android: `scripts/build-android.ps1` ile arm64 APK 34,3 MB, x64 37,5 MB; 16 KB hizalı; tek izin androidx'in imza düzeyindeki iç izni (INTERNET yok).
