@@ -358,6 +358,58 @@ test('açılış: hatırlanan seçim varsa ona dönülür, yoksa ilk seçenek', 
   assert.equal(second.store.getState().selection.revisionId, 'r5');
 });
 
+test('tam yenileme sürerken yerel bir yazma olduysa eski ölçüm yanıtı onu ezmez; ağaç yine güncellenir', async () => {
+  const routes = {
+    'GET /projects': projects,
+    'GET /projects/p1/revisions': [{ id: 'r2', projectId: 'p1', status: 'Draft' }],
+    ...revisionData('r2'),
+  };
+  let summaryCalls = 0;
+  routes['GET /revisions/r2/measurement-summaries'] = () => {
+    summaryCalls += 1;
+    return [{ placementId: 'r2-kok', variant: null }];
+  };
+  const { api } = fakeApi(routes);
+  const { store, actions } = createAppStore({ api });
+  await actions.bootstrap();
+
+  // Yenileme turunda ölçüm sorgusu yavaş; bu arada kullanıcı yeni bir ölçüm kaydeder.
+  const slowMeasurements = deferred();
+  routes['GET /revisions/r2/measurements'] = () => slowMeasurements.promise;
+  routes['GET /revisions/r2/placements'] = [
+    placement('r2-kok', null, { revisionId: 'r2' }),
+    placement('r2-yeni', 'r2-kok', { revisionId: 'r2' }),
+  ];
+  const callsBefore = summaryCalls;
+  const refresh = actions.refreshRevision();
+  store.setState((state) => ({
+    entities: applyPatch(state.entities, [
+      patch.upsert('measurements', [measurement('r2-yerel', { revisionId: 'r2' })]),
+    ]).entities,
+  }));
+  slowMeasurements.resolve([measurement('r2-m', { revisionId: 'r2' })]); // kayıttan önceki eski liste
+  assert.equal(await refresh, true);
+
+  const state = store.getState();
+  assert.ok(state.entities.measurements.byId.has('r2-yerel'), 'araya giren yerel kayıt korunur');
+  assert.deepEqual(ids(state.entities.placements), ['r2-kok', 'r2-yeni'], 'ağaç yine güncellenir');
+  assert.ok(summaryCalls >= callsBefore + 2, 'eski özet yazılmaz, özetler ayrıca tazelenir');
+});
+
+test('araya yazma girmeyen tam yenileme ölçümleri ve özetleri sunucudan yeniler', async () => {
+  const routes = {
+    'GET /projects': projects,
+    'GET /projects/p1/revisions': [{ id: 'r2', projectId: 'p1', status: 'Draft' }],
+    ...revisionData('r2'),
+  };
+  const { api } = fakeApi(routes);
+  const { store, actions } = createAppStore({ api });
+  await actions.bootstrap();
+  routes['GET /revisions/r2/measurements'] = [measurement('r2-sunucu', { revisionId: 'r2' })];
+  assert.equal(await actions.refreshRevision(), true);
+  assert.deepEqual(ids(store.getState().entities.measurements), ['r2-sunucu']);
+});
+
 test('geç gelen eski revizyon yanıtı yeni seçimi ezmez', async () => {
   const slow = deferred();
   const routes = { ...revisionData('r2') };

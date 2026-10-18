@@ -179,8 +179,18 @@ export function createAppStore(deps: AppStoreDeps) {
    * yazılmaz, yazıldığında da önceki revizyonların satırları atılır.
    */
   async function loadRevisionData(revisionId: string) {
+    const key = loadKeys.revision(revisionId);
+    // Bu revizyon daha önce yüklendiyse bu bir yenilemedir: yanıt beklenirken
+    // ölçüm/özet tablolarına yerel bir yazma (kayıt, uzlaştırma, refreshSummaries)
+    // girerse, yenilemenin daha eski anlık görüntüsü onları ezmemeli. Önceden
+    // ezilen yeni ölçüm geçmişten kayboluyor, toplam kayıttan önceki değere
+    // dönüyordu. Tablolar değişmez olduğu için başvuru karşılaştırması yeterli.
+    const before = store.getState();
+    const isRefresh = before.loads[key] !== undefined && before.selection.revisionId === revisionId;
+    const startMeasurements = before.entities.measurements;
+    const startSummaries = before.entities.summaries;
     return load(
-      loadKeys.revision(revisionId),
+      key,
       () =>
         Promise.all([
           api.get<Placement[]>(`/revisions/${revisionId}/placements`),
@@ -189,16 +199,21 @@ export function createAppStore(deps: AppStoreDeps) {
         ]),
       ([placements, measurements, summaries]) => {
         if (store.getState().selection.revisionId !== revisionId) return false;
+        const current = store.getState().entities;
+        const overtaken =
+          isRefresh && (current.measurements !== startMeasurements || current.summaries !== startSummaries);
         const tagged: SummaryEntity[] = summaries.map((summary) => ({ ...summary, revisionId }));
         store.setState((state) => ({
           entities: {
             ...state.entities,
             placements: tableFrom(placements, entityKey.placements),
-            measurements: tableFrom(measurements, entityKey.measurements),
-            summaries: tableFrom(tagged, entityKey.summaries),
+            measurements: overtaken ? state.entities.measurements : tableFrom(measurements, entityKey.measurements),
+            summaries: overtaken ? state.entities.summaries : tableFrom(tagged, entityKey.summaries),
           },
           dataVersion: state.dataVersion + 1,
         }));
+        // Yerel yazma kazandı; özetler yine de sunucudan, bu kez taze olarak alınır.
+        if (overtaken) void refreshSummaries(revisionId);
         return true;
       },
     );

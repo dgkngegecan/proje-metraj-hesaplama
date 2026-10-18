@@ -172,7 +172,12 @@ function Entry({ placement, revisionId }: { placement: Placement; revisionId: st
       ops: [patch.remove('measurements', [measurement.id])],
       commit: () => api.delete(`/measurements/${measurement.id}`),
       message: `${quantity(measurement.inputQuantity)} ${measurement.inputUnit} silindi.`,
-      onCommitted: afterChange,
+      // Yalnız özet tazelenirse, "Geri al" süresinde araya giren bir yenilemenin geri
+      // getirdiği (henüz silinmemiş) satır listede kalıyordu; ölçümler de tazelenir.
+      onCommitted: () => {
+        actions.invalidateResources(`report:${revisionId}`);
+        void actions.refreshRevision();
+      },
     });
 
   const keypadTitle = isPipe && profile ? `${placement.displayName} · ${variantName(profile)}` : placement.displayName;
