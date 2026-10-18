@@ -7,7 +7,8 @@ import { EmptyState, ScreenHeader, shellActions } from '../../shell';
 import { DeleteCardSheet, deactivateCard } from './cardActions';
 import { attributeValueLabel } from './cardDraft';
 import { Notice, Section } from './shared/FormParts';
-import { useCatalogAttributes, useCatalogCard } from './useCatalog';
+import { useCardVersions, useCatalogAttributes, useCatalogCard } from './useCatalog';
+import { versionChanges, versionMeta } from './versionHistory.ts';
 
 const VARIANT_PREVIEW = 20;
 
@@ -25,10 +26,46 @@ function Facts({ rows }: { rows: ReadonlyArray<[string, string | null | undefine
   );
 }
 
-/** Kart ayrıntısı: sürüm, varyantlar, nitelikler. Düzenleme yeni bir sürüm oluşturur. */
+/** Sürüm geçmişi: en yeni önce; her satır bir önceki sürüme göre değişenleri gösterir. */
+function VersionHistory({ history }: { history: ReturnType<typeof useCardVersions> }) {
+  if (!history.data) {
+    return history.status === 'error' ? (
+      <Notice tone="warning">
+        Sürüm geçmişi yüklenemedi.{' '}
+        <button type="button" className="m-btn m-btn--secondary" onClick={history.reload}>
+          Yeniden dene
+        </button>
+      </Notice>
+    ) : (
+      <p className="m-muted">Sürüm geçmişi yükleniyor…</p>
+    );
+  }
+  const versions = history.data;
+  return (
+    <ul className="m-variant-list" aria-label="Sürüm geçmişi">
+      {versions.map((version, index) => {
+        const older = versions[index + 1];
+        const changes = versionChanges(version, older);
+        return (
+          <li key={version.id} className="m-variant">
+            <strong>
+              <span className="m-num">v{version.versionNumber}</span>
+              {version.isLatest ? ' (güncel)' : ''} · {version.name}
+            </strong>
+            <small>{versionMeta(version)}</small>
+            <small>{older ? changes.join(' · ') || 'Alanlarda değişiklik yok' : 'İlk sürüm'}</small>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Kart ayrıntısı: sürüm geçmişi, varyantlar, nitelikler. Düzenleme yeni bir sürüm oluşturur. */
 export function CardDetail({ cardId }: { cardId: string }) {
   const card = useCatalogCard(cardId);
   const attributes = useCatalogAttributes();
+  const history = useCardVersions(card);
   const [menu, setMenu] = useState(false);
   const [deleting, setDeleting] = useState<CatalogCard | null>(null);
   const [allVariants, setAllVariants] = useState(false);
@@ -119,6 +156,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
             Her düzenleme yeni bir sürüm oluşturur. Projelerde kullanılan kartlar eklendikleri sürümü korur; yeni sürüm
             yalnız sonradan eklenen kullanımlarda geçerlidir.
           </p>
+          <VersionHistory history={history} />
         </Section>
 
         {card.variantMode && card.variantMode !== 'None' && (

@@ -4,7 +4,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Metraj.Host;
 
-/// <summary>Rota tablosu: 67 uç nokta, alanlarına göre.</summary>
+/// <summary>Rota tablosu: 68 uç nokta, alanlarına göre.</summary>
 /// <remarks>
 /// Rotalar, gövdeleri ve sıraları LocalApiHost'taki minimal API tanımlarından
 /// birebir taşındı (oradaki <c>Map*Endpoints</c> metotlarıyla aynı bölümleme).
@@ -21,7 +21,7 @@ public sealed partial class MetrajRequestRouter
 
     private static Route[] BuildRouteTable()
     {
-        var api = new List<Route>(capacity: 67);
+        var api = new List<Route>(capacity: 68);
         MapHealthRoutes(api);
         MapProjectRoutes(api);
         MapCatalogRoutes(api);
@@ -72,6 +72,8 @@ public sealed partial class MetrajRequestRouter
         Map(api, "POST", "/catalog/starter-pack", call => OkAsync(call.Services.StarterCatalog.SeedAsync(call.Token)));
         Map<CreateCardRequest>(api, "POST", "/catalog/cards", (call, request) =>
             OkAsync(call.Services.Catalog.CreateCardAsync(ToCatalogCardDraft(request), call.Token)));
+        Map(api, "GET", "/catalog/cards/{cardId:guid}/versions", call =>
+            OkAsync(call.Services.Catalog.ListVersionsAsync(call.Id("cardId"), call.Token)));
         Map<CreateCardRequest>(api, "POST", "/catalog/cards/{cardId:guid}/versions", (call, request) =>
             OkAsync(call.Services.Catalog.CreateVersionAsync(call.Id("cardId"), ToCatalogCardDraft(request), call.Token)));
         Map(api, "POST", "/catalog/cards/{cardId:guid}/deactivate", call =>

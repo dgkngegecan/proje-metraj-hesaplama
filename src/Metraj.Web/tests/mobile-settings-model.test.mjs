@@ -183,8 +183,9 @@ test('yedek ve bütünlük metinleri', () => {
 test("tarih: Z'siz sunucu zamanı UTC sayılır, geçersiz boş döner", () => {
   assert.equal(formatDateTime('2026-10-17T11:17:13'), formatDateTime('2026-10-17T11:17:13Z'));
   // Sunucunun bugünkü biçimi (7 haneli kesir + "Z") aynı anı yerel saatle gösterir.
-  const expected = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })
-    .format(new Date(Date.UTC(2026, 9, 17, 11, 17, 13)));
+  const expected = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(
+    new Date(Date.UTC(2026, 9, 17, 11, 17, 13)),
+  );
   assert.equal(formatDateTime('2026-10-17T11:17:13.4138484Z'), expected);
   assert.equal(formatDateTime('2026-10-17T14:17:13+0300'), expected);
   assert.equal(formatDateTime(undefined), '');

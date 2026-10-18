@@ -64,7 +64,7 @@ Aynı dalgadaki yazıcı ajanlar ayrı worktree'lerde çalışır ve birbirinin 
   - **Olay (yerel → JS):** `{"type":"event","event":"back|pause|resume"}`.
 - JS API yüzeyi (`src/Metraj.Web/src/api.ts`, masaüstü imzaları korunur): `api.get/post/put/delete/upload` aynen; yeni `api.download(path, suggestedName)` (köprüde `file` tutamacı + paylaş/kaydet sayfası, fetch'te blob + `<a download>`) ve `api.importWorkspace()` (köprüde `pickAndImport`, fetch'te dosya seçici + `upload`).
 
-## Rota envanteri ve eşleştirme (67 uç nokta)
+## Rota envanteri ve eşleştirme (68 uç nokta)
 
 Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran karşılığı olmalı. "Mobil ekran" sütunu Dalga 2 sonunda doğrulanır.
 
@@ -83,6 +83,7 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 | DELETE | `/api/catalog/types/{typeId}` | Kütüphane → tipler |
 | POST | `/api/catalog/starter-pack` | Kütüphane → eksik standartları tamamla |
 | POST | `/api/catalog/cards` | Kütüphane → yeni kart |
+| GET | `/api/catalog/cards/{cardId}/versions` | Kütüphane → kart ayrıntısı → sürüm geçmişi (Dalga 3 sonrası eklendi) |
 | POST | `/api/catalog/cards/{cardId}/versions` | Kütüphane → kart düzenle |
 | POST | `/api/catalog/cards/{cardId}/deactivate` | Kütüphane → pasife al |
 | DELETE | `/api/catalog/cards/{cardId}` | Kütüphane → sil |

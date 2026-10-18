@@ -20,6 +20,54 @@ public sealed class CatalogWorkspaceService(Func<MetrajDbContext> contextFactory
         return await ProjectLatestVersionsAsync(context.CatalogCardDefinitions.AsNoTracking(), cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CatalogCardVersionItem>> ListVersionsAsync(Guid definitionId, CancellationToken cancellationToken = default)
+    {
+        await using MetrajDbContext context = contextFactory();
+        CatalogCardDefinition definition = await context.CatalogCardDefinitions.AsNoTracking()
+            .SingleOrDefaultAsync(x => x.Id == definitionId, cancellationToken)
+            ?? throw new DomainRuleViolationException("catalog.definition", "Catalog card definition was not found.");
+        List<CatalogCardVersion> versions = await context.CatalogCardVersions.AsNoTracking()
+            .Include(x => x.CatalogCardTypeDefinition)
+            .Where(x => x.CatalogCardDefinitionId == definitionId)
+            .OrderByDescending(x => x.VersionNumber)
+            .ToListAsync(cancellationToken);
+        Dictionary<Guid, int> usage = await context.ProjectPlacements.AsNoTracking()
+            .Where(x => x.CatalogCardVersion!.CatalogCardDefinitionId == definitionId)
+            .GroupBy(x => x.CatalogCardVersionId)
+            .Select(group => new { VersionId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(x => x.VersionId, x => x.Count, cancellationToken);
+        int latest = versions.Count == 0 ? 0 : versions[0].VersionNumber;
+        return versions
+            .Select(version =>
+            {
+                // Listeyle aynı ad/seçenek temizliği (standart paketin ilk sürümleri).
+                CatalogCardListItem item = ToListItem(definition, version);
+                return new CatalogCardVersionItem(
+                    version.Id,
+                    definition.Id,
+                    version.VersionNumber,
+                    version.VersionNumber == latest,
+                    item.Name,
+                    item.CardType,
+                    item.Unit,
+                    item.InputBehavior,
+                    item.SalesConversion,
+                    item.ReportBehavior,
+                    item.WasteRatePct,
+                    item.ContainerParameter,
+                    item.PositionNumber,
+                    item.MaterialType,
+                    item.CompatibleDiameters ?? [],
+                    item.CustomTypeName,
+                    item.VariantMode,
+                    item.Variants ?? [],
+                    item.AttributeValues ?? new Dictionary<string, string>(),
+                    usage.GetValueOrDefault(version.Id),
+                    version.CreatedAtUtc);
+            })
+            .ToList();
+    }
+
     /// <summary>
     /// Verilen kart kümesinin yalnızca EN SON sürümlerini listeye çevirir.
     /// </summary>

@@ -156,3 +156,64 @@ test('ikinci satır: tür, kod, birim, varyant sayısı, pasiflik', () => {
   const old = items.find((item) => item.card.name === 'Eski Vana');
   assert.match(cardSubtitle(old), /pasif$/);
 });
+
+test('sürüm geçmişi: bir önceki sürüme göre değişenler okunur satırlar olur', async () => {
+  const { versionChanges, versionMeta, formatVersionDate } =
+    await import('../src/mobile/screens/library/versionHistory.ts');
+  const v1 = {
+    id: 'v1',
+    cardId: 'c',
+    versionNumber: 1,
+    isLatest: false,
+    name: 'PPR boru',
+    cardType: 'Material',
+    unit: 'm',
+    inputBehavior: 'Manual',
+    salesConversion: 'StandardLength',
+    reportBehavior: 'Measurable',
+    wasteRatePct: 5,
+    containerParameter: 4,
+    positionNumber: null,
+    materialType: 'PPR',
+    compatibleDiameters: ['20'],
+    customTypeName: null,
+    variantMode: 'Pipe',
+    variants: [{ code: '20', label: 'Ø20' }],
+    attributeValues: {},
+    placementCount: 3,
+    createdAtUtc: '2026-10-17T08:00:00.1234567Z',
+  };
+  const v2 = {
+    ...v1,
+    id: 'v2',
+    versionNumber: 2,
+    isLatest: true,
+    name: 'PPR boru (PN20)',
+    wasteRatePct: 7.5,
+    variants: [...v1.variants, { code: '25', label: 'Ø25' }],
+    placementCount: 0,
+  };
+  assert.deepEqual(versionChanges(v2, v1), [
+    'Ad: PPR boru → PPR boru (PN20)',
+    'Fire payı: %5 → %7,5',
+    'Çeşit sayısı: 1 → 2',
+  ]);
+  assert.deepEqual(versionChanges(v1, undefined), []);
+  assert.deepEqual(versionChanges({ ...v1, id: 'v3' }, v1), []);
+  assert.deepEqual(
+    versionChanges({ ...v1, variants: [{ code: '20', label: 'DN20' }], attributeValues: { renk: 'beyaz' } }, v1),
+    ['Çeşitler güncellendi', 'Nitelikler güncellendi'],
+  );
+
+  // "Z"li sunucu zamanı ile eksiz eski değer aynı anı gösterir.
+  assert.equal(formatVersionDate('2026-10-17T08:00:00.1234567Z'), formatVersionDate('2026-10-17T08:00:00'));
+  assert.equal(
+    formatVersionDate('2026-10-17T08:00:00Z'),
+    new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeStyle: 'short' }).format(
+      new Date(Date.UTC(2026, 9, 17, 8)),
+    ),
+  );
+  assert.equal(formatVersionDate('değil'), '');
+  assert.match(versionMeta(v1), /· 3 yerleşimde kullanılıyor$/);
+  assert.match(versionMeta(v2), /· Projelerde kullanılmıyor$/);
+});
