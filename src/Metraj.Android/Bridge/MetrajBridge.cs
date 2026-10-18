@@ -56,6 +56,13 @@ internal sealed class MetrajBridge : Java.Lang.Object, WebViewCompat.IWebMessage
     private const string JsonContentType = "application/json";
     private static readonly HashSet<string> Methods = new(StringComparer.Ordinal) { "GET", "POST", "PUT", "DELETE" };
 
+    /// <summary>
+    /// Süreç geneli: zaman aşımına uğrayıp aynı anahtarla yeniden denenen mutasyon
+    /// ikinci kez yazılmaz (son kod incelemesi, bulgu 3). Sayfa yeniden yüklense de
+    /// geçerli kalır; JS anahtarı hatırlamıyorsa zaten yeni anahtar gönderir.
+    /// </summary>
+    private static readonly IdempotentRequestCache Idempotency = new();
+
     private readonly IBridgeHost host;
     private JavaScriptReplyProxy? latestProxy;
 
@@ -121,7 +128,8 @@ internal sealed class MetrajBridge : Java.Lang.Object, WebViewCompat.IWebMessage
         });
 
     /// <summary>Bir isteği router'a verir ve köprü yanıtını üretir; hiçbir zaman istisna fırlatmaz.</summary>
-    public static async Task<string> ExecuteAsync(string id, RouterRequest request)
+    /// <param name="idempotencyKey">Verildiyse aynı anahtarlı ikinci istek işi tekrar yapmaz, ilkinin sonucunu alır.</param>
+    public static async Task<string> ExecuteAsync(string id, RouterRequest request, string? idempotencyKey = null)
     {
         MetrajRuntime runtime;
         try
@@ -134,15 +142,28 @@ internal sealed class MetrajBridge : Java.Lang.Object, WebViewCompat.IWebMessage
             return BridgeProtocol.Error(id, 500, "Uygulama başlatılamadı. Uygulamayı kapatıp yeniden açın.", "startup.failed");
         }
 
-        RouterResponse response;
-        try
+        async Task<RouterResponse> DispatchAsync()
         {
-            response = await runtime.Router.DispatchAsync(request, CancellationToken.None);
+            try
+            {
+                return await runtime.Router.DispatchAsync(request, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                // Router kendi hatalarını yanıta çevirir; buraya yalnız taşıma kaynaklı bir şey düşer.
+                return runtime.Router.CreateErrorResponse(exception, request.PathAndQuery);
+            }
         }
-        catch (Exception exception)
+
+        RouterResponse response;
+        if (string.IsNullOrEmpty(idempotencyKey) || request.Method == "GET")
         {
-            // Router kendi hatalarını yanıta çevirir; buraya yalnız taşıma kaynaklı bir şey düşer.
-            response = runtime.Router.CreateErrorResponse(exception, request.PathAndQuery);
+            response = await DispatchAsync();
+        }
+        else
+        {
+            response = await Idempotency.RunAsync(idempotencyKey, request, DispatchAsync, out bool replayed);
+            if (replayed) MetrajLog.Mark($"köprü: yinelenen {request.Method} {request.PathAndQuery} ilk isteğin sonucuna bağlandı (çift kayıt önlendi)");
         }
 
         if (response.File is not RouterFile file)
@@ -184,8 +205,26 @@ internal sealed class MetrajBridge : Java.Lang.Object, WebViewCompat.IWebMessage
         }
 
         bool startupPending = !AppStartup.Ready.IsCompleted;
+        if (startupPending)
+        {
+            // Çekirdek hazırlığı (ilk kurulumda göç + tohumlama) JS'in zaman aşımı
+            // sayacından yemesin: JS "waiting"te sayacı durdurur, "started"ta TAM
+            // süreyle yeniden kurar. Hazırlık hatası ExecuteAsync'te yanıta çevrilir.
+            Reply(proxy, BridgeProtocol.Progress(message.Id, "waiting"));
+            try
+            {
+                await AppStartup.Ready.ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                // Ayrıntı açılışta günlüğe yazıldı.
+            }
+
+            Reply(proxy, BridgeProtocol.Progress(message.Id, "started"));
+        }
+
         var request = new RouterRequest(method, path, message.Body, null, message.Body is null ? null : JsonContentType);
-        string json = await ExecuteAsync(message.Id, request).ConfigureAwait(false);
+        string json = await ExecuteAsync(message.Id, request, message.IdempotencyKey).ConfigureAwait(false);
         Reply(proxy, json);
         MetrajLog.Debug($"köprü {method} {path} işlendi: {Stopwatch.GetElapsedTime(receivedAt).TotalMilliseconds:F1} ms{(startupPending ? " (çekirdek hazırlığı beklendi)" : string.Empty)}");
     }
@@ -213,6 +252,10 @@ internal sealed class MetrajBridge : Java.Lang.Object, WebViewCompat.IWebMessage
                 }
 
                 host.RunOnUi(message.Command == "share" ? () => host.Share(file) : () => host.SaveAs(file));
+                break;
+            case "release":
+                // "Dosya hazır" panelinden vazgeçildi: dosya 1 saatlik temizliği beklemez.
+                ExportStore.Release(message.Handle);
                 break;
             case "pickAndImport":
                 host.RunOnUi(() => host.PickAndImport(message.Id, proxy));

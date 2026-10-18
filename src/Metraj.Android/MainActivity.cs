@@ -62,6 +62,8 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
     private MetrajBridge? bridge;
     private ActivityResultLauncher? openDocumentLauncher;
     private ActivityResultLauncher? createDocumentLauncher;
+    private ActivityResultLauncher? recoveryExportLauncher;
+    private DatabaseRecovery? pendingRecoveryExport;
     private (string Id, JavaScriptReplyProxy Proxy)? pendingPick;
     private ExportedFile? pendingSave;
     private long splashShownAt;
@@ -91,6 +93,8 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
             new ActivityResultCallback(OnOpenDocumentResult));
         createDocumentLauncher = RegisterForActivityResult(new ActivityResultContracts.StartActivityForResult(),
             new ActivityResultCallback(OnCreateDocumentResult));
+        recoveryExportLauncher = RegisterForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback(OnRecoveryExportResult));
         OnBackPressedDispatcher.AddCallback(this, new BackCallback(this));
 
         if (!WebViewFeature.IsFeatureSupported(WebViewFeature.WebMessageListener))
@@ -262,9 +266,152 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         {
             ShowFatalError("Proje Metraj başlatılamadı",
                 "Veritabanı hazırlanırken bir hata oluştu; verileriniz silinmedi.\n\n" + exception.Message +
-                "\n\nAyrıntı kaydı: " + (MetrajLog.LogFilePath ?? "logcat (METRAJ)"));
+                "\n\nAyrıntı kaydı: " + (MetrajLog.LogFilePath ?? "logcat (METRAJ)"),
+                AddRecoveryActions);
         }
     }
+
+    // --- Açılış kurtarma ----------------------------------------------------
+    //
+    // Hata ekranında önceden yalnız "Kapat" vardı: veritabanı bozulduysa kullanıcı
+    // yedeklerine (uygulamanın özel klasöründe, dışarıdan görünmez) hiç ulaşamıyordu.
+    // Ayarlar → Yedekler router'dan geçer; router'ı kuran hazırlık başarısız
+    // olduğu için burada DatabaseRecovery doğrudan bakım servisiyle çalışır.
+
+    private void AddRecoveryActions(LinearLayout layout, TextView status)
+    {
+        DatabaseRecovery recovery = AppStartup.CreateRecovery();
+        Button restore = PlainButton("Son yedeği geri yükle");
+        restore.Enabled = false;
+        Button export = PlainButton("Veriyi dışa aktar");
+        restore.Click += (_, _) => ConfirmRestore(recovery, restore, export, status);
+        export.Click += (_, _) => StartRecoveryExport(recovery);
+        layout.AddView(restore);
+        layout.AddView(export);
+
+        // Yedek listesi dosya sistemi taraması; UI iş parçacığını bekletmez.
+        _ = Task.Run(async () =>
+        {
+            IReadOnlyList<DatabaseBackupListItem> backups;
+            try
+            {
+                backups = await recovery.ListBackupsAsync();
+            }
+            catch (Exception exception)
+            {
+                MetrajLog.Error("Kurtarma: yedekler listelenemedi.", exception);
+                backups = [];
+            }
+
+            RunOnUiThread(() =>
+            {
+                if (backups.Count == 0)
+                {
+                    restore.Text = "Geri yüklenecek yedek yok";
+                    return;
+                }
+
+                restore.Enabled = true;
+                restore.Text = $"Son yedeği geri yükle ({FormatLocal(backups[0].CreatedAtUtc)})";
+            });
+        });
+    }
+
+    private void ConfirmRestore(DatabaseRecovery recovery, Button restore, Button export, TextView status) =>
+        new AlertDialog.Builder(this)
+            .SetTitle("Son yedek geri yüklensin mi?")!
+            .SetMessage("En son yedek veritabanının yerine konacak; yedekten sonra girilen kayıtlar bu yedekte yok. " +
+                "Bozuk dosya silinmez, uygulama klasöründe \"" + DatabaseRecovery.QuarantineFolderName + "\" altına taşınır " +
+                "ve \"Veriyi dışa aktar\" ile alınabilir.")!
+            .SetPositiveButton("Geri yükle", (sender, args) => _ = RestoreLatestBackupAsync(recovery, restore, export, status))!
+            .SetNegativeButton("Vazgeç", (IDialogInterfaceOnClickListener?)null)!
+            .Show();
+
+    private async Task RestoreLatestBackupAsync(DatabaseRecovery recovery, Button restore, Button export, TextView status)
+    {
+        restore.Enabled = false;
+        export.Enabled = false;
+        status.Text = "Yedek geri yükleniyor…";
+        try
+        {
+            DatabaseRecoveryResult result = await Task.Run(() => recovery.RestoreLatestBackupAsync());
+            MetrajLog.Mark($"kurtarma: {result.Backup.FileName} geri yüklendi; bozuk dosya: {result.QuarantineDirectory ?? "(yoktu)"}" +
+                (result.SkippedBackups.Count > 0 ? $"; atlanan: {string.Join(" | ", result.SkippedBackups)}" : string.Empty));
+            Toast.MakeText(this, $"{FormatLocal(result.Backup.CreatedAtUtc)} yedeği geri yüklendi.", ToastLength.Long)?.Show();
+            // Hazırlık yeni veritabanıyla baştan başlar; etkinlik yeniden kurulup onu bekler.
+            AppStartup.Restart();
+            Recreate();
+        }
+        catch (Exception exception)
+        {
+            MetrajLog.Error("Kurtarma: yedek geri yüklenemedi.", exception);
+            status.Text = "Yedek geri yüklenemedi: " + exception.Message;
+            restore.Enabled = true;
+            export.Enabled = true;
+        }
+    }
+
+    private void StartRecoveryExport(DatabaseRecovery recovery)
+    {
+        var intent = new Intent(Intent.ActionCreateDocument);
+        intent.AddCategory(Intent.CategoryOpenable);
+        intent.SetType("application/zip");
+        intent.PutExtra(Intent.ExtraTitle, recovery.SuggestedArchiveName());
+        try
+        {
+            pendingRecoveryExport = recovery;
+            recoveryExportLauncher!.Launch(intent);
+        }
+        catch (ActivityNotFoundException exception)
+        {
+            pendingRecoveryExport = null;
+            MetrajLog.Error("Kurtarma: belge kaydetme ekranı açılamadı.", exception);
+            Toast.MakeText(this, "Bu cihazda dosya kaydetme ekranı bulunamadı.", ToastLength.Long)?.Show();
+        }
+    }
+
+    private void OnRecoveryExportResult(ActivityResult? result)
+    {
+        DatabaseRecovery? recovery = pendingRecoveryExport;
+        pendingRecoveryExport = null;
+        AndroidUri? uri = result?.ResultCode == (int)Result.Ok ? result.Data?.Data : null;
+        if (recovery is null || uri is null) return;
+
+        ContentResolver resolver = ContentResolver!;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                int count;
+                await using (Stream output = resolver.OpenOutputStream(uri, "wt") ?? throw new IOException("Hedef açılamadı."))
+                {
+                    count = await recovery.WriteRecoveryArchiveAsync(output);
+                }
+
+                MetrajLog.Mark($"kurtarma: ham veri dışa aktarıldı ({count} dosya)");
+                RunOnUiThread(() => Toast.MakeText(this, $"Veri dışa aktarıldı ({count} dosya).", ToastLength.Long)?.Show());
+            }
+            catch (Exception exception)
+            {
+                MetrajLog.Error("Kurtarma: veri dışa aktarılamadı.", exception);
+                RunOnUiThread(() => Toast.MakeText(this, "Veri dışa aktarılamadı.", ToastLength.Long)?.Show());
+            }
+        });
+    }
+
+    /// <summary>
+    /// Büyük harfe çevrilmeyen düğme. Tema metni cihaz diliyle büyütüyor; İngilizce
+    /// cihazda "Veriyi" → "VERIYI", "geri" → "GERI" oluyordu (Türkçe İ kayboluyor).
+    /// </summary>
+    private Button PlainButton(string text)
+    {
+        var button = new Button(this) { Text = text };
+        button.SetAllCaps(false);
+        return button;
+    }
+
+    private static string FormatLocal(DateTime utc) =>
+        DateTime.SpecifyKind(utc, DateTimeKind.Utc).ToLocalTime().ToString("dd.MM.yyyy HH:mm", CultureInfo.InvariantCulture);
 
     private bool ShouldKeepSplash()
     {
@@ -321,7 +468,8 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         }
     }
 
-    private void ShowFatalError(string title, string message)
+    /// <param name="addActions">"Kapat"tan önce eklenecek düğmeler; ikinci parametre durum satırıdır.</param>
+    private void ShowFatalError(string title, string message, Action<LinearLayout, TextView>? addActions = null)
     {
         if (fatal) return;
         fatal = true;
@@ -338,10 +486,19 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         body.SetTextColor(new Color(ContextCompat.GetColor(this, Resource.Color.metraj_text_muted)));
         body.SetPadding(0, padding, 0, padding);
         body.SetTextIsSelectable(true);
-        var close = new Button(this) { Text = "Kapat" };
+        Button close = PlainButton("Kapat");
         close.Click += (_, _) => FinishAndRemoveTask();
         layout.AddView(heading);
         layout.AddView(body);
+        if (addActions is not null)
+        {
+            var status = new TextView(this) { TextSize = 14 };
+            status.SetTextColor(new Color(ContextCompat.GetColor(this, Resource.Color.metraj_text_muted)));
+            status.SetPadding(0, 0, 0, padding / 2);
+            layout.AddView(status);
+            addActions(layout, status);
+        }
+
         layout.AddView(close);
         var scroll = new ScrollView(this);
         scroll.SetBackgroundColor(BackgroundColor());

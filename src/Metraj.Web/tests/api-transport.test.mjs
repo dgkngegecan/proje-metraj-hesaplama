@@ -209,7 +209,7 @@ test('download (köprü): sunucu ad vermezse önerilen ad; sunucu kaydı yoksa s
   assert.equal(sent[1].command, 'saveAs');
 });
 
-test('download (köprü): vazgeçilirse komut gönderilmez; hata ve dosyasız yanıt ApiError', async () => {
+test('download (köprü): vazgeçilirse yalnız release gider; hata ve dosyasız yanıt ApiError', async () => {
   let mode = 'file';
   const { sent } = installBridge((message) => {
     if (message.type !== 'request') return null;
@@ -219,7 +219,12 @@ test('download (köprü): vazgeçilirse komut gönderilmez; hata ve dosyasız ya
   });
   setDownloadPresenter(async () => null);
   assert.equal((await api.download('/revisions/r1/report/pdf', 'x.pdf')).outcome, 'cancelled');
-  assert.equal(sent.filter((message) => message.type === 'command').length, 0);
+  // Bulgu 7: vazgeçilen dosya yerel önbellekte kalmasın diye tutamaç bırakılır;
+  // paylaş/kaydet komutu gönderilmez.
+  assert.deepEqual(
+    sent.filter((message) => message.type === 'command').map(({ command, args }) => ({ command, args })),
+    [{ command: 'release', args: { handle: 'h-42' } }],
+  );
   mode = 'error';
   assert.equal((await captureError(api.download('/revisions/r1/report/pdf', 'x.pdf'))).error.rule, 'report.empty');
   mode = 'nofile';
