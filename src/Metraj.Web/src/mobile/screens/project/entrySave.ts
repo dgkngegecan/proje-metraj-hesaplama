@@ -8,16 +8,16 @@ import {
   type Feedback,
   type OptimisticResult,
 } from '../../store/optimistic.ts';
-import type { MeasureContext } from './context.ts';
 import {
-  applyUpdate,
   buildMeasurementBodies,
   buildUpdateBody,
-  provisionalMeasurement,
+  QUANTITY_ERROR,
   rowsError,
   type EntryRow,
   type MeasurementEdit,
-} from './measurementRows.ts';
+} from '../../../lib/measurementBodies.ts';
+import { toEntryContext, type MeasureContext } from './context.ts';
+import { applyUpdate, provisionalMeasurement } from './measurementRows.ts';
 
 /**
  * Ölçüm kayıtları (iyimser). Her kayıt önce listeye geçici satır olarak girer
@@ -59,7 +59,7 @@ export async function saveMeasurementRows(
   if (problem) return fail(deps, problem);
   const now = (deps.now ?? (() => new Date()))();
   const idFor = deps.idFor ?? temporaryId;
-  const bodies = buildMeasurementBodies(input.placement, input.rows, input.context);
+  const bodies = buildMeasurementBodies(input.placement, input.rows, toEntryContext(input.context));
   const provisional = bodies.map((body) =>
     provisionalMeasurement(input.revisionId, input.placement, body, idFor(), now),
   );
@@ -82,8 +82,7 @@ export async function updateMeasurement(
   measurement: Measurement,
   edit: MeasurementEdit,
 ): Promise<OptimisticResult<void>> {
-  if (!Number.isFinite(edit.quantity) || edit.quantity <= 0)
-    return fail(deps, 'Miktarı sıfırdan büyük bir sayı olarak yazın.');
+  if (!Number.isFinite(edit.quantity) || edit.quantity <= 0) return fail(deps, QUANTITY_ERROR);
   const body = buildUpdateBody(measurement, edit);
   const updated = applyUpdate(measurement, body, (deps.now ?? (() => new Date()))());
   return runOptimistic(deps.store, {

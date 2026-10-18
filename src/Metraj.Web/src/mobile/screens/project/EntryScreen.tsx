@@ -29,10 +29,10 @@ import { duplicateMeasurement, saveMeasurementRows, updateMeasurement } from './
 import { FittingEntry } from './FittingEntry';
 import { HistoryList } from './HistoryList';
 import { contextSummary } from './context.ts';
+import { pipeRow } from '../../../lib/measurementBodies.ts';
 import {
   orderByRecentUse,
   pipeBoxesDraft,
-  pipeRow,
   pipeVariants,
   readSelectedDiameter,
   sourceGroupKey,

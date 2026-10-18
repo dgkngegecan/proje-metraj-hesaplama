@@ -9,8 +9,9 @@
  * Sunucudaki ölçüm satırında blok, kat, mahal, zon, pafta ve çizim revizyonu
  * ayrı alandır. Şaft ve hat no için ayrı alan YOKTUR (şema değişmez); bunlar
  * serbest not alanına "Şaft: A · Hat: 3" biçiminde, satıra özel notun ardına
- * yazılır — masaüstündeki `[satır notu, kullanıcı notu].join(' · ')` kuralıyla aynı.
+ * yazılır — masaüstüyle ortak `composeRowNotes` kuralı (lib/measurementBodies.ts).
  */
+import { composeRowNotes, type EntryContext, type EntryFields } from '../../../lib/measurementBodies.ts';
 
 export const CONTEXT_FIELDS = [
   { key: 'block', label: 'Blok', hint: 'A', max: 128, primary: true },
@@ -99,7 +100,7 @@ export function withValue(context: MeasureContext, key: ContextKey, value: strin
 export const hasContext = (context: MeasureContext) => CONTEXT_KEYS.some((key) => context[key] !== '');
 
 /** Sunucudaki ayrı alanlar. Boş değer `null` gider (masaüstüyle aynı). */
-export function contextToFields(context: MeasureContext) {
+export function contextToFields(context: MeasureContext): EntryFields {
   const orNull = (value: string) => value || null;
   return {
     block: orNull(context.block),
@@ -120,12 +121,17 @@ export function contextNoteSegments(context: MeasureContext): string[] {
   return segments;
 }
 
+/** Ortak gövde üreticisinin (lib/measurementBodies.ts) beklediği bağlam. */
+export function toEntryContext(context: MeasureContext): EntryContext {
+  return { fields: contextToFields(context), noteSegments: contextNoteSegments(context) };
+}
+
 /**
  * Satırın notu: önce satıra özel not (ör. "Çap: DN25"), sonra bağlam notları.
- * Masaüstü `addMeasurementRows` ile aynı sıra ve ayırıcı.
+ * Masaüstüyle aynı ortak `composeRowNotes` kuralı.
  */
 export function composeNotes(rowNotes: string | null | undefined, context: MeasureContext): string | null {
-  return [rowNotes, ...contextNoteSegments(context)].filter(Boolean).join(' · ') || null;
+  return composeRowNotes(rowNotes, contextNoteSegments(context));
 }
 
 /** Değer zaten "Kat 1" gibi öneki taşıyorsa ("Kat Kat 1" olmasın) ikinci kez eklenmez. */

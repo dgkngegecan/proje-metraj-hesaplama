@@ -1,5 +1,4 @@
-import type { CatalogCardVariant, Placement } from '../../../types';
-import type { EntryRow } from './measurementRows.ts';
+import type { FittingCounts, FittingSubmission } from '../../../lib/measurementBodies.ts';
 
 /**
  * Fitting adet sayımı (saf). Masaüstü Inspector'daki "Uyumlu çap ve parça
@@ -8,8 +7,10 @@ import type { EntryRow } from './measurementRows.ts';
  * kalmış sayım bir cihazdan ötekine yedekle taşınabilir. Telefon tek kutu
  * kullanır (çaplar çiple değişir); masaüstünden gelen birden çok kutu okunurken
  * toplanır — kayıtta zaten kutular (çap, tür) çiftine göre toplanıyordu.
+ * Gönderilecek satırlar masaüstüyle ORTAK `fittingSubmission`'dan
+ * (lib/measurementBodies.ts) üretilir.
  */
-export type FittingCounts = Record<string, Record<string, number>>;
+export type { FittingCounts };
 export interface FittingBox {
   id: string;
   diameter: string;
@@ -93,54 +94,7 @@ export function pendingForDiameter(counts: FittingCounts, diameter: string): num
   return Object.values(counts[diameter] ?? {}).reduce((sum, count) => sum + count, 0);
 }
 
-export type CompatibleFor = (diameterCode: string) => readonly CatalogCardVariant[];
-
-export interface FittingSubmission {
-  rows: EntryRow[];
-  /** Kaydedilen (çap, tür) çiftleri; başarıdan sonra taslaktan bunlar silinir. */
-  submitted: ReadonlySet<string>;
-}
-
-const keyOf = (diameter: string, kind: string) => `${diameter}\u0000${kind}`;
-
-/**
- * Masaüstü `submitFittings` satırları: yalnız o çapla UYUMLU türlerin sıfırdan
- * büyük adetleri gönderilir, uyumsuz kalıntılar (örn. başka boruya bağlanınca)
- * sessizce taslakta bırakılır. Satır sırası kutu/çap/tür ekleme sırasıdır.
- */
-export function fittingSubmission(
-  placement: Pick<Placement, 'variants'>,
-  counts: FittingCounts,
-  parentDiameters: readonly CatalogCardVariant[],
-  compatibleFor: CompatibleFor,
-): FittingSubmission {
-  const totals = new Map<string, { diameter: string; kind: string; count: number }>();
-  for (const [diameter, byKind] of Object.entries(counts))
-    for (const [kind, count] of Object.entries(byKind)) {
-      if (!(count > 0) || !compatibleFor(diameter).some((option) => option.code === kind)) continue;
-      totals.set(keyOf(diameter, kind), { diameter, kind, count });
-    }
-  const rows = [...totals.values()].map(({ diameter, kind, count }) => ({
-    quantity: count,
-    variant: diameter === 'GENEL' ? null : diameter,
-    secondaryVariant: kind,
-    notes: `${placement.variants?.find((item) => item.code === kind)?.label ?? kind}${
-      diameter === 'GENEL' ? '' : ` · Çap: ${parentDiameters.find((item) => item.code === diameter)?.label ?? diameter}`
-    }`,
-  }));
-  return { rows, submitted: new Set(totals.keys()) };
-}
-
-/** Başarılı kayıttan sonra taslakta kalanlar: gönderilen (çap, tür) çiftleri çıkarılır. */
-export function remainingAfterSubmit(counts: FittingCounts, submitted: ReadonlySet<string>): FittingCounts {
-  const remaining: FittingCounts = {};
-  for (const [diameter, byKind] of Object.entries(counts))
-    remaining[diameter] = Object.fromEntries(
-      Object.entries(byKind).filter(([kind]) => !submitted.has(keyOf(diameter, kind))),
-    );
-  return remaining;
-}
-
+/** Kaydedilecek toplam adet (gönder düğmesi). Satırlar ortak `fittingSubmission`'dan gelir. */
 export function pendingTotal(submission: FittingSubmission): number {
   return submission.rows.reduce((sum, row) => sum + row.quantity, 0);
 }

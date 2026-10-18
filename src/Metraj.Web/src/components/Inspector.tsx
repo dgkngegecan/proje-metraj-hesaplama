@@ -3,6 +3,7 @@ import { ContextNotes } from './ContextNotes';
 import { RadiatorInput } from './RadiatorInput';
 import { STEEL_DIAMETERS, variantName } from '../lib/catalogData';
 import { diameterCode, fittingChoices } from '../lib/fittingChoices';
+import { fittingSubmission, pipeRow, remainingAfterSubmit, type EntryRow } from '../lib/measurementBodies';
 import { useEffect, useRef, useState } from 'react';
 import { readUiState, writeUiState, type UiStateMap } from '../uiState';
 import { TYPE_META } from '../lib/uiTypes';
@@ -55,9 +56,7 @@ export function Inspector({
   draft: MeasurementDraft;
   onDraft: (value: MeasurementDraft) => void;
   onSubmit: () => void;
-  onSubmitRows: (
-    rows: Array<{ quantity: number; notes?: string | null; variant?: string | null; secondaryVariant?: string | null }>,
-  ) => Promise<boolean>;
+  onSubmitRows: (rows: EntryRow[]) => Promise<boolean>;
   placementNotes: string;
   onPlacementNotes: (value: string) => void;
   onSavePlacementNotes: () => void;
@@ -297,10 +296,7 @@ export function Inspector({
   const submitPipeBox = async (box: PipeBox) => {
     const parsed = parseDecimal(box.pending);
     if (parsed <= 0 || !Number.isFinite(parsed)) return;
-    const profile = variantDiameters.find((item) => item.code === box.diameter);
-    const saved = await onSubmitRows([
-      { quantity: parsed, variant: box.diameter, notes: `Çap: ${profile?.label ?? box.diameter}` },
-    ]);
+    const saved = await onSubmitRows([pipeRow(parsed, box.diameter, variantDiameters)]);
     if (!saved) return;
     // Kayıt sürerken kullanıcı yeni bir değer yazmış olabilir; onu ezme.
     setPipeBoxes((current) =>
@@ -308,29 +304,18 @@ export function Inspector({
     );
     onDraft({ ...draft, quantity: '' });
   };
-  const hasPendingFittings = fittingBoxes.some((box) =>
-    Object.entries(box.countsByDiameter).some(([diameter, counts]) => Object.entries(counts).some(([kind, count]) => count > 0 && compatibleFittings(diameter).some((item) => item.code === kind))),
+  // Satırlar telefonla ORTAK modülden (lib/measurementBodies.ts): kutular (çap, tür)
+  // çiftine göre toplanır, yalnız uyumlu türler gönderilir.
+  const fittingRows = fittingSubmission(
+    placement,
+    fittingBoxes.map((box) => box.countsByDiameter),
+    parentDiameters,
+    compatibleFittings,
   );
+  const hasPendingFittings = fittingRows.rows.length > 0;
   const submitFittings = async () => {
     if (!canEdit || busy || fittingSaves.has(placement.id)) return;
-    const totals = new Map<string, { diameter: string; kind: string; count: number }>();
-    fittingBoxes.forEach((box) =>
-      Object.entries(box.countsByDiameter).forEach(([diameter, counts]) => {
-        Object.entries(counts)
-          .filter(([kind, count]) => count > 0 && compatibleFittings(diameter).some((option) => option.code === kind))
-          .forEach(([kind, count]) => {
-            const key = `${diameter}\u0000${kind}`;
-            const current = totals.get(key);
-            totals.set(key, { diameter, kind, count: (current?.count ?? 0) + count });
-          });
-      }),
-    );
-    const rows = [...totals.values()].map(({ diameter, kind, count }) => ({
-      quantity: count,
-      variant: diameter === 'GENEL' ? null : diameter,
-      secondaryVariant: kind,
-      notes: `${placement.variants?.find((item) => item.code === kind)?.label ?? kind}${diameter === 'GENEL' ? '' : ` · Çap: ${parentDiameters.find((item) => item.code === diameter)?.label ?? diameter}`}`,
-    }));
+    const { rows, submitted } = fittingRows;
     if (!rows.length) return;
     const placementId = placement.id;
     fittingSaves.add(placementId);
@@ -338,9 +323,9 @@ export function Inspector({
     try {
       const saved = await onSubmitRows(rows);
       if (saved) {
-        const remaining = fittingBoxes.map((box) => ({ ...box, countsByDiameter:
-          Object.fromEntries(Object.entries(box.countsByDiameter).map(([diameter, counts]) => [diameter,
-            Object.fromEntries(Object.entries(counts).filter(([kind]) => !totals.has(`${diameter}\u0000${kind}`))) ]))
+        const remaining = fittingBoxes.map((box) => ({
+          ...box,
+          countsByDiameter: remainingAfterSubmit(box.countsByDiameter, submitted),
         }));
         // Persist before notifying whichever inspector is currently mounted.
         writeUiState(uiState, `fitting-draft.v1.${placementId}`, JSON.stringify(remaining));

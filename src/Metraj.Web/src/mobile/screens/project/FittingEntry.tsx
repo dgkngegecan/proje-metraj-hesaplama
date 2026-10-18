@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { variantName } from '../../../lib/catalogData';
 import { fittingChoices } from '../../../lib/fittingChoices';
 import { measurementVariantOf, quantity } from '../../../lib/format';
+import { fittingSubmission, remainingAfterSubmit, type FittingCounts } from '../../../lib/measurementBodies.ts';
 import type { CatalogCardVariant, Placement } from '../../../types';
 import { ChipGrid, KeypadSheet, Stepper, haptic, type KeypadResult } from '../../components';
 import { actions, draftKey, useDraft, useMeasurementsOf } from '../../store';
@@ -9,16 +10,13 @@ import { saveDeps } from './deps';
 import { saveMeasurementRows } from './entrySave.ts';
 import {
   countOf,
-  fittingSubmission,
   mergeCounts,
   pendingForDiameter,
   pendingTotal,
   readFittingBoxes,
-  remainingAfterSubmit,
   setCount,
   toDraftBoxes,
   MAX_FITTING_COUNT,
-  type FittingCounts,
 } from './fittingModel.ts';
 import { matchesVariant, orderByRecentUse } from './pipeModel.ts';
 import type { MeasureContext } from './context.ts';
@@ -103,7 +101,7 @@ export function FittingEntry({
   };
 
   const submission = useMemo(
-    () => fittingSubmission(placement, counts, choices.diameters, compatibleFor),
+    () => fittingSubmission(placement, [counts], choices.diameters, compatibleFor),
     [placement, counts, choices.diameters, compatibleFor],
   );
   const total = pendingTotal(submission);

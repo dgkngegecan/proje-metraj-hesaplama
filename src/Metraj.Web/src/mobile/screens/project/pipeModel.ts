@@ -2,7 +2,7 @@ import type { CatalogCardVariant, Measurement, MeasurementSummary, Placement } f
 import { STEEL_DIAMETERS, variantName } from '../../../lib/catalogData.ts';
 import { diameterCode } from '../../../lib/fittingChoices.ts';
 import { measurementVariantOf } from '../../../lib/format.ts';
-import { parseUtc, type EntryRow } from './measurementRows.ts';
+import { parseUtc } from './measurementRows.ts';
 
 /**
  * Boru çapı/boyutu seçimi (saf). Masaüstü Inspector'daki "Boru çapları" kutusunun
@@ -98,12 +98,6 @@ export function switchGroup(
   const current = variants.find((item) => item.code === currentCode);
   const next = inGroup.find((item) => current && diameterCode(item) === diameterCode(current)) ?? inGroup[0];
   return next?.code ?? null;
-}
-
-/** Masaüstü `submitPipeBox` satırı. */
-export function pipeRow(quantity: number, code: string, variants: readonly CatalogCardVariant[]): EntryRow {
-  const profile = variants.find((item) => item.code === code);
-  return { quantity, variant: code, notes: `Çap: ${profile?.label ?? code}` };
 }
 
 export interface PipeBoxDraft {
