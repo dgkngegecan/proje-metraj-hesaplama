@@ -6,6 +6,7 @@ import {
   type BridgeResponse,
   type BridgeTransport,
 } from './lib/transport.ts';
+import { createRetryKeyRegistry, mutationSignature } from './lib/retryKeys.ts';
 import type { WorkspaceImportResult } from './types';
 
 export class ApiError extends Error {
@@ -77,6 +78,12 @@ export function readBridgeResponse<T>(response: BridgeResponse): T {
   return JSON.parse(response.body) as T;
 }
 
+/**
+ * Zaman aşımına uğrayan mutasyonların anahtarları (bkz. lib/retryKeys.ts).
+ * Aynı imzalı yeniden deneme aynı anahtarla gider; yerel taraf işi iki kez yapmaz.
+ */
+export const bridgeRetryKeys = createRetryKeyRegistry();
+
 async function bridgeRequest<T>(bridge: BridgeTransport, path: string, init?: RequestInit): Promise<T> {
   const method = (init?.method ?? 'GET').toUpperCase();
   if (!isBridgeMethod(method)) throw new ApiError(DEFAULT_ERROR_MESSAGE, 'transport.method');
@@ -84,17 +91,25 @@ async function bridgeRequest<T>(bridge: BridgeTransport, path: string, init?: Re
     // Sözleşme gereği ikili içerik köprüden JSON olarak geçmez; içe aktarma
     // yerel dosya seçiciyle yapılır (api.importWorkspace → pickAndImport).
     throw new ApiError('Bu cihazda dosya içe aktarma yerel dosya seçiciyle yapılır.', 'transport.upload-unsupported');
+  const body = typeof init?.body === 'string' ? init.body : null;
+  // GET yan etkisizdir; yeniden denemesi zararsız, anahtar gerekmez.
+  const signature = method === 'GET' ? null : mutationSignature(method, path, body);
+  const idempotencyKey = signature === null ? undefined : bridgeRetryKeys.keyFor(signature);
   let response: BridgeResponse;
   try {
     response = await bridge.request({
       method,
       path: `/api${path}`,
-      body: typeof init?.body === 'string' ? init.body : null,
+      body,
       timeoutMs: bridgeTimeoutFor(path),
+      idempotencyKey,
     });
   } catch (error) {
+    if (signature !== null && idempotencyKey && error instanceof BridgeTransportError && error.code === 'timeout')
+      bridgeRetryKeys.timedOut(signature, idempotencyKey);
     throw transportFailure(error);
   }
+  if (signature !== null) bridgeRetryKeys.settled(signature);
   return readBridgeResponse<T>(response);
 }
 
@@ -196,7 +211,12 @@ async function download(path: string, suggestedName: string): Promise<DownloadRe
     if (!response.file) throw new ApiError('Dosya hazırlanamadı. Tekrar deneyin.', 'transport.no-file', true);
     const file: BridgeFile = { ...response.file, name: response.file.name || suggestedName };
     const action = downloadPresenter ? await downloadPresenter(file) : 'saveAs';
-    if (!action) return { name: file.name, mime: file.mime, size: file.size, outcome: 'cancelled' };
+    if (!action) {
+      // Vazgeçilen dosya yerel önbellekte 1 saat kalıyordu; hemen silinsin.
+      // Gönder-unut: silinemezse yerel taraftaki periyodik temizlik devralır.
+      bridge.command('release', { handle: file.handle }).catch(() => undefined);
+      return { name: file.name, mime: file.mime, size: file.size, outcome: 'cancelled' };
+    }
     try {
       await bridge.command(action, { handle: file.handle });
     } catch (error) {

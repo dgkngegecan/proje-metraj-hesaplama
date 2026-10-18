@@ -24,7 +24,8 @@ internal sealed record ExportedFile(string Handle, string Path, string Name, str
 ///
 /// Paylaşım hedefi dosyayı ne zaman okuyacağını bilmediğimiz için paylaşılan
 /// dosya hemen silinemez. Kullanılmayan tutamaçlar 1 saatten eskiyse açılışta
-/// ve 15 dakikada bir silinir; "Cihaza kaydet" kopyası bitince hemen silinir.
+/// ve 15 dakikada bir silinir; "Cihaza kaydet" kopyası bitince ve "Dosya hazır"
+/// panelinden vazgeçilince (<c>release</c> komutu) hemen silinir.
 /// </remarks>
 internal static class ExportStore
 {
@@ -90,12 +91,13 @@ internal static class ExportStore
         return true;
     }
 
-    /// <summary>Tutamacı ve dosyasını hemen siler ("Cihaza kaydet" bittiğinde).</summary>
-    public static void Release(string handle)
+    /// <summary>Tutamacı ve dosyasını hemen siler ("Cihaza kaydet" bittiğinde ya da arayüz <c>release</c> gönderdiğinde).</summary>
+    /// <remarks>Tutamaç arayüzden gelebilir: önce doğrulanır, geçersizse hiçbir şey silinmez.</remarks>
+    public static void Release(string? handle)
     {
         if (!IsValidHandle(handle) || root is null) return;
-        Files.TryRemove(handle, out _);
-        TryDeleteDirectory(Path.Combine(root, handle));
+        Files.TryRemove(handle!, out _);
+        if (TryDeleteDirectory(Path.Combine(root, handle!))) MetrajLog.Mark($"dışa aktarım bırakıldı: {handle}");
     }
 
     private static void Sweep()

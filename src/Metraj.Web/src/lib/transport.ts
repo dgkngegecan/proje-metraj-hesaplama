@@ -7,9 +7,10 @@
  * docs/android-mobil-plan.md → "Köprü sözleşmesi" bölümündedir; bu dosya
  * onun JS tarafıdır ve alan adlarını harfiyen izler:
  *
- *   istek  (JS → yerel)  {"type":"request","id","method","path":"/api/...","body":"<JSON metni>"|null}
+ *   istek  (JS → yerel)  {"type":"request","id","method","path":"/api/...","body":"<JSON metni>"|null[,"idempotencyKey"]}
  *   yanıt  (yerel → JS)  {"type":"response","id","status","contentType","body":"<JSON metni>"|null,"file":null|{handle,name,mime,size}}
- *   komut  (JS → yerel)  {"type":"command","id","command":"share|saveAs|pickAndImport|haptic|ready|exitApp","args":{...}}
+ *   ilerleme (yerel → JS) {"type":"progress","id","stage":"waiting|started"}
+ *   komut  (JS → yerel)  {"type":"command","id","command":"share|saveAs|release|pickAndImport|haptic|ready|exitApp","args":{...}}
  *   olay   (yerel → JS)  {"type":"event","event":"back|pause|resume"}
  *
  * Köprü yoksa (masaüstü, `vite dev`, Playwright) `api.ts` eskisi gibi `fetch`
@@ -20,7 +21,7 @@
  */
 
 export type BridgeMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
-export type BridgeCommandName = 'share' | 'saveAs' | 'pickAndImport' | 'haptic' | 'ready' | 'exitApp';
+export type BridgeCommandName = 'share' | 'saveAs' | 'release' | 'pickAndImport' | 'haptic' | 'ready' | 'exitApp';
 export type BridgeEventName = 'back' | 'pause' | 'resume';
 export type HapticKind = 'tick' | 'confirm' | 'reject';
 
@@ -48,7 +49,17 @@ export interface BridgeRequestMessage {
   method: BridgeMethod;
   path: string;
   body: string | null;
+  /** Yalnız verildiğinde gönderilir; yerel taraf aynı anahtarlı isteği ikinci kez işlemez. */
+  idempotencyKey?: string;
 }
+
+/**
+ * Yerel taraf isteği çekirdek hazır olmadan aldıysa önce `waiting`, çekirdek
+ * hazır olup istek işlenmeye başlayınca `started` gönderir. Zaman aşımı sayacı
+ * bekleme süresince durur: ilk kurulumda göç + tohumlama on saniyeleri
+ * bulabiliyor ve bu bekleme isteğin kendi süresinden yemiyor olmalı.
+ */
+export type BridgeProgressStage = 'waiting' | 'started';
 
 export interface BridgeCommandMessage {
   type: 'command';
@@ -109,6 +120,8 @@ export interface BridgeRequestInput {
   path: string;
   body?: string | null;
   timeoutMs?: number;
+  /** Mutasyonun kimliği; yeniden denemede aynı anahtar = aynı işlem (bkz. lib/retryKeys.ts). */
+  idempotencyKey?: string;
 }
 
 export interface BridgeCommandOptions {
@@ -163,7 +176,10 @@ function readFile(value: unknown): BridgeFile | null | undefined {
   };
 }
 
-type IncomingMessage = { kind: 'response'; response: BridgeResponse } | { kind: 'event'; event: string };
+type IncomingMessage =
+  | { kind: 'response'; response: BridgeResponse }
+  | { kind: 'event'; event: string }
+  | { kind: 'progress'; id: string; stage: BridgeProgressStage };
 
 /**
  * Gelen mesajı doğrular. Sözleşme `body` alanını JSON METNİ olarak tanımlar;
@@ -184,6 +200,12 @@ export function parseIncomingMessage(raw: unknown): IncomingMessage | { kind: 'i
     return typeof value.event === 'string' && value.event
       ? { kind: 'event', event: value.event }
       : { kind: 'invalid', reason: 'olay adı yok' };
+  }
+  if (value.type === 'progress') {
+    if (typeof value.id !== 'string' || !value.id) return { kind: 'invalid', reason: 'ilerlemede id yok' };
+    return value.stage === 'waiting' || value.stage === 'started'
+      ? { kind: 'progress', id: value.id, stage: value.stage }
+      : { kind: 'invalid', reason: `bilinmeyen ilerleme: ${String(value.stage)}` };
   }
   if (value.type !== 'response') return { kind: 'invalid', reason: `bilinmeyen tür: ${String(value.type)}` };
   if (typeof value.id !== 'string' || !value.id) return { kind: 'invalid', reason: 'yanıtta id yok' };
@@ -214,6 +236,7 @@ interface PendingEntry {
   resolve: (response: BridgeResponse) => void;
   reject: (error: unknown) => void;
   timer: unknown;
+  timeoutMs: number;
 }
 
 export function createBridgeTransport(bridge: MetrajBridgeLike, options: BridgeTransportOptions = {}): BridgeTransport {
@@ -245,6 +268,14 @@ export function createBridgeTransport(bridge: MetrajBridgeLike, options: BridgeT
       }
       return;
     }
+    if (message.kind === 'progress') {
+      const waiting = pending.get(message.id);
+      if (!waiting) return;
+      // Bekleme süresince sayaç durur; işlem başlayınca TAM süreyle yeniden kurulur.
+      if (waiting.timer !== undefined) timers.clear(waiting.timer);
+      waiting.timer = message.stage === 'started' ? armTimer(message.id, waiting.timeoutMs, waiting.reject) : undefined;
+      return;
+    }
     const entry = pending.get(message.response.id);
     // Zaman aşımından sonra gelen geç yanıt: istek zaten hata olarak
     // sonuçlandı, ikinci kez çözülmez.
@@ -261,20 +292,22 @@ export function createBridgeTransport(bridge: MetrajBridgeLike, options: BridgeT
     bridge.postMessage(JSON.stringify(message));
   }
 
+  function armTimer(id: string, timeoutMs: number, reject: (error: unknown) => void): unknown {
+    if (timeoutMs <= 0) return undefined;
+    return timers.set(() => {
+      if (!pending.delete(id)) return;
+      reject(new BridgeTransportError('timeout', `Yanıt ${timeoutMs} ms içinde gelmedi.`));
+    }, timeoutMs);
+  }
+
   function send(message: BridgeRequestMessage | BridgeCommandMessage, timeoutMs: number): Promise<BridgeResponse> {
     return new Promise<BridgeResponse>((resolve, reject) => {
       if (disposed) {
         reject(new BridgeTransportError('disposed', 'Köprü kapatıldı.'));
         return;
       }
-      const timer =
-        timeoutMs > 0
-          ? timers.set(() => {
-              if (!pending.delete(message.id)) return;
-              reject(new BridgeTransportError('timeout', `Yanıt ${timeoutMs} ms içinde gelmedi.`));
-            }, timeoutMs)
-          : undefined;
-      pending.set(message.id, { resolve, reject, timer });
+      const timer = armTimer(message.id, timeoutMs, reject);
+      pending.set(message.id, { resolve, reject, timer, timeoutMs });
       try {
         post(message);
       } catch (error) {
@@ -286,8 +319,10 @@ export function createBridgeTransport(bridge: MetrajBridgeLike, options: BridgeT
   }
 
   return {
-    request({ method, path, body = null, timeoutMs }) {
-      return send({ type: 'request', id: createId(), method, path, body }, timeoutMs ?? defaultTimeoutMs);
+    request({ method, path, body = null, timeoutMs, idempotencyKey }) {
+      const message: BridgeRequestMessage = { type: 'request', id: createId(), method, path, body };
+      if (idempotencyKey) message.idempotencyKey = idempotencyKey;
+      return send(message, timeoutMs ?? defaultTimeoutMs);
     },
     async command(name, args = {}, commandOptions = {}) {
       const message: BridgeCommandMessage = { type: 'command', id: createId(), command: name, args };

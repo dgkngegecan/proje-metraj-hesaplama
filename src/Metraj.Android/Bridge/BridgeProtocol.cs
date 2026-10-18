@@ -15,8 +15,10 @@ namespace Metraj.Mobile.Bridge;
 /// <param name="Command">Komut adı.</param>
 /// <param name="Handle">share/saveAs için <c>args.handle</c>.</param>
 /// <param name="HapticKind">haptic için <c>args.kind</c>.</param>
+/// <param name="IdempotencyKey">Mutasyon isteğinin anahtarı; yeniden denemede aynı anahtar = aynı işlem.</param>
 internal sealed record BridgeInbound(
-    string Kind, string Id, string? Method, string? Path, string? Body, string? Command, string? Handle, string? HapticKind);
+    string Kind, string Id, string? Method, string? Path, string? Body, string? Command, string? Handle, string? HapticKind,
+    string? IdempotencyKey = null);
 
 /// <summary>
 /// Köprü sözleşmesinin (docs/android-mobil-plan.md → "Köprü sözleşmesi") yerel tarafı.
@@ -26,9 +28,10 @@ internal sealed record BridgeInbound(
 /// serileştirme kırpılmış AOT derlemede ek tür bilgisi ister ve bu sıcak yolda
 /// gereksiz. Alan adları JS tarafındaki <c>src/lib/transport.ts</c> ile harfiyen aynı:
 /// <code>
-/// istek  {"type":"request","id","method","path","body":"&lt;JSON metni&gt;"|null}
-/// yanıt  {"type":"response","id","status","contentType","body":"&lt;JSON metni&gt;"|null,"file":null|{handle,name,mime,size}}
-/// komut  {"type":"command","id","command","args":{...}}
+/// istek    {"type":"request","id","method","path","body":"&lt;JSON metni&gt;"|null[,"idempotencyKey"]}
+/// yanıt    {"type":"response","id","status","contentType","body":"&lt;JSON metni&gt;"|null,"file":null|{handle,name,mime,size}}
+/// ilerleme {"type":"progress","id","stage":"waiting|started"}
+/// komut    {"type":"command","id","command","args":{...}}
 /// olay   {"type":"event","event":"back|pause|resume"}
 /// </code>
 /// <c>body</c> bir JSON METNİDİR (ikinci kez kodlanmış dize), nesne değil.
@@ -70,7 +73,7 @@ internal static class BridgeProtocol
             {
                 case "request":
                     return new BridgeInbound("request", id, ReadString(root, "method")?.ToUpperInvariant(), ReadString(root, "path"),
-                        ReadBody(root), null, null, null);
+                        ReadBody(root), null, null, null, ReadString(root, "idempotencyKey"));
                 case "command":
                     string? handle = null;
                     string? hapticKind = null;
@@ -132,6 +135,18 @@ internal static class BridgeProtocol
         });
         return Response(id, new RouterResponse(status, "application/json; charset=utf-8", body, null), null);
     }
+
+    /// <summary>
+    /// İsteğin aşaması: <c>waiting</c> (çekirdek hazırlığı bekleniyor) ve
+    /// <c>started</c> (işlem başladı). JS zaman aşımı sayacını bekleme süresince durdurur.
+    /// </summary>
+    public static string Progress(string id, string stage) =>
+        Write(writer =>
+        {
+            writer.WriteString("type", "progress");
+            writer.WriteString("id", id);
+            writer.WriteString("stage", stage);
+        });
 
     /// <summary>Yerel olay: back, pause, resume.</summary>
     public static string Event(string name) =>
