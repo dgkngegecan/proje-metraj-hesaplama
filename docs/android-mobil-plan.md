@@ -58,9 +58,10 @@ Aynı dalgadaki yazıcı ajanlar ayrı worktree'lerde çalışır ve birbirinin 
 
 - Android, `WebViewCompat.addWebMessageListener` ile `window.MetrajBridge` nesnesini yalnız `https://appassets.androidplatform.net` origin'ine ekler. JS tarafı `typeof window.MetrajBridge !== 'undefined'` ise köprü taşımasını, değilse `fetch` taşımasını kullanır (masaüstü, `vite dev`, Playwright).
 - Bütün mesajlar JSON metnidir.
-  - **İstek (JS → yerel):** `{"type":"request","id":"<benzersiz>","method":"GET|POST|PUT|DELETE","path":"/api/...?q","body":"<JSON metni>|null"}`
+  - **İstek (JS → yerel):** `{"type":"request","id":"<benzersiz>","method":"GET|POST|PUT|DELETE","path":"/api/...?q","body":"<JSON metni>|null","idempotencyKey":"<isteğe bağlı>"}`. `idempotencyKey` yalnız mutasyonlarda (GET dışı) gönderilir; yerel taraf aynı yöntem + yol + anahtarla gelen ikinci isteği yeniden işlemez: ilki sürüyorsa onun sonucunu bekler, 2xx bittiyse 15 dk saklanan sonucu döner. 2xx dışı ya da dosyalı sonuç saklanmaz.
   - **Yanıt (yerel → JS):** `{"type":"response","id":"...","status":200,"contentType":"application/json","body":"<JSON metni>|null","file":null|{"handle":"<opak>","name":"Rapor.pdf","mime":"application/pdf","size":12345}}`
-  - **Komut (JS → yerel):** `{"type":"command","id":"...","command":"share|saveAs|pickAndImport|haptic|ready|exitApp","args":{...}}`. `share`/`saveAs` için `args.handle`. `pickAndImport` SAF ile dosya seçer, akış hâlinde `/api/workspace/import`'a verir ve normal bir yanıt döner. `haptic` için `args.kind` = `tick|confirm|reject`. `ready` açılış ekranını kapatır. `exitApp` geri yığını boşken uygulamayı kapatır.
+  - **İlerleme (yerel → JS):** `{"type":"progress","id":"...","stage":"waiting|started"}`. İstek çekirdek hazırlığı (`AppStartup.Ready`) bitmeden geldiyse önce `waiting`, işlem başlarken `started` gider. JS `waiting`te zaman aşımı sayacını durdurur, `started`ta isteğin TAM süresiyle yeniden kurar; hazırlık beklemesi isteğin süresinden yemez.
+  - **Komut (JS → yerel):** `{"type":"command","id":"...","command":"share|saveAs|release|pickAndImport|haptic|ready|exitApp","args":{...}}`. `share`/`saveAs`/`release` için `args.handle`. `release` "Dosya hazır" panelinden vazgeçildiğinde gönderilir: yerel taraf dosyayı hemen siler (gönder-unut; silinemezse 1 saatlik periyodik temizlik devralır). `pickAndImport` SAF ile dosya seçer, akış hâlinde `/api/workspace/import`'a verir ve normal bir yanıt döner. `haptic` için `args.kind` = `tick|confirm|reject`. `ready` açılış ekranını kapatır. `exitApp` geri yığını boşken uygulamayı kapatır.
   - **Olay (yerel → JS):** `{"type":"event","event":"back|pause|resume"}`.
 - JS API yüzeyi (`src/Metraj.Web/src/api.ts`, masaüstü imzaları korunur): `api.get/post/put/delete/upload` aynen; yeni `api.download(path, suggestedName)` (köprüde `file` tutamacı + paylaş/kaydet sayfası, fetch'te blob + `<a download>`) ve `api.importWorkspace()` (köprüde `pickAndImport`, fetch'te dosya seçici + `upload`).
 
@@ -166,11 +167,11 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 |---|---|---|---|
 | 1 | HIGH | Artırıcı `pointerdown`'da adım atıyordu; düğmeden başlayan kaydırma fitting/radyatör adedini değiştiriyordu | Düzeltildi (`stepperGesture.ts`, 9 test) |
 | 2 | MEDIUM | Eski tam yenileme yanıtı daha yeni ölçüm/özetleri eziyordu; silme commit'i ölçümleri tazelemiyordu | Düzeltildi (2 test) |
-| 3 | MEDIUM | Köprü 60 sn zaman aşımında yerel taraf yazmaya devam edebilir; yeniden denemede çift kayıt riski | **Açık:** idempotency anahtarı ya da zaman aşımı sonrası tazeleme |
-| 4 | MEDIUM | Android'de açılış hatasında yedeğe ulaşma yolu yok | **Açık:** hata ekranına "son yedeği geri yükle" / "dışa aktar" |
+| 3 | MEDIUM | Köprü 60 sn zaman aşımında yerel taraf yazmaya devam edebilir; yeniden denemede çift kayıt riski | Düzeltildi: idempotency anahtarı + hazırlık beklemesinde duran sayaç (aşağıda) |
+| 4 | MEDIUM | Android'de açılış hatasında yedeğe ulaşma yolu yok | Düzeltildi: hata ekranında "Son yedeği geri yükle" ve "Veriyi dışa aktar" (aşağıda) |
 | 5 | MEDIUM | Ölçüm satırı ve kart gövdesi üretimi mobilde ikinci kopya; eşdeğerlik testi masaüstü koduna bağlı değil | **Açık:** ortak `src/lib` modülüne çıkarılmalı, masaüstü de çağırmalı |
 | 6 | LOW | Masaüstünde kapı alınamazsa geçici rapor dosyası kalıyordu | Düzeltildi |
-| 7 | LOW | İptal edilen indirme dosyası önbellekte 1 saat kalıyor | **Açık:** iptalde `release` komutu |
+| 7 | LOW | İptal edilen indirme dosyası önbellekte 1 saat kalıyor | Düzeltildi: iptalde `release` komutu (köprü sözleşmesine eklendi) |
 | 8 | LOW | Kayıttan sonra taslak silme tamponda; süreç ölürse çift kayıt | Düzeltildi |
 | 9 | LOW | Radyatör kaydı sürerken eklenen grup kayboluyordu | Düzeltildi |
 | 10 | LOW | `.gitignore`'da imza anahtarı kalıpları yoktu | Düzeltildi |
@@ -178,6 +179,22 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 **Son durum (orkestratör doğrulaması):** .NET 218/218, 0 uyarı; arayüz 263/263; Playwright telefon e2e 16/16; mobil paket denetimi geçti. Son APK'lar: arm64 35,2 MB, x64 37,6 MB. Emülatörde temiz kurulum: şablon veritabanı 209 ms'de kopyalandı, çekirdek t+2,2 s'de hazır (Dalga 2'de t+14,9 s). PDF 0,76 s'de üretildi, adı `SYN-CW-001_R0_2026-10-18_0110.pdf`; çökme yok.
 
 **Hâlâ açık (yukarıdakilere ek):** sunucu tarihleri `Z`'siz; kart sürüm geçmişi ve `/api/health` sürüm/veri konumu uçları yok; şaft/hat no ayrı alan değil; gerçek ARM telefon, 16 KB sayfalı cihaz ve eski WebView doğrulaması yapılmadı.
+
+## Dalga 3 sonrası: bulgu 3, 4 ve 7 düzeltmeleri (2026-10-18)
+
+**3. Çift kayıt — seçim: idempotency anahtarı (zaman aşımı sonrası tazeleme değil).** Tazeleme yarışa açıktı: yerel yazma henüz bitmemişse tazeleme kaydı göstermez ve kullanıcı yine iki kez kaydeder. Ayrıca ~40 mutasyon ucunun her biri için neyin tazeleneceğini bilmek gerekirdi. Anahtar taşıma katmanında, uçtan bağımsız çalışır.
+- JS (`src/lib/retryKeys.ts`, `api.ts`): her mutasyon rastgele bir anahtarla gider. Zaman aşımına uğrayan isteğin anahtarı imzasıyla (yöntem + yol + gövde) 10 dk hatırlanır; aynı imzalı yeniden deneme aynı anahtarı kullanır. Yanıt arayana ulaşınca imza unutulur: sonraki aynı istek bilinçli yeni kayıttır.
+- Yerel (`Metraj.Host/IdempotentRequestCache`, `MetrajBridge`): süreç geneli önbellek. Süren işe bağlanır, biten 2xx sonucu 15 dk saklar, hata sonucunu saklamaz.
+- Hazırlık beklemesi: `progress` mesajları (sözleşmede). İlk kurulumda göç + tohumlama on saniyeleri bulduğunda ilk istekler artık zaman aşımına düşmez.
+- Masaüstü (`fetch`) yolu değişmedi; anahtar yalnız köprüde gider.
+
+**4. Açılış kurtarma.** Hata ekranına iki düğme eklendi; ikisi de router'a ve `MetrajServices`'e dokunmaz, `Metraj.Host/DatabaseRecovery` doğrudan `DatabaseMaintenanceWorkspaceService` ile çalışır.
+- **Son yedeği geri yükle (tarih):** onaydan sonra bozuk `metraj.db` (+ `-wal/-shm/-journal`) **silinmeden** `FilesDir/bozuk-veritabani/<UTC zaman>-<belirteç>/` altına taşınır, en yeni yedek doğrulanıp yerine konur. En yeni yedek doğrulanamazsa bir öncekine geçilir. Hiçbiri olmazsa bozuk dosya yerine geri konur, durum değişmez. Başarıda hazırlık `AppStartup.Restart()` ile baştan başlar ve etkinlik yeniden kurulur. Yedek yoksa düğme "Geri yüklenecek yedek yok" der ve kapalı kalır.
+- **Veriyi dışa aktar:** SAF "farklı kaydet" ile `ProjeMetraj-kurtarma-<tarih>.zip`. İçinde ham veritabanı dosyaları (`veritabani/`), bütün yedekler (`yedekler/`) ve karantinadaki eski dosyalar (`bozuk-veritabani/`) var. Arşiv akışa doğrudan yazılır, geçici dosya yok.
+
+**7. İndirme temizliği.** "Dosya hazır" panelinden vazgeçilince `api.download` gönder-unut `release` komutu yollar; `ExportStore.Release` tutamacı doğrulayıp klasörü hemen siler. Mevcut "vazgeçilirse komut gönderilmez" testi bilerek "yalnız `release` gider" olarak güncellendi (davranış değişikliği bu bulgunun kendisi).
+
+**Testler:** xUnit `IdempotentRequestCacheTests` (4) ve `DatabaseRecoveryTests` (5); arayüz `tests/bridge-retry.test.mjs` (8).
 
 ## Dalga 3 sonuçları: Ajan 7 (2026-10-18)
 
