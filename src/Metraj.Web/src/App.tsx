@@ -30,7 +30,15 @@ import { Inspector } from './components/Inspector';
 import { FloatingProjectMap } from './components/FloatingProjectMap';
 import type { CardDraftState } from './lib/draftTypes';
 import { arrangeFlowNodes, buildFlow } from './lib/flow';
-import { isRadiatorPlacement, makeCardCode, measurementLabel, parseDecimal, quantity } from './lib/format';
+import { isRadiatorPlacement, measurementLabel, parseDecimal, quantity } from './lib/format';
+import { buildCardPayload, draftFromCard, emptyCardDraft } from './lib/cardPayload';
+import {
+  buildMeasurementBodies,
+  buildUpdateBody,
+  draftEntryContext,
+  rowsError,
+  type EntryRow,
+} from './lib/measurementBodies';
 import { measurementRadiatorSize, radiatorTypeLabel } from './lib/radiatorChoices';
 import { RadiatorSummaryTable } from './components/RadiatorSummaryTable';
 import type {
@@ -130,19 +138,7 @@ export default function App() {
   const [toast, setToast] = useState('');
   const [projectDraft, setProjectDraft] = useState({ code: '', name: '' });
   const [editingCardId, setEditingCardId] = useState<string | null>(null);
-  const [cardDraft, setCardDraft] = useState<CardDraftState>({
-    code: '',
-    name: '',
-    type: 'Material',
-    unit: 'adet',
-    customTypeId: '',
-    attributeValues: {},
-    variantMode: 'None',
-    variants: [],
-    notes: '',
-    materialType: '',
-    wasteRatePct: '0',
-  });
+  const [cardDraft, setCardDraft] = useState<CardDraftState>(emptyCardDraft);
   const [typeDraft, setTypeDraft] = useState({
     code: '',
     name: '',
@@ -827,79 +823,18 @@ export default function App() {
   const createCard = () =>
     withBusy(async () => {
       if (!cardDraft.name.trim() || !cardDraft.unit.trim()) throw new ApiError('Kart adı ve birimi gerekli.');
-      const selectedType = catalogTypes.find((type) => type.id === cardDraft.customTypeId);
       const wasteRatePct = parseDecimal(cardDraft.wasteRatePct);
       if (!Number.isFinite(wasteRatePct) || wasteRatePct < 0)
         throw new ApiError('Fire payını sıfır veya daha büyük bir sayı olarak yazın.');
-      const attributeValues = selectedType ? { ...cardDraft.attributeValues } : null;
-      if (selectedType && attributeValues) {
-        const enabled = new Set(selectedType.attributeKeys.map((key) => key.toLowerCase()));
-        if (enabled.has('notes')) {
-          if (cardDraft.notes.trim()) attributeValues.Notes = cardDraft.notes.trim();
-          else delete attributeValues.Notes;
-        }
-        if (enabled.has('materialtype')) {
-          if (cardDraft.materialType.trim()) attributeValues.MaterialType = cardDraft.materialType.trim();
-          else delete attributeValues.MaterialType;
-        }
-        if (enabled.has('wasteratepct')) attributeValues.WasteRatePct = String(wasteRatePct);
-      }
-      // Yalnızca kullanıcının gerçekten değiştirdiği kontrollere bağlı alanlar
-      // yeniden çıkarılır; geri kalanı kartın mevcut hâlinden taşınır.
-      const carried = cardDraft.carried;
-      const effectiveType = selectedType?.baseCardType ?? cardDraft.type;
-      const typeChanged = !carried || carried.cardType !== effectiveType;
-      const variantModeChanged = !carried || carried.variantMode !== cardDraft.variantMode;
-      const payload = {
-        code: cardDraft.code.trim() || makeCardCode(cardDraft.name),
-        name: cardDraft.name.trim(),
-        cardType: effectiveType,
-        unit: cardDraft.unit.trim(),
-        inputBehavior: carried?.inputBehavior ?? 'Manual',
-        salesConversion:
-          cardDraft.variantMode === 'Pipe'
-            ? 'StandardLength'
-            : variantModeChanged
-              ? 'None'
-              : (carried?.salesConversion ?? 'None'),
-        reportBehavior: typeChanged
-          ? effectiveType === 'Material' || effectiveType === 'Accessory'
-            ? 'Measurable'
-            : 'Folder'
-          : carried!.reportBehavior,
-        wasteRatePct,
-        containerParameter:
-          cardDraft.variantMode === 'Pipe' && cardDraft.variants[0]?.standardLength
-            ? cardDraft.variants[0].standardLength
-            : variantModeChanged
-              ? null
-              : (carried?.containerParameter ?? null),
-        positionNumber: carried?.positionNumber ?? null,
-        notes: cardDraft.notes.trim() || null,
-        materialType: cardDraft.materialType.trim() || null,
-        customTypeId: selectedType?.id ?? null,
-        attributeValues,
-        variantMode: cardDraft.variantMode,
-        variants: cardDraft.variants,
-      };
+      // Gövde telefonla ORTAK modülden (lib/cardPayload.ts): değiştirilmeyen alanlar
+      // kartın mevcut hâlinden taşınır.
+      const payload = buildCardPayload(cardDraft, catalogTypes);
       const created = editingCardId
         ? await api.post<CatalogCard>(`/catalog/cards/${editingCardId}/versions`, payload)
         : await api.post<CatalogCard>('/catalog/cards', payload);
       const wasEditing = Boolean(editingCardId);
       setEditingCardId(null);
-      setCardDraft({
-        code: '',
-        name: '',
-        type: 'Material',
-        unit: 'adet',
-        customTypeId: '',
-        attributeValues: {},
-        variantMode: 'None',
-        variants: [],
-        notes: '',
-        materialType: '',
-        wasteRatePct: '0',
-      });
+      setCardDraft(emptyCardDraft());
       await loadCards();
       if (addNewCardToFlow && !wasEditing) {
         if (!selectedRevisionId) throw new ApiError('Kartı akışa eklemek için önce bir proje seçin.');
@@ -920,31 +855,7 @@ export default function App() {
     });
   const editCatalogCard = (card: CatalogCard) => {
     setEditingCardId(card.id);
-    setCardDraft({
-      code: card.code,
-      name: card.name,
-      type: card.cardType,
-      unit: card.unit,
-      customTypeId: card.customTypeId ?? '',
-      attributeValues: { ...(card.attributeValues ?? {}) },
-      variantMode: card.variantMode ?? 'None',
-      variants: (card.variants ?? []).map((item) => ({
-        ...item,
-        compatibleDiameters: item.compatibleDiameters ? [...item.compatibleDiameters] : item.compatibleDiameters,
-      })),
-      notes: card.notes ?? '',
-      materialType: card.materialType ?? '',
-      wasteRatePct: String(card.wasteRatePct ?? 0),
-      carried: {
-        cardType: card.cardType,
-        variantMode: card.variantMode ?? 'None',
-        inputBehavior: card.inputBehavior,
-        salesConversion: card.salesConversion,
-        reportBehavior: card.reportBehavior,
-        positionNumber: card.positionNumber ?? null,
-        containerParameter: card.containerParameter ?? null,
-      },
-    });
+    setCardDraft(draftFromCard(card));
     setAddNewCardToFlow(false);
     setView('catalog');
     window.setTimeout(
@@ -957,19 +868,7 @@ export default function App() {
   };
   const cancelEditCatalogCard = () => {
     setEditingCardId(null);
-    setCardDraft({
-      code: '',
-      name: '',
-      type: 'Material',
-      unit: 'adet',
-      customTypeId: '',
-      attributeValues: {},
-      variantMode: 'None',
-      variants: [],
-      notes: '',
-      materialType: '',
-      wasteRatePct: '0',
-    });
+    setCardDraft(emptyCardDraft());
   };
   const addCardToFlow = (cardVersionId: string) =>
     withBusy(async () => {
@@ -1023,22 +922,7 @@ export default function App() {
   // düzeltmesinin veya silmesinin yolu yoktu; tek çare kartın tamamını silmekti.
   const updateMeasurementQuantity = (measurement: Measurement, inputQuantity: number) =>
     withBusy(async () => {
-      await api.put(`/measurements/${measurement.id}`, {
-        revisionId: measurement.revisionId,
-        placementId: measurement.placementId,
-        inputQuantity,
-        inputUnit: measurement.inputUnit,
-        block: measurement.block ?? null,
-        floor: measurement.floor ?? null,
-        room: measurement.room ?? null,
-        zone: measurement.zone ?? null,
-        sheet: measurement.sheet ?? null,
-        drawingRevision: measurement.drawingRevision ?? null,
-        notes: measurement.notes ?? null,
-        sourceKind: measurement.sourceKind,
-        variant: measurement.variant ?? null,
-        secondaryVariant: measurement.secondaryVariant ?? null,
-      });
+      await api.put(`/measurements/${measurement.id}`, buildUpdateBody(measurement, { quantity: inputQuantity }));
       await loadRevision(selectedRevisionId);
       notifySuccess('Metraj satırı güncellendi.');
     });
@@ -1066,9 +950,7 @@ export default function App() {
       await loadRevision(selectedRevisionId);
       notifySuccess('Bağlantı güncellendi.');
     });
-  const addMeasurementRows = async (
-    rows: Array<{ quantity: number; notes?: string | null; variant?: string | null; secondaryVariant?: string | null }>,
-  ) => {
+  const addMeasurementRows = async (rows: EntryRow[]) => {
     let saved = false;
     await withBusy(async () => {
       const target =
@@ -1076,25 +958,12 @@ export default function App() {
           ? selectedPlacement
           : measurablePlacements[0];
       if (!target) throw new ApiError('Önce ölçülebilir bir malzeme kartı seçin.');
-      if (!rows.length || rows.some((row) => !Number.isFinite(row.quantity) || row.quantity <= 0))
-        throw new ApiError('Miktarı sıfırdan büyük bir sayı olarak yazın.');
+      const problem = rowsError(rows);
+      if (problem) throw new ApiError(problem);
+      // Gövde telefonla ORTAK modülden (lib/measurementBodies.ts).
       await api.post(
         `/revisions/${selectedRevisionId}/measurements/batch`,
-        rows.map((row) => ({
-          placementId: target.id,
-          inputQuantity: row.quantity,
-          inputUnit: target.unit,
-          block: measurementDraft.block || null,
-          floor: measurementDraft.floor || null,
-          room: measurementDraft.room || null,
-          zone: null,
-          sheet: measurementDraft.sheet || null,
-          drawingRevision: null,
-          notes: [row.notes, measurementDraft.notes].filter(Boolean).join(' · ') || null,
-          sourceKind: 'USER',
-          variant: row.variant ?? null,
-          secondaryVariant: row.secondaryVariant ?? null,
-        })),
+        buildMeasurementBodies(target, rows, draftEntryContext(measurementDraft)),
       );
       saved = true;
       // Yalnızca miktar temizlenir. Blok/kat/mahal/pafta, kullanıcının o an

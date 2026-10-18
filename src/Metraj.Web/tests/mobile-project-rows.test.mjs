@@ -1,9 +1,20 @@
-// Ölçüm satırlarının masaüstüyle aynı üretildiği: düz miktar, boru çapı, fitting, radyatör,
-// düzeltme gövdesi ve iyimser kayıt (sahte API ile).
+// Ölçüm satırları ORTAK modülden (src/lib/measurementBodies.ts) üretilir; masaüstü
+// (App.tsx, Inspector.tsx) ve telefon aynı fonksiyonu çağırır. Burada beklenen gövdeler
+// sabit değer olarak yazılıdır (hiçbir arayüzün kodu kopyalanmaz): düz miktar, boru çapı,
+// fitting, radyatör, düzeltme gövdesi ve iyimser kayıt (sahte API ile).
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ApiError } from '../src/api.ts';
 import { fittingChoices } from '../src/lib/fittingChoices.ts';
+import {
+  buildMeasurementBodies,
+  buildUpdateBody,
+  draftEntryContext,
+  fittingSubmission,
+  pipeRow,
+  remainingAfterSubmit,
+  rowsError,
+} from '../src/lib/measurementBodies.ts';
 import {
   activeRadiatorDraft,
   initialRadiatorGroups,
@@ -12,19 +23,12 @@ import {
   radiatorSizeKey,
 } from '../src/lib/radiatorChoices.ts';
 import { emptyEntities, listOf, tableFrom } from '../src/mobile/store/entities.ts';
-import {
-  buildMeasurementBodies,
-  buildUpdateBody,
-  newestFirst,
-  quantityToExpression,
-  rowsError,
-} from '../src/mobile/screens/project/measurementRows.ts';
-import { emptyContext } from '../src/mobile/screens/project/context.ts';
+import { newestFirst, quantityToExpression } from '../src/mobile/screens/project/measurementRows.ts';
+import { emptyContext, toEntryContext } from '../src/mobile/screens/project/context.ts';
 import {
   matchesVariant,
   orderByRecentUse,
   pipeBoxesDraft,
-  pipeRow,
   readSelectedDiameter,
   sourceGroups,
   stockInfo,
@@ -33,11 +37,9 @@ import {
   variantsInGroup,
 } from '../src/mobile/screens/project/pipeModel.ts';
 import {
-  fittingSubmission,
   mergeCounts,
   pendingForDiameter,
   readFittingBoxes,
-  remainingAfterSubmit,
   setCount,
   toDraftBoxes,
 } from '../src/mobile/screens/project/fittingModel.ts';
@@ -81,45 +83,89 @@ const placement = {
   isMeasurable: true,
 };
 
-// ----- Masaüstü App.tsx addMeasurementRows gövdesi (birebir kopya, karşılaştırma için)
-function desktopBodies(target, rows, measurementDraft) {
-  return rows.map((row) => ({
-    placementId: target.id,
-    inputQuantity: row.quantity,
-    inputUnit: target.unit,
-    block: measurementDraft.block || null,
-    floor: measurementDraft.floor || null,
-    room: measurementDraft.room || null,
-    zone: null,
-    sheet: measurementDraft.sheet || null,
-    drawingRevision: null,
-    notes: [row.notes, measurementDraft.notes].filter(Boolean).join(' · ') || null,
-    sourceKind: 'USER',
-    variant: row.variant ?? null,
-    secondaryVariant: row.secondaryVariant ?? null,
-  }));
-}
+const entryRows = [
+  { quantity: 12.5 },
+  { quantity: 3, variant: 'DN25', notes: 'Çap: DN25 / 1"' },
+  { quantity: 2, variant: null, secondaryVariant: 'ELBOW-90', notes: '90° Dirsek · Çap: DN25' },
+];
 
-test('satır gövdesi masaüstü addMeasurementRows ile aynı alanları üretir', () => {
-  const rows = [
-    { quantity: 12.5 },
-    { quantity: 3, variant: 'DN25', notes: 'Çap: DN25 / 1"' },
-    { quantity: 2, variant: null, secondaryVariant: 'ELBOW-90', notes: '90° Dirsek · Çap: DN25' },
-  ];
-  const context = { ...emptyContext(), block: 'A', floor: '2', room: 'Mutfak', sheet: 'M-03', note: 'Not' };
-  const desktop = desktopBodies(placement, rows, {
+const body = (fields) => ({
+  placementId: 'pl-1',
+  inputQuantity: 0,
+  inputUnit: 'm',
+  block: null,
+  floor: null,
+  room: null,
+  zone: null,
+  sheet: null,
+  drawingRevision: null,
+  notes: null,
+  sourceKind: 'USER',
+  variant: null,
+  secondaryVariant: null,
+  ...fields,
+});
+
+test('satır gövdesi: alan sırası, " · " ayırıcısı, varyant ve notlar sabit beklentiyle aynı', () => {
+  const bodies = buildMeasurementBodies(
+    placement,
+    entryRows,
+    draftEntryContext({ block: 'A', floor: '2', room: 'Mutfak', sheet: 'M-03', notes: 'Not' }),
+  );
+  const where = { block: 'A', floor: '2', room: 'Mutfak', sheet: 'M-03' };
+  assert.deepEqual(bodies, [
+    body({ ...where, inputQuantity: 12.5, notes: 'Not' }),
+    body({ ...where, inputQuantity: 3, notes: 'Çap: DN25 / 1" · Not', variant: 'DN25' }),
+    body({ ...where, inputQuantity: 2, notes: '90° Dirsek · Çap: DN25 · Not', secondaryVariant: 'ELBOW-90' }),
+  ]);
+  // JSON alan sırası sunucuya giden gövdenin parçasıdır.
+  assert.deepEqual(Object.keys(bodies[0]), [
+    'placementId',
+    'inputQuantity',
+    'inputUnit',
+    'block',
+    'floor',
+    'room',
+    'zone',
+    'sheet',
+    'drawingRevision',
+    'notes',
+    'sourceKind',
+    'variant',
+    'secondaryVariant',
+  ]);
+});
+
+test('masaüstü taslak bağlamı: boş alanlar null, zon ve çizim revizyonu masaüstünde yok', () => {
+  const empty = { block: '', floor: '', room: '', sheet: '', notes: '' };
+  assert.deepEqual(draftEntryContext(empty), {
+    fields: { block: null, floor: null, room: null, zone: null, sheet: null, drawingRevision: null },
+    noteSegments: [''],
+  });
+  assert.deepEqual(buildMeasurementBodies(placement, [{ quantity: 1 }], draftEntryContext(empty)), [
+    body({ inputQuantity: 1 }),
+  ]);
+});
+
+test('telefon bağlamı aynı ortak üreticiden geçer: aynı değerler masaüstüyle aynı gövdeyi verir', () => {
+  const mobile = toEntryContext({
+    ...emptyContext(),
     block: 'A',
     floor: '2',
     room: 'Mutfak',
     sheet: 'M-03',
-    notes: 'Not',
+    note: 'Not',
   });
-  assert.deepEqual(buildMeasurementBodies(placement, rows, context), desktop);
-  // Boş bağlam: hepsi null.
+  const desktop = draftEntryContext({ block: 'A', floor: '2', room: 'Mutfak', sheet: 'M-03', notes: 'Not' });
   assert.deepEqual(
-    buildMeasurementBodies(placement, rows, emptyContext()),
-    desktopBodies(placement, rows, { block: '', floor: '', room: '', sheet: '', notes: '' }),
+    buildMeasurementBodies(placement, entryRows, mobile),
+    buildMeasurementBodies(placement, entryRows, desktop),
   );
+  // Telefona özgü alanlar: zon/çizim revizyonu ayrı alana, şaft/hat nota (satır notunun ardına).
+  const extra = toEntryContext({ ...emptyContext(), zone: 'Z1', drawingRevision: 'R2', shaft: 'Ş3', line: 'H-12' });
+  assert.deepEqual(buildMeasurementBodies(placement, [{ quantity: 4, notes: 'Çap: DN20' }], extra), [
+    body({ inputQuantity: 4, zone: 'Z1', drawingRevision: 'R2', notes: 'Çap: DN20 · Şaft: Ş3 · Hat: H-12' }),
+  ]);
 });
 
 test('geçersiz miktar reddedilir', () => {
@@ -131,7 +177,7 @@ test('geçersiz miktar reddedilir', () => {
   assert.equal(rowsError([{ quantity: 0.0004 }]), null);
 });
 
-test('düzeltme gövdesi masaüstü updateMeasurementQuantity ile aynıdır', () => {
+test('düzeltme gövdesi yalnız miktarı (ve istenirse bağlamı) değiştirir, diğer alanları korur', () => {
   const measurement = {
     id: 'm1',
     revisionId,
@@ -152,23 +198,39 @@ test('düzeltme gövdesi masaüstü updateMeasurementQuantity ile aynıdır', ()
     variant: 'DN25',
     secondaryVariant: undefined,
   };
-  const desktop = {
-    revisionId: measurement.revisionId,
-    placementId: measurement.placementId,
+  const updated = buildUpdateBody(measurement, { quantity: 12.4 });
+  assert.deepEqual(updated, {
+    revisionId,
+    placementId: 'pl-1',
     inputQuantity: 12.4,
-    inputUnit: measurement.inputUnit,
-    block: measurement.block ?? null,
-    floor: measurement.floor ?? null,
-    room: measurement.room ?? null,
-    zone: measurement.zone ?? null,
-    sheet: measurement.sheet ?? null,
-    drawingRevision: measurement.drawingRevision ?? null,
-    notes: measurement.notes ?? null,
-    sourceKind: measurement.sourceKind,
-    variant: measurement.variant ?? null,
-    secondaryVariant: measurement.secondaryVariant ?? null,
-  };
-  assert.deepEqual(buildUpdateBody(measurement, { quantity: 12.4 }), desktop);
+    inputUnit: 'm',
+    block: 'A',
+    floor: null,
+    room: null,
+    zone: 'Z1',
+    sheet: null,
+    drawingRevision: 'R2',
+    notes: 'Çap: DN25',
+    sourceKind: 'USER',
+    variant: 'DN25',
+    secondaryVariant: null,
+  });
+  assert.deepEqual(Object.keys(updated), [
+    'revisionId',
+    'placementId',
+    'inputQuantity',
+    'inputUnit',
+    'block',
+    'floor',
+    'room',
+    'zone',
+    'sheet',
+    'drawingRevision',
+    'notes',
+    'sourceKind',
+    'variant',
+    'secondaryVariant',
+  ]);
   assert.equal(buildUpdateBody(measurement, { quantity: 1, context: { floor: '3' } }).floor, '3');
   assert.equal(buildUpdateBody(measurement, { quantity: 1, context: { block: null } }).block, null);
 });
@@ -197,7 +259,7 @@ const variants = [
   { code: 'DN32', label: 'DN32 / 1 1/4"', standardLength: 6 },
 ];
 
-test('boru satırı masaüstü submitPipeBox ile aynı notu taşır', () => {
+test('boru satırı çap kodunu varyant, etiketini not olarak taşır', () => {
   assert.deepEqual(pipeRow(12.5, 'DN25', variants), { quantity: 12.5, variant: 'DN25', notes: 'Çap: DN25 / 1"' });
   assert.deepEqual(pipeRow(1, 'DN99', variants), { quantity: 1, variant: 'DN99', notes: 'Çap: DN99' });
 });
@@ -291,7 +353,7 @@ test('fitting satırları yalnız uyumlu türleri gönderir; gönderilmeyen kal�
     return selected ? choices.compatibleVariants(selected) : [];
   };
   const counts = { DN20: { 'ELBOW-90': 4, TEE: 2 }, DN25: { 'ELBOW-90': 1, TEE: 3 }, DN99: { 'ELBOW-90': 9 } };
-  const result = fittingSubmission(elbow, counts, choices.diameters, compatibleFor);
+  const result = fittingSubmission(elbow, [counts], choices.diameters, compatibleFor);
   assert.deepEqual(result.rows, [
     { quantity: 4, variant: 'DN20', secondaryVariant: 'ELBOW-90', notes: '90° Dirsek · Çap: DN20' },
     { quantity: 1, variant: 'DN25', secondaryVariant: 'ELBOW-90', notes: '90° Dirsek · Çap: DN25' },
@@ -303,13 +365,31 @@ test('fitting satırları yalnız uyumlu türleri gönderir; gönderilmeyen kal�
   assert.deepEqual(remaining.DN99, { 'ELBOW-90': 9 });
 });
 
+test('birden çok sayım tablosu (masaüstü kutuları) (çap, tür) çiftine göre toplanır, sıra ilk görülmedir', () => {
+  const choices = fittingChoices(elbow, [pipe, elbow], []);
+  const compatibleFor = (code) => {
+    const selected = choices.diameters.find((item) => item.code === code);
+    return selected ? choices.compatibleVariants(selected) : [];
+  };
+  const boxes = [{ DN25: { TEE: 2 } }, { DN20: { 'ELBOW-90': 1 }, DN25: { TEE: 3, 'ELBOW-90': 0 } }];
+  const result = fittingSubmission(elbow, boxes, choices.diameters, compatibleFor);
+  assert.deepEqual(result.rows, [
+    { quantity: 5, variant: 'DN25', secondaryVariant: 'TEE', notes: 'Te · Çap: DN25' },
+    { quantity: 1, variant: 'DN20', secondaryVariant: 'ELBOW-90', notes: '90° Dirsek · Çap: DN20' },
+  ]);
+  assert.deepEqual(
+    boxes.map((counts) => remainingAfterSubmit(counts, result.submitted)),
+    [{ DN25: {} }, { DN20: {}, DN25: { 'ELBOW-90': 0 } }],
+  );
+});
+
 test('çapsız (GENEL) seçenek grubunda variant null gider ve nota çap eklenmez', () => {
   const plain = { ...elbow, parentPlacementId: null, variants: [{ code: 'A', label: 'Seçenek A' }] };
   const choices = fittingChoices(plain, [plain], []);
   assert.equal(choices.dimensional, false);
   const compatibleFor = (code) =>
     choices.diameters.some((item) => item.code === code) ? choices.compatibleVariants(choices.diameters[0]) : [];
-  const result = fittingSubmission(plain, { GENEL: { A: 2 } }, choices.diameters, compatibleFor);
+  const result = fittingSubmission(plain, [{ GENEL: { A: 2 } }], choices.diameters, compatibleFor);
   assert.deepEqual(result.rows, [{ quantity: 2, variant: null, secondaryVariant: 'A', notes: 'Seçenek A' }]);
 });
 

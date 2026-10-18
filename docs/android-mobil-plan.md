@@ -168,7 +168,7 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 | 2 | MEDIUM | Eski tam yenileme yanıtı daha yeni ölçüm/özetleri eziyordu; silme commit'i ölçümleri tazelemiyordu | Düzeltildi (2 test) |
 | 3 | MEDIUM | Köprü 60 sn zaman aşımında yerel taraf yazmaya devam edebilir; yeniden denemede çift kayıt riski | **Açık:** idempotency anahtarı ya da zaman aşımı sonrası tazeleme |
 | 4 | MEDIUM | Android'de açılış hatasında yedeğe ulaşma yolu yok | **Açık:** hata ekranına "son yedeği geri yükle" / "dışa aktar" |
-| 5 | MEDIUM | Ölçüm satırı ve kart gövdesi üretimi mobilde ikinci kopya; eşdeğerlik testi masaüstü koduna bağlı değil | **Açık:** ortak `src/lib` modülüne çıkarılmalı, masaüstü de çağırmalı |
+| 5 | MEDIUM | Ölçüm satırı ve kart gövdesi üretimi mobilde ikinci kopya; eşdeğerlik testi masaüstü koduna bağlı değil | **Kapandı:** gövdeler yalnız `src/lib/measurementBodies.ts` (ölçüm, düzeltme, boru, fitting) ve `src/lib/cardPayload.ts` (kart) içinde; App.tsx, Inspector.tsx ve telefon ekranları bunları çağırır. `tests/shared-bodies.test.mjs` masaüstü çağrılarını ve ağaçta başka gövde kopyası olmadığını denetler |
 | 6 | LOW | Masaüstünde kapı alınamazsa geçici rapor dosyası kalıyordu | Düzeltildi |
 | 7 | LOW | İptal edilen indirme dosyası önbellekte 1 saat kalıyor | **Açık:** iptalde `release` komutu |
 | 8 | LOW | Kayıttan sonra taslak silme tamponda; süreç ölürse çift kayıt | Düzeltildi |
