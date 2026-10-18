@@ -1,10 +1,11 @@
+using System.Reflection;
 using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.Data.Sqlite;
 
 namespace Metraj.Host;
 
-/// <summary>Rota tablosu: 67 uç nokta, alanlarına göre.</summary>
+/// <summary>Rota tablosu: 68 uç nokta, alanlarına göre.</summary>
 /// <remarks>
 /// Rotalar, gövdeleri ve sıraları LocalApiHost'taki minimal API tanımlarından
 /// birebir taşındı (oradaki <c>Map*Endpoints</c> metotlarıyla aynı bölümleme).
@@ -21,7 +22,7 @@ public sealed partial class MetrajRequestRouter
 
     private static Route[] BuildRouteTable()
     {
-        var api = new List<Route>(capacity: 67);
+        var api = new List<Route>(capacity: 68);
         MapHealthRoutes(api);
         MapProjectRoutes(api);
         MapCatalogRoutes(api);
@@ -38,11 +39,43 @@ public sealed partial class MetrajRequestRouter
         return api.ToArray();
     }
 
-    /// <summary>Canlılık yoklaması.</summary>
+    /// <summary>Canlılık yoklaması, uygulama sürümü ve verinin bulunduğu klasör.</summary>
+    /// <remarks>
+    /// <c>dataLocation</c> veritabanının bulunduğu klasörün tam yoludur (Android'de uygulamaya
+    /// özel alan, masaüstünde kullanıcı profili altı). Arayüz masaüstünde yalnız klasör adını gösterir.
+    /// </remarks>
     private static void MapHealthRoutes(List<Route> api)
     {
-        Map(api, "GET", "/health", _ => Task.FromResult(Ok(new { status = "ok" })));
+        Map(api, "GET", "/health", call => Task.FromResult(Ok(new
+        {
+            status = "ok",
+            version = ApplicationVersion,
+            dataLocation = DataLocationOf(call.Services.DatabasePath)
+        })));
     }
+
+    /// <summary>Çekirdeğin sürümü: "1.0.0" ya da derleme kaydı biliniyorsa "1.0.0+3f02030".</summary>
+    /// <remarks>
+    /// Masaüstü ve Android aynı Metraj.Host derlemesini taşıdığı için iki platformda da aynı kaynaktan
+    /// okunur. SDK'nın eklediği tam kayıt kimliği yedi karaktere kısaltılır.
+    /// </remarks>
+    private static string ApplicationVersion { get; } = ReadApplicationVersion();
+
+    private static string ReadApplicationVersion()
+    {
+        Assembly assembly = typeof(MetrajRequestRouter).Assembly;
+        string? informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (string.IsNullOrWhiteSpace(informational))
+        {
+            return assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        }
+
+        int plus = informational.IndexOf('+', StringComparison.Ordinal);
+        return plus >= 0 && informational.Length - plus - 1 > 7 ? informational[..(plus + 8)] : informational;
+    }
+
+    private static string? DataLocationOf(string databasePath) =>
+        string.IsNullOrWhiteSpace(databasePath) ? null : Path.GetDirectoryName(Path.GetFullPath(databasePath));
 
     /// <summary>Projeler ve revizyonlar.</summary>
     private static void MapProjectRoutes(List<Route> api)
@@ -72,6 +105,8 @@ public sealed partial class MetrajRequestRouter
         Map(api, "POST", "/catalog/starter-pack", call => OkAsync(call.Services.StarterCatalog.SeedAsync(call.Token)));
         Map<CreateCardRequest>(api, "POST", "/catalog/cards", (call, request) =>
             OkAsync(call.Services.Catalog.CreateCardAsync(ToCatalogCardDraft(request), call.Token)));
+        Map(api, "GET", "/catalog/cards/{cardId:guid}/versions", call =>
+            OkAsync(call.Services.Catalog.ListVersionsAsync(call.Id("cardId"), call.Token)));
         Map<CreateCardRequest>(api, "POST", "/catalog/cards/{cardId:guid}/versions", (call, request) =>
             OkAsync(call.Services.Catalog.CreateVersionAsync(call.Id("cardId"), ToCatalogCardDraft(request), call.Token)));
         Map(api, "POST", "/catalog/cards/{cardId:guid}/deactivate", call =>

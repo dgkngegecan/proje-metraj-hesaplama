@@ -64,7 +64,7 @@ Aynı dalgadaki yazıcı ajanlar ayrı worktree'lerde çalışır ve birbirinin 
   - **Olay (yerel → JS):** `{"type":"event","event":"back|pause|resume"}`.
 - JS API yüzeyi (`src/Metraj.Web/src/api.ts`, masaüstü imzaları korunur): `api.get/post/put/delete/upload` aynen; yeni `api.download(path, suggestedName)` (köprüde `file` tutamacı + paylaş/kaydet sayfası, fetch'te blob + `<a download>`) ve `api.importWorkspace()` (köprüde `pickAndImport`, fetch'te dosya seçici + `upload`).
 
-## Rota envanteri ve eşleştirme (67 uç nokta)
+## Rota envanteri ve eşleştirme (68 uç nokta)
 
 Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran karşılığı olmalı. "Mobil ekran" sütunu Dalga 2 sonunda doğrulanır.
 
@@ -83,6 +83,7 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 | DELETE | `/api/catalog/types/{typeId}` | Kütüphane → tipler |
 | POST | `/api/catalog/starter-pack` | Kütüphane → eksik standartları tamamla |
 | POST | `/api/catalog/cards` | Kütüphane → yeni kart |
+| GET | `/api/catalog/cards/{cardId}/versions` | Kütüphane → kart ayrıntısı → sürüm geçmişi (Dalga 3 sonrası eklendi) |
 | POST | `/api/catalog/cards/{cardId}/versions` | Kütüphane → kart düzenle |
 | POST | `/api/catalog/cards/{cardId}/deactivate` | Kütüphane → pasife al |
 | DELETE | `/api/catalog/cards/{cardId}` | Kütüphane → sil |
@@ -177,7 +178,13 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 
 **Son durum (orkestratör doğrulaması):** .NET 218/218, 0 uyarı; arayüz 263/263; Playwright telefon e2e 16/16; mobil paket denetimi geçti. Son APK'lar: arm64 35,2 MB, x64 37,6 MB. Emülatörde temiz kurulum: şablon veritabanı 209 ms'de kopyalandı, çekirdek t+2,2 s'de hazır (Dalga 2'de t+14,9 s). PDF 0,76 s'de üretildi, adı `SYN-CW-001_R0_2026-10-18_0110.pdf`; çökme yok.
 
-**Hâlâ açık (yukarıdakilere ek):** sunucu tarihleri `Z`'siz; kart sürüm geçmişi ve `/api/health` sürüm/veri konumu uçları yok; şaft/hat no ayrı alan değil; gerçek ARM telefon, 16 KB sayfalı cihaz ve eski WebView doğrulaması yapılmadı.
+**Hâlâ açık (yukarıdakilere ek):** şaft/hat no ayrı alan değil; gerçek ARM telefon, 16 KB sayfalı cihaz ve eski WebView doğrulaması yapılmadı. (Tarihler, kart sürüm geçmişi ve `/api/health` aşağıda kapandı.)
+
+## Dalga 3 sonrası: API eksikleri (2026-10-18)
+
+- **UTC tarihler:** `UtcDateTimeConverter` bütün `DateTime`/`DateTime?` özelliklerine kural olarak uygulanıyor (`ConfigureConventions`); okunan değer `Kind=Utc`, JSON `"2026-10-17T14:45:38.41Z"`. Saklanan metin aynı, göç yok; derlenmiş model yenilendi. Masaüstü arayüzü zamanları `Date.parse`/`new Date` ile okuduğu için kod değişikliği olmadan yerel saati gösteriyor. Mobil `parseUtc`/`formatDateTime` eksiz eski değerleri yine UTC sayıyor. Sözleşme: `DateTimeWireContractTests`.
+- **Kart sürüm geçmişi:** `GET /api/catalog/cards/{cardId}/versions` (68. uç): en yeni önce, `isLatest`, içerik alanları, `placementCount`, `createdAtUtc`. Kart notu karta ait olduğu için geçmişte yok. Mobil kart ayrıntısı "Sürümler" bölümünde listeliyor, her satırda bir önceki sürüme göre değişenler var.
+- **`/api/health`:** `{"status":"ok","version":"1.0.0+<kayıt>","dataLocation":"<veritabanı klasörü>"}`. Sürüm Metraj.Host derlemesinin bilgi sürümü (iki platformda aynı kaynak; Android `ApplicationDisplayVersion` ile ayrıca eşitlenmedi). "Hakkında" telefonda tam yolu, köprüsüz (masaüstü/tarayıcı) yalnız klasör adını gösteriyor.
 
 ## Dalga 3 sonuçları: Ajan 7 (2026-10-18)
 
@@ -211,8 +218,8 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 
 1. **Okunur dosya adları:** rapor/çalışma alanı indirmeleri `metraj-<guid>-<guid>.pdf` adıyla paylaşılıyor (masaüstünde de). Router `DownloadName`'i proje kodu + revizyon + kapsam + tarih olmalı; Ajan 1'in sabitleme testleri buna göre güncellenir.
 2. **Açılış performansı:** sıcak açılışta ilk veri t+4,1–4,3 s (hedef 3,5 s); ilk EF sorgu derlemesi ~1,7–2,1 s; ilk katalog isteği 2,5 s (733 kartın ilk JSON dönüşümü); ilk kurulumda ~15 s boş kabuk (göç + tohumlama) → ilerleme göstergesi ya da önceden tohumlanmış DB.
-3. **Sunucu tarihleri** `Kind=Unspecified` ile Z'siz gidiyor; mobil UTC kabul ediyor, masaüstü yerel saat sanıyor. API'de UTC olarak yazılmalı.
-4. **Eksik uç noktalar:** kart sürüm geçmişi (`GET /catalog/cards/{id}/versions`), `/api/health`'te sürüm ve veri konumu.
+3. ~~**Sunucu tarihleri** `Kind=Unspecified` ile Z'siz gidiyor~~ (2026-10-18 kapandı).
+4. ~~**Eksik uç noktalar:** kart sürüm geçmişi, `/api/health`'te sürüm ve veri konumu~~ (2026-10-18 kapandı).
 5. **Alan eksikleri:** şaft ve hat no için ayrı ölçüm alanı yok (nota yazılıyor).
 6. **Cihaz doğrulaması:** gerçek ARM telefon, 16 KB sayfalı cihaz, eski WebView'da hata ekranı, çentik/yatay ekran, gerçek parmakla kaydırma ve uzun basma.
 7. **Küçük ekran:** Çıktı ekranında liste alanı dar.

@@ -50,7 +50,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime),
                 propertyInfo: typeof(Measurement).GetProperty("CreatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(Measurement).GetField("<CreatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                valueConverter: new UtcDateTimeConverter());
+            createdAtUtc.SetSentinelFromProviderValue(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             var drawingRevision = runtimeEntityType.AddProperty(
                 "DrawingRevision",
@@ -150,7 +151,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime?),
                 propertyInfo: typeof(Measurement).GetProperty("UpdatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(Measurement).GetField("<UpdatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                nullable: true);
+                nullable: true,
+                valueConverter: new UtcDateTimeConverter());
 
             var variant = runtimeEntityType.AddProperty(
                 "Variant",

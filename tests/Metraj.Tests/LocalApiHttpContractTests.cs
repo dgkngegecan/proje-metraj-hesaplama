@@ -44,7 +44,17 @@ public sealed class LocalApiHttpContractTests
         Reply health = await SendAsync(client, "GET", "api/health");
         Assert.Equal(HttpStatusCode.OK, health.Status);
         Assert.Equal(JsonContentType, health.ContentType);
-        Assert.Equal("""{"status":"ok"}""", health.Body);
+        // Bilinçli sözleşme değişikliği: eskiden yalnız {"status":"ok"} dönerdi; sürüm ve veri
+        // klasörü eklendi. "status" yerinde ve ilk alan olarak kalır (eski istemciler yalnız onu okur).
+        using (var healthJson = JsonDocument.Parse(health.Body))
+        {
+            Assert.Equal(["status", "version", "dataLocation"],
+                healthJson.RootElement.EnumerateObject().Select(property => property.Name));
+            Assert.Equal("ok", healthJson.RootElement.GetProperty("status").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(healthJson.RootElement.GetProperty("version").GetString()));
+            Assert.Equal(Path.GetDirectoryName(Path.GetFullPath(database.Path)),
+                healthJson.RootElement.GetProperty("dataLocation").GetString());
+        }
 
         // Gövde yok -> 400, gövdesiz.
         AssertEmpty(await SendAsync(client, "POST", "api/projects"), HttpStatusCode.BadRequest);

@@ -65,7 +65,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime),
                 propertyInfo: typeof(AuditEntry).GetProperty("OccurredAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(AuditEntry).GetField("<OccurredAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                valueConverter: new UtcDateTimeConverter());
+            occurredAtUtc.SetSentinelFromProviderValue(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             var projectRevisionId = runtimeEntityType.AddProperty(
                 "ProjectRevisionId",

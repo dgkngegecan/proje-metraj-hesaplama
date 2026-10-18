@@ -12,7 +12,7 @@ namespace Metraj.Api;
 
 /// <summary>Loopback-only HTTP boundary that lets the React desktop surface use the existing application services.</summary>
 /// <remarks>
-/// Bu sınıf artık yalnız bir HTTP adaptörüdür. 67 uç noktanın mantığı (rota
+/// Bu sınıf artık yalnız bir HTTP adaptörüdür. Bütün uç noktaların mantığı (rota
 /// tablosu, bağlama, JSON sözleşmesi, hata eşlemesi, bakım kapısı) Metraj.Host'taki
 /// <see cref="MetrajRequestRouter"/>'a taşındı; Android kabuğu aynı router'ı
 /// Kestrel olmadan çağırır. Önceden bu dosya 712 satırdı ve uç noktaları minimal

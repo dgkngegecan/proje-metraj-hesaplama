@@ -16,6 +16,9 @@ public sealed class MetrajServices : IDisposable
 {
     private const string SyntheticCleanWaterResource = "Metraj.Host.SampleData.CleanWaterSynthetic.csv";
 
+    /// <summary>SQLite veritabanının tam yolu; <c>/api/health</c> klasörünü bildirir. Boşsa bildirilmez.</summary>
+    public string DatabasePath { get; init; } = string.Empty;
+
     /// <summary>Bakım (geri yükleme, proje temizleme, içe aktarma) ile sıradan istekler arasındaki sınır.</summary>
     public required ApplicationDatabaseGate DatabaseGate { get; init; }
 
@@ -84,6 +87,7 @@ public sealed class MetrajServices : IDisposable
         Func<MetrajDbContext> contextFactory = () => MetrajDbContextFactory.Create(databasePath);
         return new MetrajServices
         {
+            DatabasePath = databasePath,
             DatabaseGate = gate,
             Projects = new ProjectWorkspaceService(contextFactory),
             Catalog = new CatalogWorkspaceService(contextFactory),

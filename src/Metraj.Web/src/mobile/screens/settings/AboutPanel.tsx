@@ -6,17 +6,18 @@ import { ScreenHeader } from '../../shell';
 import { useResource } from '../../store';
 import { Notice, Section } from '../library/shared/FormParts';
 import { resourceKeys } from './settingsData';
+import { dataLocationLabel } from './settingsModel';
 
 interface Health {
   status: string;
   version?: string;
-  dataLocation?: string;
+  dataLocation?: string | null;
 }
 
 /**
  * Uygulama hakkında: sürüm, verinin yeri ve "tamamen yerel çalışır" güvencesi.
- * `/api/health` sürüm ya da veri konumu bildirirse gösterilir; bildirmiyorsa (bugünkü hâl)
- * Android'de verinin uygulamaya özel alanda olduğu yazılır.
+ * Sürüm ve veri klasörü `/api/health`'ten gelir; eski bir çekirdek bildirmezse genel metin
+ * gösterilir. Masaüstünde yolun yalnız klasör adı görünür (bkz. `dataLocationLabel`).
  */
 export function AboutPanel() {
   const health = useResource(resourceKeys.health, () => api.get<Health>('/health'));
@@ -47,12 +48,7 @@ export function AboutPanel() {
             </div>
             <div className="m-facts__row">
               <dt>Veri konumu</dt>
-              <dd>
-                {health.data?.dataLocation ??
-                  (native
-                    ? 'Bu telefon · uygulamaya özel dahili depolama'
-                    : 'Bu bilgisayar · yerel veritabanı dosyası')}
-              </dd>
+              <dd>{dataLocationLabel(health.data?.dataLocation, native)}</dd>
             </div>
           </dl>
         </Section>

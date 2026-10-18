@@ -11,7 +11,7 @@ namespace Metraj.Infrastructure.CompiledModel
     public partial class MetrajDbContextModel
     {
         private MetrajDbContextModel()
-            : base(skipDetectChanges: false, modelId: new Guid("25f53a14-216b-4ccc-aa4c-83bae98add5f"), entityTypeCount: 17)
+            : base(skipDetectChanges: false, modelId: new Guid("b2307bd0-35e2-4339-9750-e3c10248321e"), entityTypeCount: 17)
         {
         }
 

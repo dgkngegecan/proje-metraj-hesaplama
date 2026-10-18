@@ -41,7 +41,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime?),
                 propertyInfo: typeof(ProjectRevision).GetProperty("ApprovedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(ProjectRevision).GetField("<ApprovedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                nullable: true);
+                nullable: true,
+                valueConverter: new UtcDateTimeConverter());
 
             var code = runtimeEntityType.AddProperty(
                 "Code",
@@ -55,7 +56,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime),
                 propertyInfo: typeof(ProjectRevision).GetProperty("CreatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(ProjectRevision).GetField("<CreatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                valueConverter: new UtcDateTimeConverter());
+            createdAtUtc.SetSentinelFromProviderValue(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             var effectivePolicyJson = runtimeEntityType.AddProperty(
                 "EffectivePolicyJson",

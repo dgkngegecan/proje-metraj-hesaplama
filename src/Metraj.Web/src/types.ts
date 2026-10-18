@@ -82,6 +82,32 @@ export interface CatalogCard {
   variants?: CatalogCardVariant[] | null;
 }
 
+/** `GET /catalog/cards/{id}/versions`: kartın değişmez bir sürümü (en yeni önce gelir). Not karta aittir, burada yoktur. */
+export interface CatalogCardVersion {
+  id: string;
+  cardId: string;
+  versionNumber: number;
+  isLatest: boolean;
+  name: string;
+  cardType: CardType;
+  unit: string;
+  inputBehavior: CatalogCard['inputBehavior'];
+  salesConversion: CatalogCard['salesConversion'];
+  reportBehavior: CatalogCard['reportBehavior'];
+  wasteRatePct: number;
+  containerParameter?: number | null;
+  positionNumber?: string | null;
+  materialType?: string | null;
+  compatibleDiameters: string[];
+  customTypeName?: string | null;
+  variantMode: CatalogVariantMode;
+  variants: CatalogCardVariant[];
+  attributeValues: Record<string, string>;
+  /** Bu sürümü kullanan proje yerleşimleri (onaylı revizyonlar dahil). */
+  placementCount: number;
+  createdAtUtc: string;
+}
+
 export interface StarterCatalogSeedResult {
   addedCount: number;
   existingCount: number;

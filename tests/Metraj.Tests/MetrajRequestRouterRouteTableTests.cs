@@ -14,7 +14,8 @@ public sealed class MetrajRequestRouterRouteTableTests
 {
     /// <summary>
     /// LocalApiHost'un minimal API tanımlarından (refaktör öncesi) elle çıkarılmış
-    /// 67 uç nokta. Bilerek rota tablosundan TÜRETİLMEDİ: tablo bir ucu kaybeder,
+    /// 67 uç nokta ve sonradan eklenen kart sürüm geçmişi (GET .../versions), toplam 68.
+    /// Bilerek rota tablosundan TÜRETİLMEDİ: tablo bir ucu kaybeder,
     /// kısıtını düşürür ya da yöntemini değiştirirse bu liste onu yakalar.
     /// </summary>
     private static readonly (string Method, string Template)[] ExpectedRoutes =
@@ -32,6 +33,7 @@ public sealed class MetrajRequestRouterRouteTableTests
         ("DELETE", "/api/catalog/types/{typeId:guid}"),
         ("POST", "/api/catalog/starter-pack"),
         ("POST", "/api/catalog/cards"),
+        ("GET", "/api/catalog/cards/{cardId:guid}/versions"),
         ("POST", "/api/catalog/cards/{cardId:guid}/versions"),
         ("POST", "/api/catalog/cards/{cardId:guid}/deactivate"),
         ("DELETE", "/api/catalog/cards/{cardId:guid}"),
@@ -89,9 +91,9 @@ public sealed class MetrajRequestRouterRouteTableTests
     ];
 
     [Fact]
-    public void RouteTableContainsExactlyTheSixtySevenMinimalApiEndpoints()
+    public void RouteTableContainsExactlyTheSixtyEightEndpoints()
     {
-        Assert.Equal(67, ExpectedRoutes.Length);
+        Assert.Equal(68, ExpectedRoutes.Length);
         Assert.Equal(ExpectedRoutes.Length, ExpectedRoutes.Distinct().Count());
 
         var actual = MetrajRequestRouter.Routes.Select(route => (route.Method, route.Template)).ToList();
