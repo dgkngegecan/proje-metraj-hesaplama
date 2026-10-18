@@ -118,7 +118,7 @@ export function RadiatorEntry({
       setError('');
       void actions.refreshSummaries(revisionId);
       actions.invalidateResources(`report:${revisionId}`);
-    } else setError('Kayıt tamamlanamadı. Bekleyen adetler korunuyor; tekrar deneyin.');
+    } else setError('Kaydedilemedi. Adetler korunuyor; tekrar deneyin.');
   };
 
   const addLength = () => {
@@ -307,7 +307,7 @@ export function RadiatorEntry({
         open={form !== null}
         onClose={() => setForm(null)}
         title={form?.mode === 'type' ? 'Yeni petek tipi' : 'Yeni yükseklik'}
-        description="Eklediğiniz seçenekler bu katalog kartında hazır kalır."
+        description="Eklediğiniz seçenekler bu kartta kalır."
         footer={
           <button type="button" className="m-btn m-btn--primary m-btn--large m-btn--block" onClick={submitForm}>
             Seçeneklere ekle

@@ -117,7 +117,7 @@ function ProjectSheet({ open, onClose }: { open: boolean; onClose: () => void })
               <Icon name="plus" />
               <span>
                 <strong>Yeni proje</strong>
-                <small>Kod ve ad vererek boş bir proje aç</small>
+                <small>Kod ve ad girerek boş proje açın</small>
               </span>
             </button>
           </div>
@@ -168,7 +168,7 @@ function NewProjectForm({ onDone }: { onDone: () => void }) {
       const created = await actions.createProject({ code, name });
       shellActions.resetStacks();
       shellActions.setTab('project');
-      notifySuccess(`${created.name} hazır.`);
+      notifySuccess(`${created.name} oluşturuldu.`);
       onDone();
     } catch (error) {
       notifyError(error);
@@ -234,7 +234,7 @@ function RevisionSheet({ open, onClose }: { open: boolean; onClose: () => void }
       open={open}
       onClose={onClose}
       title="Revizyon seç"
-      description="Onaylı revizyonlar kilitlidir; yalnız görüntülenir. Yeni düzenleme kopyası Ayarlar → Revizyonlar'dan açılır."
+      description="Onaylı revizyonlar yalnız görüntülenir. Yeni revizyonu Ayarlar > Revizyonlar'dan açın."
     >
       <ul className="m-choice-list" aria-label="Revizyonlar">
         {revisions.map((revision) => (
@@ -274,7 +274,7 @@ export function LockBanner() {
     <div className="m-lock-banner" role="status">
       <Icon name="lock" size={20} />
       <p>
-        <strong>{revision.code} onaylı ve kilitli.</strong> Yalnız görüntüleme; değişiklik için düzenleme kopyası açın.
+        <strong>{revision.code} onaylı.</strong> Değişiklik için yeni revizyon açın.
       </p>
       <button type="button" className="m-btn m-btn--ghost m-btn--small" onClick={() => shellActions.setTab('settings')}>
         Ayarlar

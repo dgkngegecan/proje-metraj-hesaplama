@@ -14,10 +14,10 @@ test('yavaş ilk açılış: boş kabuk yerine açıklayıcı ilerleme, sonra bo
 
   // Kısa süre iskelet, sonra ne beklendiği söylenir.
   await expect(page.getByRole('heading', { name: 'Standart kütüphane hazırlanıyor…' })).toBeVisible();
-  await expect(page.getByText('İlk açılışta kart kütüphanesi kurulur')).toBeVisible();
+  await expect(page.getByText('Yalnızca ilk açılışta')).toBeVisible();
 
   // Çekirdek hazır olunca ilerleme kalkar, normal boş durum gelir.
   release();
-  await expect(page.getByRole('heading', { name: 'İlk projeni oluşturalım' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Henüz proje yok' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Standart kütüphane hazırlanıyor…' })).toHaveCount(0);
 });

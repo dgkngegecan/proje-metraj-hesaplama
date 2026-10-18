@@ -4,7 +4,7 @@ test('ilk açılış: boş durum → örnek proje → ağaç → iç seviye → 
   await openApp(page);
 
   // Boş durum: ne olduğunu ve sonraki adımı söyler.
-  await expect(page.getByRole('heading', { name: 'İlk projeni oluşturalım' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Henüz proje yok' })).toBeVisible();
   await page.getByRole('button', { name: 'Örnek projeyi aç' }).click();
 
   // Üst çubukta örnek proje; kök seviyede tek kart (proje kökü).

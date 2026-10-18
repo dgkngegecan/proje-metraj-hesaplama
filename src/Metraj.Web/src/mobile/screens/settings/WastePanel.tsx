@@ -69,8 +69,8 @@ export function WastePanel() {
         {settings.length === 0 ? (
           <EmptyState
             icon="library"
-            title="Henüz aile bazlı fire kuralı yok"
-            message="Kartlar kendi varsayılan fire oranlarıyla hesaplanıyor. İsterseniz bir aile için ortak oran tanımlayın."
+            title="Henüz fire kuralı yok"
+            message="Her kart kendi fire oranını kullanıyor. Bir malzeme ailesi için ortak oran tanımlayabilirsiniz."
           />
         ) : (
           <ul className="m-row-list" aria-label="Fire kuralları">

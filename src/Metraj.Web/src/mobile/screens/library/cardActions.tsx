@@ -56,9 +56,9 @@ export function DeleteCardSheet({
       }}
     >
       <ul>
-        <li>Kart ve bütün sürümleri kütüphaneden kalıcı olarak kaldırılır.</li>
-        <li>Bir projede kullanılıyorsa kart silinmez; yalnız pasife alınır ve projelerdeki kullanımı korunur.</li>
-        <li>Geçici olarak kaldırmak istiyorsanız “Pasife al”ı kullanın.</li>
+        <li>Kart kütüphaneden kalıcı olarak silinir.</li>
+        <li>Projelerde kullanılıyorsa silinmez, pasife alınır; projeler etkilenmez.</li>
+        <li>Kartı yalnızca gizlemek için “Pasife al”ı kullanın.</li>
       </ul>
     </ConfirmSheet>
   );

@@ -29,7 +29,7 @@ export function BackupsPanel() {
   const createBackup = async () => {
     setCreating(true);
     const result = await perform(() => api.post('/database/backups'), {
-      success: 'Güvenli yedek alındı.',
+      success: 'Yedek alındı.',
       error: 'Yedek alınamadı.',
     });
     setCreating(false);
@@ -39,13 +39,13 @@ export function BackupsPanel() {
   const checkIntegrity = async () => {
     setChecking(true);
     const result = await perform(() => api.get<DatabaseIntegrity>('/database/integrity'), {
-      error: 'Bütünlük denetimi yapılamadı.',
+      error: 'Veriler kontrol edilemedi.',
     });
     setChecking(false);
     if (!result.ok) return;
     // Sonucu önbelleğe yaz: ikinci bir istek atmadan ekran ve Ayarlar özeti güncellenir.
     await actions.loadResource(resourceKeys.integrity, async () => result.value);
-    notify(result.value.isHealthy ? 'Veritabanı kontrolü temiz.' : 'Veritabanı kontrolü uyarı verdi.');
+    notify(result.value.isHealthy ? 'Veriler sağlam.' : 'Verilerde sorun bulundu. Son yedeği geri yükleyin.');
   };
 
   const restore = async () => {
@@ -60,7 +60,7 @@ export function BackupsPanel() {
 
   const clearProjects = async () => {
     const result = await perform(() => api.delete<{ deletedProjectCount: number }>('/database/projects'), {
-      success: (value) => `${value.deletedProjectCount} proje temizlendi. Güvenlik yedeği alındı.`,
+      success: (value) => `${value.deletedProjectCount} proje silindi. Öncesinde yedek alındı.`,
       error: 'Projeler temizlenemedi.',
     });
     if (!result.ok) return false;
@@ -71,14 +71,14 @@ export function BackupsPanel() {
     <div className="m-detail">
       <ScreenHeader title="Yedekler ve güvenlik" />
       <div className="m-detail__scroll">
-        <Section title="Veritabanı bütünlüğü">
+        <Section title="Veri kontrolü">
           <div className={`m-set-integrity m-set-integrity--${state}`} role="status" aria-live="polite">
             <Icon name={state === 'healthy' ? 'check' : 'warning'} size={24} />
             <span>
               <strong>{INTEGRITY_TEXT[state]}</strong>
               <small>
                 {integrity.status === 'loading' && !integrity.data
-                  ? 'Denetim yapılıyor…'
+                  ? 'Kontrol ediliyor…'
                   : integrity.status === 'error'
                     ? integrity.error
                     : (integrity.data?.details ?? 'Kontrol sonucu henüz alınmadı.')}
@@ -92,7 +92,7 @@ export function BackupsPanel() {
             onClick={() => void checkIntegrity()}
           >
             {checking ? <Spinner size={18} /> : <Icon name="refresh" size={18} />}
-            {checking ? 'Denetleniyor…' : 'Şimdi denetle'}
+            {checking ? 'Kontrol ediliyor…' : 'Şimdi kontrol et'}
           </button>
         </Section>
 
@@ -114,7 +114,7 @@ export function BackupsPanel() {
             <EmptyState
               icon="download"
               title="Henüz yedek yok"
-              message="“Şimdi yedekle” ile bugünkü hâli saklayın. Geri yükleme ve temizleme öncesinde otomatik yedek de alınır."
+              message="“Şimdi yedekle” ile verilerin bugünkü hâlini saklayın."
             />
           ) : (
             <ul className="m-set-backups" aria-label="Yedekler">
@@ -138,7 +138,7 @@ export function BackupsPanel() {
           )}
         </Section>
 
-        <Section title="Tehlikeli bölge">
+        <Section title="Geri alınamaz işlemler">
           <Notice tone="warning">
             Bütün projeleri, revizyonları, yerleşimleri, metrajları, notları ve hesap geçmişini kaldırır. Kart
             kütüphanesi ve genel ayarlar korunur. İşlemden hemen önce otomatik bir güvenlik yedeği alınır.
@@ -162,7 +162,7 @@ export function BackupsPanel() {
         <ul>
           <li>Şu anki bütün projeler ve ayarlar bu yedekteki hâle döner; yedekten sonra girilen veriler kaybolur.</li>
           <li>Geri yüklemeden hemen önce şu anki hâl ayrıca yedeklenir, gerekirse ona dönebilirsiniz.</li>
-          <li>Açık ekranlar kapanır ve veriler baştan okunur.</li>
+          <li>Uygulama verileri yeniden yükler.</li>
         </ul>
       </ConfirmSheet>
       <ConfirmSheet
@@ -175,9 +175,9 @@ export function BackupsPanel() {
         onConfirm={clearProjects}
       >
         <ul>
-          <li>Bütün projeler, revizyonlar, yerleşimler, metrajlar, notlar ve hesap geçmişi silinir.</li>
+          <li>Bütün projeler, revizyonlar, kartlar, girişler ve notlar silinir.</li>
           <li>Kart kütüphanesi ve genel ayarlar (fire payları gibi) korunur.</li>
-          <li>İşlemden hemen önce otomatik güvenlik yedeği alınır; gerekirse oradan geri dönebilirsiniz.</li>
+          <li>Silmeden önce otomatik yedek alınır; gerekirse geri dönebilirsiniz.</li>
         </ul>
       </ConfirmSheet>
     </div>

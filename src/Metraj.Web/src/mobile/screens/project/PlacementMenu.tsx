@@ -86,7 +86,7 @@ export default function PlacementMenu({
   if (isEnterable(placement))
     menuActions.push({
       id: 'entry',
-      label: 'Giriş sayfasını aç',
+      label: 'Miktar gir',
       description: 'Miktar, çap, adet ve geçmiş',
       icon: 'edit',
       onSelect: () => controller.openEntry(placement.id),
@@ -102,7 +102,7 @@ export default function PlacementMenu({
     menuActions.push(
       {
         id: 'rename',
-        label: 'Yeniden adlandır / özellikler',
+        label: 'Ad ve bilgiler',
         description: 'Görünen ad, satın alma kapsamı, not',
         icon: 'edit',
         onSelect: () => goto('rename'),
@@ -123,16 +123,16 @@ export default function PlacementMenu({
       },
       {
         id: 'link',
-        label: 'Hesap bağı kur',
-        description: 'Miktarı başka bir karttan hesaplanır yap',
+        label: 'Miktarı hesapla',
+        description: 'Miktar başka bir karttan hesaplansın',
         icon: 'refresh',
         onSelect: () => goto('link'),
       },
     );
   menuActions.push({
     id: 'scope',
-    label: 'Rapor kapsamı yap',
-    description: 'Çıktı sekmesinde yalnız bu dalı raporla',
+    label: 'Bu kartın raporunu al',
+    description: 'Özet sekmesinde yalnız bu kart ve altı',
     icon: 'output',
     onSelect: () => onReportScope(placement.id),
   });
@@ -199,7 +199,7 @@ function RenameSheet({
   const save = async () => {
     if (locked || saving) return;
     if (!values.displayName.trim()) {
-      reject('Görünen ad boş olamaz; “Kart adına dön” ile varsayılana çevirebilirsiniz.');
+      reject('Görünen adı yazın ya da “Kart adına dön”e dokunun.');
       return;
     }
     const body = updatePlacementBody(placement, values);
@@ -210,7 +210,7 @@ function RenameSheet({
     });
     setSaving(false);
     if (outcome.ok) {
-      notifySuccess('Kart özellikleri kaydedildi.');
+      notifySuccess('Kart bilgileri kaydedildi.');
       onClose();
     }
   };
@@ -219,7 +219,7 @@ function RenameSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
-      title="Özellikler"
+      title="Kart bilgileri"
       description={`${placement.cardCode} · ${placement.cardName}`}
       dismissible={!saving}
       footer={
@@ -318,7 +318,7 @@ function MoveSheet({ open, placement, onClose }: { open: boolean; placement: Pla
     setBusy(false);
     if (outcome.ok) {
       haptic('confirm');
-      notifySuccess(`“${placement.displayName}” ${parentId ? `“${name}” altına` : 'kök seviyeye'} taşındı.`);
+      notifySuccess(`“${placement.displayName}” ${parentId ? `“${name}” altına` : 'en üst seviyeye'} taşındı.`);
       onClose();
     }
   };
@@ -349,7 +349,7 @@ function MoveSheet({ open, placement, onClose }: { open: boolean; placement: Pla
         getKey={(item) => item.key}
         ariaLabel="Taşıma hedefleri"
         searchText={(item) =>
-          item.placement ? `${item.placement.displayName} ${item.placement.cardCode}` : 'kök en üst düzey'
+          item.placement ? `${item.placement.displayName} ${item.placement.cardCode}` : 'en üst seviye'
         }
         searchPlaceholder="Hedefte ara"
         estimateSize={60}
@@ -366,7 +366,7 @@ function MoveSheet({ open, placement, onClose }: { open: boolean; placement: Pla
           >
             {item.placement ? <TypeGlyph type={item.placement.cardType} /> : <Icon name="project" size={22} />}
             <span className="m-proj-pick__text">
-              <strong>{item.placement?.displayName ?? 'Kök (en üst düzey)'}</strong>
+              <strong>{item.placement?.displayName ?? 'En üst seviye'}</strong>
               <small>{item.placement?.cardCode ?? 'Hiçbir kartın altında olmasın'}</small>
             </span>
             {item.isCurrent && <span className="m-badge">Şu an burada</span>}
@@ -399,7 +399,7 @@ function LinkSheet({ open, placement, onClose }: { open: boolean; placement: Pla
       await actions.withBusy(() =>
         api.post(`/placements/${placement.id}/calculated-from`, calculatedFromBody(sourceId)),
       );
-      notifySuccess(`Hesap kaynağı bağlandı: “${name}”. Öneriyi Ayarlar › hesap kontrolünde üretebilirsiniz.`);
+      notifySuccess(`Hesap kaynağı “${name}” olarak ayarlandı. Öneriyi Ayarlar > Hesaplar ekranında oluşturun.`);
       onClose();
     } catch (error) {
       notifyError(error);

@@ -214,6 +214,6 @@ test('sürüm geçmişi: bir önceki sürüme göre değişenler okunur satırla
     ),
   );
   assert.equal(formatVersionDate('değil'), '');
-  assert.match(versionMeta(v1), /· 3 yerleşimde kullanılıyor$/);
+  assert.match(versionMeta(v1), /· 3 yerde kullanılıyor$/);
   assert.match(versionMeta(v2), /· Projelerde kullanılmıyor$/);
 });

@@ -22,6 +22,6 @@ export {
   SkeletonList,
   Spinner,
 } from './StatusViews';
-export { applyTheme, HAPTICS_KEY, THEME_KEY, type ThemePreference } from './theme.ts';
+export { applyTheme, DEFAULT_THEME, HAPTICS_KEY, THEME_KEY, type ThemePreference } from './theme.ts';
 export { REVISION_STATUS_LABEL } from './TopBar';
 export { useActiveTab, useShell, useTopRoute } from './useShell.ts';

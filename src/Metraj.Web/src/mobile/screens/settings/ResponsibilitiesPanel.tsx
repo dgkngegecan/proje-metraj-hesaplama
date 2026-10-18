@@ -70,7 +70,7 @@ export function ResponsibilitiesPanel() {
           </div>
         )}
         <Section
-          title={`Boyutlar (${dimensions.length})`}
+          title={`Sorumluluk türleri (${dimensions.length})`}
           actions={
             !locked && (
               <button type="button" className="m-btn m-btn--ghost m-btn--small" onClick={() => setSheet('dimension')}>
@@ -137,7 +137,7 @@ export function ResponsibilitiesPanel() {
             )
           }
         >
-          {!dimensions.length && !locked && <p className="m-muted">Atama için önce bir boyut ekleyin.</p>}
+          {!dimensions.length && !locked && <p className="m-muted">Atama için önce bir sorumluluk türü ekleyin.</p>}
           {assignments.length ? (
             <>
               <ul className="m-set-list">
@@ -196,12 +196,12 @@ export function ResponsibilitiesPanel() {
 
 const NAMED = {
   dimension: {
-    noun: 'Boyut' as const,
-    title: 'Sorumluluk boyutu ekle',
+    noun: 'Sorumluluk türü' as const,
+    title: 'Sorumluluk türü ekle',
     path: 'dimensions',
     codeLabel: 'Boyut kodu',
     codeHint: 'Örn. MONTAJ',
-    nameLabel: 'Boyut adı',
+    nameLabel: 'Tür adı',
     nameHint: 'Örn. Montaj',
     done: 'Sorumluluk boyutu eklendi.',
   },
@@ -323,7 +323,7 @@ function AssignmentSheet({
     >
       {error && <Notice tone="error">{error}</Notice>}
       <SelectField
-        label="Boyut"
+        label="Sorumluluk türü"
         value={effectiveDimension}
         options={data.dimensions.map((dimension) => ({ value: dimension.id, label: dimension.name }))}
         onChange={setDimensionId}

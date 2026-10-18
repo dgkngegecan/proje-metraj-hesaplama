@@ -435,7 +435,7 @@ test('yükleme hatası Türkçe metinle yükleme durumuna yazılır', async () =
     { status: store.getState().loads.projects.status, error: store.getState().loads.projects.error },
     { status: 'error', error: 'Veritabanı bakımda.' },
   );
-  assert.equal(errorMessage(new TypeError('Failed to fetch')), 'Bir şey ters gitti. Tekrar deneyin.');
+  assert.equal(errorMessage(new TypeError('Failed to fetch')), 'İşlem tamamlanamadı. Tekrar deneyin.');
 });
 
 test('yeni proje listeye hemen eklenir ve seçilir; meşgul sayacı geri döner', async () => {

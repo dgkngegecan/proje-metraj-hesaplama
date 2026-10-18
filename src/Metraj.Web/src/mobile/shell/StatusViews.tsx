@@ -87,16 +87,14 @@ export function PreparingState({ delayMs = 1500 }: { delayMs?: number }) {
     const timer = window.setTimeout(() => setSlow(true), delayMs);
     return () => window.clearTimeout(timer);
   }, [delayMs]);
-  if (!slow) return <SkeletonList label="Çalışma alanı hazırlanıyor" />;
+  if (!slow) return <SkeletonList label="Veriler hazırlanıyor" />;
   return (
     <div className="m-state" role="status" aria-live="polite" aria-busy="true">
       <span className="m-state__icon" aria-hidden="true">
         <Spinner size={32} />
       </span>
       <h2 className="m-state__title">Standart kütüphane hazırlanıyor…</h2>
-      <p className="m-state__message">
-        İlk açılışta kart kütüphanesi kurulur; bu birkaç saniye sürebilir. Sonraki açılışlar çok daha hızlıdır.
-      </p>
+      <p className="m-state__message">Yalnızca ilk açılışta; birkaç saniye sürer.</p>
     </div>
   );
 }

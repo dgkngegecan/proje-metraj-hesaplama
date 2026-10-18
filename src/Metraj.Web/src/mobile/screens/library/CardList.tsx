@@ -72,12 +72,12 @@ export function CardList() {
 
   const seedStarterPack = async () => {
     const result = await perform(() => api.post<StarterCatalogSeedResult>('/catalog/starter-pack'), {
-      error: 'Standart kartlar tamamlanamadı.',
+      error: 'Standart kartlar eklenemedi.',
     });
     if (!result.ok) return;
     void actions.loadCatalog();
     if (result.value.addedCount) setSeedResult(result.value);
-    else notify('Standart kütüphane zaten tam; eklenecek kart yok.');
+    else notify('Standart kartların hepsi zaten kütüphanede.');
   };
 
   const clearFilters = () => {
@@ -108,15 +108,13 @@ export function CardList() {
         estimateSize={72}
         header={
           <div className="m-lib-head">
-            <div className="m-chip-strip" role="group" aria-label="Kart türüne göre süz">
+            <div className="m-chip-strip" role="group" aria-label="Kart türüne göre filtrele">
               <button
                 type="button"
                 className="m-pill m-pill--filter"
                 onClick={() => setSheet('filters')}
                 aria-haspopup="dialog"
-                aria-label={
-                  activeFilterCount ? `Süzgeçler, ${activeFilterCount} etkin` : 'Süzgeçler: durum ve tesisat alanı'
-                }
+                aria-label={activeFilterCount ? `Filtreler, ${activeFilterCount} etkin` : 'Filtreler'}
               >
                 <Icon name="search" size={18} />
                 Süzgeçler
@@ -231,7 +229,7 @@ export function CardList() {
           {
             id: 'starter',
             label: 'Eksik standartları tamamla',
-            description: 'Standart kartlardan kütüphanede olmayanları ekler; sizin kartlarınıza dokunmaz.',
+            description: 'Eksik standart kartları ekler. Sizin kartlarınız değişmez.',
             icon: 'download',
             onSelect: () => void seedStarterPack(),
           },
@@ -261,10 +259,10 @@ export function CardList() {
                 { id: 'open', label: 'Ayrıntıları aç', icon: 'chevronRight', onSelect: () => openCard(menuCard) },
                 {
                   id: 'edit',
-                  label: 'Düzenle (yeni sürüm)',
+                  label: 'Düzenle',
                   icon: 'edit',
                   disabled: !menuCard.isActive,
-                  description: menuCard.isActive ? undefined : 'Pasif karta yeni sürüm eklenemez.',
+                  description: menuCard.isActive ? undefined : 'Pasif kart düzenlenemez.',
                   onSelect: () => editCard(menuCard),
                 },
                 ...(menuCard.isActive
@@ -273,7 +271,7 @@ export function CardList() {
                         id: 'deactivate',
                         label: 'Pasife al',
                         icon: 'close' as const,
-                        description: 'Yeni projelerde seçilemez; mevcut kullanımlar korunur.',
+                        description: 'Yeni projelerde seçilemez. Mevcut projeler etkilenmez.',
                         onSelect: () => deactivateCard(menuCard),
                       },
                     ]
@@ -314,7 +312,7 @@ function FilterSheet({
     <BottomSheet
       open={open}
       onClose={onClose}
-      title="Süzgeçler"
+      title="Filtreler"
       size="tall"
       footer={
         <>
@@ -372,7 +370,7 @@ function SeedResultSheet({ result, onClose }: { result: StarterCatalogSeedResult
     <BottomSheet
       open={result !== null}
       onClose={onClose}
-      title="Standart kartlar tamamlandı"
+      title="Standart kartlar eklendi"
       size="tall"
       footer={
         <button type="button" className="m-btn m-btn--primary m-btn--large m-btn--block" onClick={onClose}>

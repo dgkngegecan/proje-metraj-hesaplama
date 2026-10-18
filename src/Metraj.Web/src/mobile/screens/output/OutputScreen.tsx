@@ -106,7 +106,7 @@ export default function OutputScreen() {
   if (!revisionId || scopePending || (!report.data && (report.status === 'loading' || report.status === 'idle')))
     return <SkeletonList label="Rapor hazırlanıyor" />;
   if (!report.data)
-    return <ErrorState title="Rapor okunamadı" message={report.error} onRetry={() => report.reload()} />;
+    return <ErrorState title="Rapor yüklenemedi" message={report.error} onRetry={() => report.reload()} />;
 
   const data = report.data;
   const stats = reportStats(data);
@@ -145,7 +145,7 @@ export default function OutputScreen() {
           <dd className="m-num">{stats.materials}</dd>
         </div>
         <div>
-          <dt>Kaynak satırı</dt>
+          <dt>Giriş</dt>
           <dd className="m-num">{stats.sources}</dd>
         </div>
         <div className={stats.pending ? 'is-attention' : undefined}>
@@ -268,8 +268,8 @@ function MaterialsView({
         title={scoped ? 'Bu kapsamda metraj yok' : 'Henüz metraj yok'}
         message={
           scoped
-            ? 'Seçili kart ve altındakilerde ölçüm girilmemiş. Kapsamı genişletin.'
-            : 'Proje sekmesinde bir malzeme seçip miktar girdiğinizde özet burada oluşur.'
+            ? 'Seçili kart ve altında giriş yok. Kapsamı genişletin.'
+            : 'Proje sekmesinde miktar girdiğinizde özet burada görünür.'
         }
       />
     );
@@ -600,8 +600,8 @@ function DownloadBar({
       const result = await onDownload(format);
       setNote(downloadNote(result));
     } catch (error) {
-      setFailure({ format, message: errorMessage(error, 'Rapor hazırlanamadı.') });
-      notifyError(error, 'Rapor hazırlanamadı.');
+      setFailure({ format, message: errorMessage(error, 'Rapor oluşturulamadı. Tekrar deneyin.') });
+      notifyError(error, 'Rapor oluşturulamadı. Tekrar deneyin.');
     } finally {
       setBusy(null);
     }

@@ -62,7 +62,7 @@ export function AboutPanel() {
               <strong>
                 <Icon name="lock" size={16} /> Veriler yalnız bu cihazdadır
               </strong>
-              <small>Başka uygulamalar veritabanınızı okuyamaz; sistem yedeğine de dahil edilmez.</small>
+              <small>Başka uygulamalar verilerinize erişemez. Veriler bulut yedeğine de gönderilmez.</small>
             </li>
             <li>
               <strong>Dışarı çıkan tek şey sizin paylaştığınız dosyadır</strong>

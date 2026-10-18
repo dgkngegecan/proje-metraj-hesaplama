@@ -60,7 +60,7 @@ export function ScopeSheet({
               <Icon name="project" size={20} />
               <span className="m-tree-row__text">
                 <strong>Bütün proje</strong>
-                <small>Kapsam sınırı yok</small>
+                <small>Bütün kartlar</small>
               </span>
               {currentId === null && <Icon name="check" label="Seçili" />}
             </button>

@@ -78,7 +78,7 @@ function ProjectGate({ tab, children }: { tab: TabId; children: ReactNode }) {
   if (!NEEDS_PROJECT.has(tab) || projects.length) return <>{children}</>;
   if (load.status === 'idle' || load.status === 'loading') return <PreparingState />;
   if (load.status === 'error')
-    return <ErrorState title="Projeler okunamadı" message={load.error} onRetry={() => void actions.bootstrap()} />;
+    return <ErrorState title="Projeler yüklenemedi" message={load.error} onRetry={() => void actions.bootstrap()} />;
 
   const importSample = async () => {
     setWorking(true);
@@ -94,8 +94,8 @@ function ProjectGate({ tab, children }: { tab: TabId; children: ReactNode }) {
   return (
     <EmptyState
       icon="project"
-      title="İlk projeni oluşturalım"
-      message="Üstteki “Proje seç” ile yeni bir proje aç ya da örnek projeyle uygulamayı tanı."
+      title="Henüz proje yok"
+      message="Üstteki “Proje seç”ten yeni proje açın ya da örnek projeyle başlayın."
       action={
         <button type="button" className="m-btn m-btn--secondary" disabled={working} onClick={importSample}>
           {working ? 'Hazırlanıyor…' : 'Örnek projeyi aç'}

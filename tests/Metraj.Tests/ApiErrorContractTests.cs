@@ -43,11 +43,12 @@ public sealed class ApiErrorContractTests
     public async Task EveryKnownRuleResolvesToATurkishMessage()
     {
         // Katalogda olmayan bir kural bile anlaşılır Türkçe bir metin üretmeli.
-        Assert.Equal("Bu sürüm onaylanmış ve kilitlenmiştir. Değişiklik için yeni bir düzenleme kopyası açın.",
+        Assert.Equal("Bu revizyon onaylı; değiştirilemez. Değişiklik için yeni revizyon açın.",
             DomainMessageCatalog.Resolve("revision.read-only"));
-        Assert.Equal("Metraj satırı kaydedilemedi (measurement.bilinmeyen-kural).",
+        // Kural kodu kullanıcı metnine girmez; teşhis için API yanıtının "rule" alanında kalır.
+        Assert.Equal("Giriş kaydedilemedi. Tekrar deneyin.",
             DomainMessageCatalog.Resolve("measurement.bilinmeyen-kural"));
-        Assert.Equal("İşlem tamamlanamadı.", DomainMessageCatalog.Resolve(""));
+        Assert.Equal("İşlem tamamlanamadı. Tekrar deneyin.", DomainMessageCatalog.Resolve(""));
 
         // Türkçe olmayan (ASCII) bir mesaj kalmamalı: her katalog girdisi kullanıcıya gider.
         foreach (string rule in new[]

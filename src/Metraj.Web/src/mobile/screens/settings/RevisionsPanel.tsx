@@ -39,7 +39,7 @@ export function RevisionsPanel() {
   const createDraft = async () => {
     if (!project) return;
     const result = await perform(() => api.post<Revision>(`/projects/${project.id}/revisions`), {
-      success: (created) => `${created.code} düzenleme kopyası hazır.`,
+      success: (created) => `${created.code} revizyonu açıldı.`,
       error: 'Yeni revizyon oluşturulamadı.',
     });
     if (!result.ok) return;
@@ -52,7 +52,7 @@ export function RevisionsPanel() {
   const approve = async () => {
     if (!project || !selected) return false;
     const result = await perform(() => api.post(`/revisions/${selected.id}/approve`), {
-      success: `${selected.code} onaylandı ve kilitlendi.`,
+      success: `${selected.code} onaylandı.`,
       error: 'Revizyon onaylanamadı.',
     });
     if (!result.ok) return false;
@@ -105,12 +105,12 @@ export function RevisionsPanel() {
         )}
         <div className="m-set-note">
           <Notice tone="info">
-            Onaylanan revizyon korunur; değişiklik için yeni bir düzenleme kopyası açılır. Kopya, seçili revizyonun
-            kartlarını ve ölçümlerini taşır.
+            Onaylı revizyon değiştirilemez. Değişiklik için yeni revizyon açın; kartlar ve girişler yeni revizyona
+            kopyalanır.
           </Notice>
           {hasDraft && (
             <p id="m-set-draft-hint" className="m-muted">
-              Zaten düzenlenebilir bir taslak var. Yeni kopya açmak için önce onu onaylayın.
+              Açık bir taslak revizyon var. Yeni revizyon açmak için önce onu onaylayın.
             </p>
           )}
         </div>
@@ -124,7 +124,7 @@ export function RevisionsPanel() {
           onClick={() => void createDraft()}
         >
           <Icon name="plus" size={20} />
-          Yeni taslak
+          Yeni revizyon
         </button>
         <button
           type="button"

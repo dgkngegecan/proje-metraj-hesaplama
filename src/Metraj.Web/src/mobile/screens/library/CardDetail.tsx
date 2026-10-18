@@ -53,7 +53,7 @@ function VersionHistory({ history }: { history: ReturnType<typeof useCardVersion
               {version.isLatest ? ' (güncel)' : ''} · {version.name}
             </strong>
             <small>{versionMeta(version)}</small>
-            <small>{older ? changes.join(' · ') || 'Alanlarda değişiklik yok' : 'İlk sürüm'}</small>
+            <small>{older ? changes.join(' · ') || 'Değişiklik yok' : 'İlk sürüm'}</small>
           </li>
         );
       })}
@@ -81,7 +81,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
         <EmptyState
           icon="library"
           title="Bu kart artık kütüphanede yok"
-          message="Silinmiş ya da kütüphane yeniden yüklenmiş olabilir."
+          message="Kart silinmiş olabilir. Kütüphaneye dönün."
           action={
             <button type="button" className="m-btn m-btn--secondary" onClick={() => shellActions.pop('library')}>
               Listeye dön
@@ -137,9 +137,9 @@ export function CardDetail({ cardId }: { cardId: string }) {
               ['Birim', card.unit],
               ['Fire payı', `%${quantity(card.wasteRatePct)}`],
               ['Malzeme ailesi', card.materialType],
-              ['Giriş davranışı', attributeValueLabel('InputBehavior', card.inputBehavior)],
-              ['Satın alma dönüşümü', attributeValueLabel('SalesConversion', card.salesConversion)],
-              ['Rapor davranışı', attributeValueLabel('ReportBehavior', card.reportBehavior)],
+              ['Miktar girişi', attributeValueLabel('InputBehavior', card.inputBehavior)],
+              ['Satın alma birimi', attributeValueLabel('SalesConversion', card.salesConversion)],
+              ['Rapordaki yeri', attributeValueLabel('ReportBehavior', card.reportBehavior)],
               ['Boy / paket kapasitesi', card.containerParameter != null ? quantity(card.containerParameter) : null],
               ['Poz numarası', card.positionNumber],
               ['Aile kodu', card.familyCode],
@@ -166,7 +166,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
             }
           >
             {variants.length === 0 ? (
-              <p className="m-muted">Tanımlı varyant yok.</p>
+              <p className="m-muted">Tanımlı çeşit yok.</p>
             ) : (
               <ul className="m-variant-list">
                 {shownVariants.map((variant) => (
@@ -197,7 +197,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
           </Section>
         )}
 
-        <Section title="Nitelikler">
+        <Section title="Ek bilgiler">
           {attributeEntries.length ? (
             <Facts
               rows={attributeEntries.map(([key, value]) => [
@@ -207,9 +207,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
             />
           ) : (
             <p className="m-muted">
-              {card.customTypeName
-                ? 'Bu karta ek nitelik girilmemiş.'
-                : 'Standart tür kartlarında ek nitelik yoktur; özel tür seçilirse alanlar açılır.'}
+              {card.customTypeName ? 'Ek bilgi girilmemiş.' : 'Standart kartlarda ek bilgi alanı yok.'}
             </p>
           )}
         </Section>
@@ -243,7 +241,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
                   id: 'deactivate',
                   label: 'Pasife al',
                   icon: 'close' as const,
-                  description: 'Yeni projelerde seçilemez; mevcut kullanımlar korunur.',
+                  description: 'Yeni projelerde seçilemez. Mevcut projeler etkilenmez.',
                   onSelect: () => {
                     deactivateCard(card);
                     shellActions.pop('library');
@@ -256,7 +254,7 @@ export function CardDetail({ cardId }: { cardId: string }) {
             label: 'Sil',
             icon: 'trash' as const,
             tone: 'danger' as const,
-            description: 'Kalıcı olarak kaldırır (kullanımdaysa pasife alır).',
+            description: 'Kalıcı olarak siler. Projelerde kullanılıyorsa pasife alınır.',
             onSelect: () => setDeleting(card),
           },
         ]}

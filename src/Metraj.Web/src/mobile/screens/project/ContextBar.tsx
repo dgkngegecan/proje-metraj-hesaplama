@@ -18,7 +18,7 @@ export function ContextBar({ api, disabled = false }: { api: MeasureContextApi; 
   const summary = contextSummary(context);
 
   return (
-    <section className="m-proj-context" aria-label="Ölçüm konumu">
+    <section className="m-proj-context" aria-label="Giriş konumu">
       <div className="m-proj-context__head">
         <span className="m-proj-context__title">Konum</span>
         <span className="m-proj-context__summary" aria-live="polite">
@@ -65,7 +65,7 @@ export function ContextBar({ api, disabled = false }: { api: MeasureContextApi; 
 
       <ContextValuePicker api={api} fieldKey={picker} onClose={() => setPicker(null)} />
 
-      <BottomSheet open={listOpen} onClose={() => setListOpen(false)} title="Ölçüm konumu" size="auto">
+      <BottomSheet open={listOpen} onClose={() => setListOpen(false)} title="Giriş konumu" size="auto">
         <ul className="m-proj-fieldlist">
           {CONTEXT_KEYS.map((key) => {
             const field = fieldOf(key);

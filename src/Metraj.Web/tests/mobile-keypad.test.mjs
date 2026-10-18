@@ -94,7 +94,7 @@ test('geçersiz ifadeler açık hata kodlarıyla reddedilir', () => {
   assert.equal(error('6÷2'), 'syntax');
   const result = evaluateExpression('5+x');
   assert.equal(result.position, 2, 'hatalı karakterin konumu');
-  assert.match(result.message, /anlaşılamadı/);
+  assert.match(result.message, /okunamadı/);
 });
 
 test('canlı önizleme: sondaki işaret yok sayılabilir', () => {

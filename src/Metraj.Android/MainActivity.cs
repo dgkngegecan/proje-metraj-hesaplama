@@ -100,10 +100,9 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         if (!WebViewFeature.IsFeatureSupported(WebViewFeature.WebMessageListener))
         {
             ShowFatalError(
-                "Android System WebView güncel değil",
-                "Bu cihazdaki Android System WebView, uygulamanın arayüzle konuşmak için kullandığı köprüyü " +
-                "(WebMessageListener) desteklemiyor. Google Play'den \"Android System WebView\" ve \"Chrome\" " +
-                "uygulamalarını güncelleyip Proje Metraj'ı yeniden açın.");
+                "Güncelleme gerekiyor",
+                "Proje Metraj'ın çalışması için Google Play'den \"Android System WebView\" ve \"Chrome\" " +
+                "uygulamalarını güncelleyin, ardından uygulamayı yeniden açın.");
             return;
         }
 
@@ -243,8 +242,8 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
     public void OnMainFrameError(string description)
     {
         MetrajLog.Error($"Arayüz yüklenemedi: {description}", null);
-        ShowFatalError("Arayüz yüklenemedi",
-            "Uygulamanın arayüz dosyaları açılamadı. Uygulamayı güncelleyin ya da yeniden yükleyin.\n\nAyrıntı: " + description);
+        ShowFatalError("Uygulama açılamadı",
+            "Uygulamayı güncelleyin ya da kaldırıp yeniden yükleyin.");
     }
 
     public void OnRendererGone()
@@ -264,9 +263,10 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         }
         catch (Exception exception)
         {
-            ShowFatalError("Proje Metraj başlatılamadı",
-                "Veritabanı hazırlanırken bir hata oluştu; verileriniz silinmedi.\n\n" + exception.Message +
-                "\n\nAyrıntı kaydı: " + (MetrajLog.LogFilePath ?? "logcat (METRAJ)"),
+            // Ayrıntı kullanıcıya değil günlüğe gider.
+            MetrajLog.Error("Açılış hazırlığı başarısız.", exception);
+            ShowFatalError("Veriler açılamadı",
+                "Verileriniz silinmedi. Son yedeği geri yükleyebilir ya da verilerinizi dışa aktarabilirsiniz.",
                 AddRecoveryActions);
         }
     }
@@ -320,9 +320,8 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
     private void ConfirmRestore(DatabaseRecovery recovery, Button restore, Button export, TextView status) =>
         new AlertDialog.Builder(this)
             .SetTitle("Son yedek geri yüklensin mi?")!
-            .SetMessage("En son yedek veritabanının yerine konacak; yedekten sonra girilen kayıtlar bu yedekte yok. " +
-                "Bozuk dosya silinmez, uygulama klasöründe \"" + DatabaseRecovery.QuarantineFolderName + "\" altına taşınır " +
-                "ve \"Veriyi dışa aktar\" ile alınabilir.")!
+            .SetMessage("Yedekten sonra girilen kayıtlar kaybolur. Mevcut veriler silinmez, ayrıca saklanır; " +
+                "\"Veriyi dışa aktar\" ile alabilirsiniz.")!
             .SetPositiveButton("Geri yükle", (sender, args) => _ = RestoreLatestBackupAsync(recovery, restore, export, status))!
             .SetNegativeButton("Vazgeç", (IDialogInterfaceOnClickListener?)null)!
             .Show();
@@ -345,7 +344,7 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         catch (Exception exception)
         {
             MetrajLog.Error("Kurtarma: yedek geri yüklenemedi.", exception);
-            status.Text = "Yedek geri yüklenemedi: " + exception.Message;
+            status.Text = "Yedek geri yüklenemedi. Verilerinizi dışa aktarın.";
             restore.Enabled = true;
             export.Enabled = true;
         }
@@ -366,7 +365,7 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         {
             pendingRecoveryExport = null;
             MetrajLog.Error("Kurtarma: belge kaydetme ekranı açılamadı.", exception);
-            Toast.MakeText(this, "Bu cihazda dosya kaydetme ekranı bulunamadı.", ToastLength.Long)?.Show();
+            Toast.MakeText(this, "Bu cihazda dosya kaydedilemiyor.", ToastLength.Long)?.Show();
         }
     }
 
@@ -455,10 +454,9 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
             DatabaseIntegrityCheckResult result = await AppStartup.CheckIntegrityAsync();
             if (result.IsHealthy || IsFinishing || IsDestroyed) return;
             new AlertDialog.Builder(this)
-                .SetTitle("Veri bütünlüğü sorunu")!
-                .SetMessage("Veritabanı denetimi bir sorun buldu. Yeni kayıt girmeden önce Ayarlar → Yedekler'den " +
-                    "son sağlam yedeği geri yükleyin.\n\nAyrıntı: " + result.Details)!
-                .SetPositiveButton("Tamam", (IDialogInterfaceOnClickListener?)null)!
+                .SetTitle("Verilerde sorun bulundu")!
+                .SetMessage("Yeni kayıt girmeden önce Ayarlar > Yedekler'den son yedeği geri yükleyin.")!
+                .SetPositiveButton("Anladım", (IDialogInterfaceOnClickListener?)null)!
                 .Show();
         }
         catch (Exception exception)
@@ -576,7 +574,7 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         {
             pendingSave = null;
             MetrajLog.Error("Belge kaydetme ekranı açılamadı.", exception);
-            Toast.MakeText(this, "Bu cihazda dosya kaydetme ekranı bulunamadı.", ToastLength.Long)?.Show();
+            Toast.MakeText(this, "Bu cihazda dosya kaydedilemiyor.", ToastLength.Long)?.Show();
         }
     }
 
@@ -603,7 +601,7 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
             pendingPick = null;
             MetrajLog.Error("Dosya seçici açılamadı.", exception);
             bridge!.Reply(replyProxy, BridgeProtocol.Error(commandId, 500,
-                "Bu cihazda dosya seçici bulunamadı.", "android.picker-unavailable"));
+                "Bu cihazda dosya seçilemiyor.", "android.picker-unavailable"));
         }
     }
 

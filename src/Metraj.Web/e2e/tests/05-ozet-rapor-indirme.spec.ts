@@ -21,7 +21,7 @@ test('özet: ağaçtan rapor kapsamı → PDF/Excel/Word indirme (tarayıcı yol
     .getByRole('button', { name: /^E2E Boru Hattı/ })
     .first();
   await longPress(page, row, page.getByRole('dialog', { name: 'E2E Boru Hattı' }));
-  await page.getByRole('menuitem', { name: /^Rapor kapsamı yap/ }).click();
+  await page.getByRole('menuitem', { name: /^Bu kartın raporunu al/ }).click();
 
   await expect(
     page.getByRole('navigation', { name: 'Ana gezinme' }).getByRole('button', { name: 'Özet' }),

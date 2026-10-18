@@ -4,15 +4,18 @@ import { draftKey } from '../store/drafts.ts';
 /** Tema tercihi: sistem, açık veya koyu. Ayarlar ekranı değiştirir; değer `/ui-state`'te saklanır. */
 export type ThemePreference = 'system' | 'light' | 'dark';
 
+/** Tercih kaydedilmemişse koyu tema: uygulamanın varsayılan görünümü. */
+export const DEFAULT_THEME: ThemePreference = 'dark';
+
 export const THEME_KEY = draftKey('mobile-prefs', 'theme');
 export const HAPTICS_KEY = draftKey('mobile-prefs', 'haptics');
 
 export function parseThemePreference(raw: string | null): ThemePreference {
   try {
     const value: unknown = raw ? JSON.parse(raw) : null;
-    return value === 'light' || value === 'dark' ? value : 'system';
+    return value === 'light' || value === 'dark' || value === 'system' ? value : DEFAULT_THEME;
   } catch {
-    return 'system';
+    return DEFAULT_THEME;
   }
 }
 

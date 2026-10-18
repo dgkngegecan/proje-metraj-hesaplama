@@ -12,8 +12,9 @@ namespace Metraj.Application;
 /// arayüzün ortasında "Only measurable placements can receive quantity input."
 /// gibi İngilizce mesajlar gösteriyordu.
 ///
-/// Katalogda bulunmayan bir kural için, ilgili alanın genel açıklaması ve kural
-/// kodu döner; mesaj hiçbir zaman boş kalmaz ve teşhis edilebilirliğini korur.
+/// Katalogda bulunmayan bir kural için ilgili alanın genel açıklaması döner; mesaj
+/// hiçbir zaman boş kalmaz. Kural kodu teşhis için yanıtın "rule" alanında kalır.
+/// Metinler docs/arayuz-metin-kilavuzu.md'ye göre yazılır.
 /// </remarks>
 public static class DomainMessageCatalog
 {
@@ -21,169 +22,169 @@ public static class DomainMessageCatalog
     {
         // Yedekleme ve geri yükleme
         ["backup.not-metraj"] = "Seçilen dosya bir Proje Metraj yedeği değil. Yedek klasöründeki bir yedeği seçin.",
-        ["backup.newer-schema"] = "Bu yedek daha yeni bir Proje Metraj sürümüyle alınmış. Güncel sürümle geri yükleyin.",
-        ["backup.broken-relations"] = "Yedekteki kayıtlar tutarsız; bu dosya güvenle geri yüklenemez.",
-        ["backup.outside-folder"] = "Yalnızca uygulamanın yedek klasöründeki .db yedekleri geri yüklenebilir.",
+        ["backup.newer-schema"] = "Bu yedek uygulamanın daha yeni bir sürümüyle alınmış. Uygulamayı güncelleyip tekrar deneyin.",
+        ["backup.broken-relations"] = "Yedek dosyası bozuk; geri yüklenemez. Başka bir yedek seçin.",
+        ["backup.outside-folder"] = "Yalnızca uygulamanın kendi yedekleri geri yüklenebilir.",
 
         // Taşınabilir çalışma alanı
-        ["workspace-import.same-file"] = "Etkin veritabanı kendi üzerine aktarılamaz.",
-        ["workspace-import.id-collision"] = "Aktarılan çalışma alanında mevcut verilerle çakışan kayıtlar var; dosya güvenle birleştirilemedi.",
-        ["workspace-import.empty"] = "Seçilen çalışma alanında aktarılacak proje bulunamadı.",
+        ["workspace-import.same-file"] = "Bu dosya şu an kullanılan verilerin kendisi; içe aktarılamaz.",
+        ["workspace-import.id-collision"] = "Dosyadaki bazı kayıtlar mevcut verilerle çakışıyor; dosya içe aktarılamadı.",
+        ["workspace-import.empty"] = "Seçilen dosyada içe aktarılacak proje yok.",
 
         // Miktar kuralları
         ["quantity.non-negative"] = "Miktar negatif olamaz.",
-        ["quantity.range"] = "Miktar desteklenen aralığın dışında.",
+        ["quantity.range"] = "Miktar çok büyük.",
         ["quantity.scale"] = "Miktarda en fazla 6 ondalık basamak kullanılabilir.",
-        ["quantity.whole"] = "Bu alan tam sayı olmalıdır.",
+        ["quantity.whole"] = "Bu alana tam sayı girin.",
 
         // Revizyon
-        ["revision.read-only"] = "Bu sürüm onaylanmış ve kilitlenmiştir. Değişiklik için yeni bir düzenleme kopyası açın.",
-        ["revision.not-found"] = "Proje sürümü bulunamadı.",
+        ["revision.read-only"] = "Bu revizyon onaylı; değiştirilemez. Değişiklik için yeni revizyon açın.",
+        ["revision.not-found"] = "Revizyon bulunamadı.",
         ["revision.project"] = "Proje bulunamadı.",
-        ["revision.source"] = "Kopyalanacak bir sürüm yok.",
-        ["revision.draft-exists"] = "Yeni kopya açmadan önce mevcut düzenleme kopyasını onaylayın.",
-        ["revision.pending-calculations"] = "Onaydan önce bekleyen bütün hesap önerilerini onaylayın veya reddedin.",
-        ["revision.stale-calculations"] = "Kaynak metrajı değiştiği için güncelliğini yitirmiş hesap önerileri var. Onaydan önce yeniden hesaplayın veya reddedin.",
+        ["revision.source"] = "Kopyalanacak revizyon yok.",
+        ["revision.draft-exists"] = "Açık bir taslak revizyon var. Yeni revizyon açmadan önce onu onaylayın.",
+        ["revision.pending-calculations"] = "Onaylamadan önce bekleyen hesap önerilerini onaylayın ya da reddedin.",
+        ["revision.stale-calculations"] = "Kaynak miktarlar değiştiği için bazı hesap önerileri güncel değil. Onaylamadan önce yeniden hesaplayın ya da reddedin.",
 
         // Proje
-        ["project.code"] = "Proje kodu 1 ile 64 karakter arasında olmalıdır.",
-        ["project.name"] = "Proje adı 1 ile 256 karakter arasında olmalıdır.",
+        ["project.code"] = "Proje kodunu yazın (en fazla 64 karakter).",
+        ["project.name"] = "Proje adını yazın (en fazla 256 karakter).",
         ["project.code-unique"] = "Bu proje kodu zaten kullanılıyor.",
 
         // Proje ağacı ve yerleşimler
         ["placement.not-found"] = "Kart bu projede bulunamadı.",
-        ["placement.parent"] = "Üst kart bu sürümde bulunamadı.",
-        ["placement.card"] = "Kartın katalog sürümü bulunamadı.",
-        ["placement.card-definition"] = "Katalog kartı bulunamadı.",
-        ["placement.revision"] = "Proje sürümü bulunamadı.",
-        ["placement.inactive-card"] = "Kütüphaneden kaldırılmış bir kart yeni projeye eklenemez.",
+        ["placement.parent"] = "Üst kart bulunamadı.",
+        ["placement.card"] = "Kart kütüphanede bulunamadı.",
+        ["placement.card-definition"] = "Kart kütüphanede bulunamadı.",
+        ["placement.revision"] = "Revizyon bulunamadı.",
+        ["placement.inactive-card"] = "Pasif kart projeye eklenemez.",
         ["placement.display-name"] = "Görünen ad çok uzun.",
-        ["placement.procurement-scope"] = "Tedarik kapsamı çok uzun.",
+        ["placement.procurement-scope"] = "Satın alma kapsamı çok uzun.",
         ["placement.notes"] = "Not çok uzun.",
-        ["context-note.not-found"] = "Bu kartta belirtilen kat/mahal notu bulunamadı.",
-        ["context-note.text"] = "Not metni 1 ile 4000 karakter arasında olmalıdır.",
+        ["context-note.not-found"] = "Not bulunamadı.",
+        ["context-note.text"] = "Not metnini yazın (en fazla 4000 karakter).",
         ["context-note.block"] = "Blok adı en fazla 128 karakter olabilir.",
         ["context-note.floor"] = "Kat adı en fazla 128 karakter olabilir.",
         ["context-note.room"] = "Mahal adı en fazla 256 karakter olabilir.",
         ["tree.card-type"] = "Bu kart türü seçilen üst kartın altına yerleştirilemez.",
         ["tree.custom-parent"] = "Seçilen üst kart, bu kartın özel türü tarafından kabul edilmiyor.",
         ["tree.custom-child"] = "Bu kart, üst kartın özel türü tarafından kabul edilmiyor.",
-        ["tree.self-parent"] = "Bir kart kendi üstü olamaz.",
-        ["tree.cycle"] = "Bu bağlantı döngü oluşturur.",
-        ["tree.cross-revision"] = "Kart ve üst kartı aynı proje sürümünde olmalıdır.",
+        ["tree.self-parent"] = "Kart kendi altına taşınamaz.",
+        ["tree.cycle"] = "Kart, kendi alt kartlarından birinin altına taşınamaz.",
+        ["tree.cross-revision"] = "Kart başka bir revizyondaki kartın altına taşınamaz.",
 
         // Bağlantılar
-        ["link.self"] = "Bir kart kendisine bağlanamaz.",
+        ["link.self"] = "Kart kendi miktarından hesaplanamaz.",
         ["link.source"] = "Kaynak kart bulunamadı.",
         ["link.target"] = "Hedef kart bulunamadı.",
-        ["link.duplicate"] = "Bu bağlantı zaten var.",
-        ["link.cross-revision"] = "Bağlanan kartlar aynı proje sürümünde olmalıdır.",
-        ["link.calculated-from-cycle"] = "Hesap kaynağı bağlantıları döngü oluşturamaz.",
-        ["link.notes"] = "Bağlantı notu çok uzun.",
+        ["link.duplicate"] = "Bu hesap kaynağı zaten ekli.",
+        ["link.cross-revision"] = "Hesap kaynağı aynı revizyonda olmalı.",
+        ["link.calculated-from-cycle"] = "Bu kart, seçilen kaynağın hesabında zaten kullanılıyor; kaynak olarak seçilemez.",
+        ["link.notes"] = "Not çok uzun.",
 
         // Metraj girişi
-        ["measurement.not-found"] = "Metraj satırı bulunamadı.",
-        ["measurement.placement"] = "Metrajın kartı bulunamadı.",
-        ["measurement.card"] = "Kartın katalog sürümü bulunamadı.",
-        ["measurement.revision"] = "Proje sürümü bulunamadı.",
-        ["measurement.scope"] = "Metraj, seçili proje sürümündeki bir karta girilmelidir.",
-        ["measurement.behavior"] = "Bu kart bir başlık kartıdır; metraj yalnızca ölçülebilir kartlara girilir.",
-        ["measurement.derived"] = "Bu kartın miktarı hesapla türetilir; elle metraj girilemez.",
+        ["measurement.not-found"] = "Giriş bulunamadı.",
+        ["measurement.placement"] = "Girişin kartı bulunamadı.",
+        ["measurement.card"] = "Kart kütüphanede bulunamadı.",
+        ["measurement.revision"] = "Revizyon bulunamadı.",
+        ["measurement.scope"] = "Giriş, seçili revizyondaki bir karta yapılmalı.",
+        ["measurement.behavior"] = "Bu bir başlık kartı; miktar girilemez.",
+        ["measurement.derived"] = "Bu kartın miktarı hesapla bulunur; elle girilemez.",
         ["measurement.boolean"] = "Bu kart yalnızca 0 (yapılmadı) veya 1 (yapıldı) kabul eder.",
         ["measurement.unit"] = "Girilen birim, kartın birimiyle aynı olmalıdır.",
-        ["measurement.batch"] = "En az bir metraj satırı gerekir.",
-        ["measurement.source-kind"] = "Kaynak türü geçersiz.",
+        ["measurement.batch"] = "Kaydedilecek giriş yok.",
+        ["measurement.source-kind"] = "Giriş kaydedilemedi. Tekrar deneyin.",
         ["measurement.block"] = "Blok adı çok uzun.",
         ["measurement.floor"] = "Kat adı çok uzun.",
         ["measurement.room"] = "Mahal adı çok uzun.",
-        ["measurement.zone"] = "Bölge adı çok uzun.",
+        ["measurement.zone"] = "Zon adı çok uzun.",
         ["measurement.sheet"] = "Pafta adı çok uzun.",
         ["measurement.drawing-revision"] = "Çizim revizyonu çok uzun.",
         ["measurement.notes"] = "Not çok uzun.",
-        ["measurement.variant"] = "Çap/boyut etiketi çok uzun.",
-        ["measurement.secondary-variant"] = "Çeşit etiketi çok uzun.",
+        ["measurement.variant"] = "Çap adı çok uzun.",
+        ["measurement.secondary-variant"] = "Çeşit adı çok uzun.",
 
         // Katalog kartları
-        ["catalog.required"] = "Kod, ad ve birim doldurulmalı ve uzunluk sınırlarını aşmamalıdır.",
-        ["catalog.version-content"] = "Ad ve birim doldurulmalı ve uzunluk sınırlarını aşmamalıdır.",
-        ["catalog.code-unique"] = "Bu katalog kodu zaten kullanılıyor.",
-        ["catalog.definition"] = "Katalog kartı bulunamadı.",
-        ["catalog.inactive"] = "Kütüphaneden kaldırılmış bir karta yeni sürüm eklenemez.",
-        ["catalog.container-positive"] = "Boy/paket kapasitesi sıfırdan büyük olmalıdır.",
+        ["catalog.required"] = "Kart kodu, adı ve birimi zorunlu.",
+        ["catalog.version-content"] = "Kart adı ve birimi zorunlu.",
+        ["catalog.code-unique"] = "Bu kart kodu zaten kullanılıyor.",
+        ["catalog.definition"] = "Kart kütüphanede bulunamadı.",
+        ["catalog.inactive"] = "Pasif kart düzenlenemez.",
+        ["catalog.container-positive"] = "Boy ya da paket miktarı sıfırdan büyük olmalı.",
         ["catalog.optional-text"] = "Girilen metin çok uzun.",
-        ["catalog.variant.empty"] = "Boru ve fitting kartlarında en az bir varyant tanımlanmalıdır.",
-        ["catalog.variant.pipe-length"] = "Her boru çapının pozitif bir ticari boyu olmalıdır.",
-        ["catalog.variant.mode"] = "Varyant tanımları için Boru veya Fitting davranışı seçilmelidir.",
-        ["catalog.variant.text"] = "Varyant kodu ve etiketi doldurulmalıdır.",
+        ["catalog.variant.empty"] = "En az bir çeşit ekleyin.",
+        ["catalog.variant.pipe-length"] = "Her çap için sıfırdan büyük bir boy yazın.",
+        ["catalog.variant.mode"] = "Çeşit eklemek için çeşit tipini Boru ya da Fitting seçin.",
+        ["catalog.variant.text"] = "Her çeşidin kodunu ve adını yazın.",
 
         // Kart türü şablonları
         ["catalog-type.not-found"] = "Seçilen kart türü bulunamadı.",
-        ["catalog-type.inactive"] = "Kaldırılmış bir kart türü yeni kart için kullanılamaz.",
+        ["catalog-type.inactive"] = "Kaldırılmış kart türü yeni kartta kullanılamaz.",
         ["catalog-type.base-type"] = "Kartın temel türü, seçilen özel türün temel türüyle aynı olmalıdır.",
-        ["catalog-type.code"] = "Tür kodu doldurulmalı ve en fazla 64 karakter olmalıdır.",
+        ["catalog-type.code"] = "Tür kodunu yazın (en fazla 64 karakter).",
         ["catalog-type.code-unique"] = "Bu tür kodu zaten kullanılıyor.",
         ["catalog-type.required"] = "Zorunlu alanları doldurun.",
         ["catalog-type.optional"] = "Girilen metin çok uzun.",
-        ["catalog-type.attribute-key"] = "Tanınmayan bir kart bilgisi gönderildi.",
-        ["catalog-type.attribute-not-enabled"] = "Bu bilgi alanı seçilen kart türü için etkin değil.",
+        ["catalog-type.attribute-key"] = "Kart bilgileri kaydedilemedi. Tekrar deneyin.",
+        ["catalog-type.attribute-not-enabled"] = "Bu bilgi seçilen kart türünde kullanılmıyor.",
         ["catalog-type.attribute-number"] = "Bu alan geçerli bir sayı olmalıdır.",
-        ["catalog-type.attribute-enum"] = "Bu alan için desteklenmeyen bir değer seçildi.",
-        ["catalog-type.parent-reference"] = "Seçilen üst kartların hepsi kütüphanede ve etkin olmalıdır.",
-        ["catalog-type.child-reference"] = "Seçilen alt kartların hepsi kütüphanede ve etkin olmalıdır.",
+        ["catalog-type.attribute-enum"] = "Seçilen değer bu alan için geçerli değil.",
+        ["catalog-type.parent-reference"] = "Seçilen üst kartlardan biri silinmiş ya da pasif.",
+        ["catalog-type.child-reference"] = "Seçilen alt kartlardan biri silinmiş ya da pasif.",
 
         // Hesap kuralları ve önerileri
-        ["calculation.revision"] = "Proje sürümü bulunamadı.",
+        ["calculation.revision"] = "Revizyon bulunamadı.",
         ["calculation.target"] = "Hesaplanacak kart bulunamadı.",
-        ["calculation.card"] = "Kartın katalog sürümü bulunamadı.",
+        ["calculation.card"] = "Kart kütüphanede bulunamadı.",
         ["calculation.behavior"] = "Yalnızca ölçülebilir kartlar için hesap yapılabilir.",
-        ["calculation.scope"] = "Kart ve kural aynı proje sürümünde olmalıdır.",
-        ["calculation.rule"] = "Hesap kuralı bulunamadı; kural kodu ve adı doldurulmalıdır.",
-        ["calculation.rule-parameters"] = "Hesap kuralının parametreleri geçersiz.",
-        ["calculation.direct-rule"] = "Doğrudan kural her zaman 1 çarpanı ve net miktarı kullanır.",
+        ["calculation.scope"] = "Kart ve kural aynı revizyonda olmalı.",
+        ["calculation.rule"] = "Hesap kuralı bulunamadı.",
+        ["calculation.rule-parameters"] = "Hesap kuralının değerleri geçersiz.",
+        ["calculation.direct-rule"] = "Doğrudan kuralda çarpan 1 olmalı.",
         ["calculation.multiplier"] = "Çarpan sıfırdan büyük olmalıdır.",
-        ["calculation.parameter"] = "Boy veya paket dönüşümü için pozitif bir kapasite gerekir.",
-        ["calculation.calculated-from"] = "Çarpanlı kural için en az bir kaynak kart bağlanmalıdır.",
-        ["calculation.source-measurements"] = "Hesabın dayanacağı kaynak metraj satırı yok.",
-        ["calculation.source-card"] = "Kaynak kartın katalog sürümü bulunamadı.",
-        ["calculation.source-unit"] = "Kaynak kartların hepsi aynı birimi kullanmalıdır.",
+        ["calculation.parameter"] = "Boy ya da paket miktarı sıfırdan büyük olmalı.",
+        ["calculation.calculated-from"] = "Önce bir hesap kaynağı seçin.",
+        ["calculation.source-measurements"] = "Kaynak kartta henüz giriş yok.",
+        ["calculation.source-card"] = "Kaynak kart kütüphanede bulunamadı.",
+        ["calculation.source-unit"] = "Kaynak kartların birimi aynı olmalı.",
         ["calculation.result"] = "Hesap önerisi bulunamadı.",
-        ["calculation.review-state"] = "Yalnızca kontrol bekleyen bir öneri incelenebilir.",
-        ["calculation.override-reason"] = "Değiştirme gerekçesi 1 ile 2000 karakter arasında olmalıdır.",
-        ["calculation.reject-reason"] = "Red gerekçesi 1 ile 2000 karakter arasında olmalıdır.",
+        ["calculation.review-state"] = "Bu öneri zaten karara bağlanmış.",
+        ["calculation.override-reason"] = "Gerekçeyi yazın (en fazla 2000 karakter).",
+        ["calculation.reject-reason"] = "Gerekçeyi yazın (en fazla 2000 karakter).",
 
         // Sorumluluk
-        ["responsibility.revision"] = "Proje sürümü bulunamadı.",
-        ["responsibility.scope"] = "Boyut, kart ve taraf aynı proje sürümünde olmalıdır.",
-        ["responsibility.party-required"] = "Sorumlu durumu için bir taraf seçilmelidir.",
-        ["responsibility.dimension"] = "Boyut kodu ve adı doldurulmalıdır.",
-        ["responsibility.dimension-code"] = "Bu boyut kodu zaten kullanılıyor.",
-        ["responsibility.party"] = "Taraf kodu ve adı doldurulmalıdır.",
+        ["responsibility.revision"] = "Revizyon bulunamadı.",
+        ["responsibility.scope"] = "Sorumluluk türü, kart ve taraf aynı revizyonda olmalı.",
+        ["responsibility.party-required"] = "“Sorumlu” durumu için bir taraf seçin.",
+        ["responsibility.dimension"] = "Sorumluluk türünün kodunu ve adını yazın.",
+        ["responsibility.dimension-code"] = "Bu sorumluluk türü kodu zaten kullanılıyor.",
+        ["responsibility.party"] = "Tarafın kodunu ve adını yazın.",
         ["responsibility.party-code"] = "Bu taraf kodu zaten kullanılıyor.",
         ["responsibility.notes"] = "Not çok uzun.",
 
         // Fire politikası
-        ["waste.material-type"] = "Malzeme ailesi 1 ile 128 karakter arasında olmalıdır.",
+        ["waste.material-type"] = "Malzeme ailesini yazın (en fazla 128 karakter).",
         ["waste.not-found"] = "Fire kuralı bulunamadı.",
 
         // Arayüz durumu (yarım kalmış girişler ve tercihler)
-        ["ui-state.key"] = "Arayüz durumu anahtarı geçersiz.",
-        ["ui-state.value"] = "Saklanacak arayüz durumu çok büyük.",
+        ["ui-state.key"] = "Tercih kaydedilemedi.",
+        ["ui-state.value"] = "Taslak çok büyük; kaydedilemedi.",
 
         // Rapor
         ["report.root"] = "Raporlanacak kart bu projede bulunamadı.",
-        ["report.revision"] = "Raporlanacak proje sürümü bulunamadı.",
+        ["report.revision"] = "Raporlanacak revizyon bulunamadı.",
         ["report.project"] = "Raporlanacak proje bulunamadı."
     };
 
     /// <summary>
     /// Kuralın Türkçe karşılığını verir. Katalogda yoksa alan grubuna göre
-    /// anlaşılır bir genel mesaj ve kural kodu döner.
+    /// anlaşılır bir genel mesaj döner.
     /// </summary>
     public static string Resolve(string rule)
     {
         if (string.IsNullOrWhiteSpace(rule))
         {
-            return "İşlem tamamlanamadı.";
+            return "İşlem tamamlanamadı. Tekrar deneyin.";
         }
 
         if (Messages.TryGetValue(rule, out string? message))
@@ -194,18 +195,19 @@ public static class DomainMessageCatalog
         string area = rule.Split('.')[0] switch
         {
             "quantity" => "Girilen miktar kabul edilmedi",
-            "measurement" => "Metraj satırı kaydedilemedi",
-            "placement" or "tree" or "link" => "Proje haritası güncellenemedi",
-            "catalog" or "catalog-type" => "Katalog kartı kaydedilemedi",
+            "measurement" => "Giriş kaydedilemedi",
+            "placement" or "tree" or "link" => "Proje ağacı güncellenemedi",
+            "catalog" or "catalog-type" => "Kart kaydedilemedi",
             "calculation" => "Hesap işlemi tamamlanamadı",
             "responsibility" => "Sorumluluk kaydedilemedi",
             "revision" or "project" => "Proje işlemi tamamlanamadı",
             "waste" => "Fire kuralı kaydedilemedi",
-            "backup" => "Yedekleme işlemi tamamlanamadı",
-            "workspace-import" => "Çalışma alanı içe aktarılamadı",
+            "backup" => "Yedek işlemi tamamlanamadı",
+            "workspace-import" => "Dosya içe aktarılamadı",
             _ => "İşlem tamamlanamadı"
         };
 
-        return $"{area} ({rule}).";
+        // Kural kodu kullanıcıya gösterilmez; API yanıtının "rule" alanında ve günlükte kalır.
+        return $"{area}. Tekrar deneyin.";
     }
 }

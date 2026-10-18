@@ -146,7 +146,7 @@ function NoteSheet({
   const save = async () => {
     if (saving) return;
     if (!values.text.trim()) {
-      notify('Farklılığı veya yapılacak işi yazın.', { tone: 'error' });
+      notify('Not metnini yazın.', { tone: 'error' });
       return;
     }
     setSaving(true);
@@ -226,7 +226,7 @@ function NoteSheet({
           />
         </label>
         <label className="m-field">
-          <span className="m-field__label">Farklılık / yapılacak iş</span>
+          <span className="m-field__label">Not</span>
           <textarea
             className="m-input m-proj-textarea"
             value={values.text}

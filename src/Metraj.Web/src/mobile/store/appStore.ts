@@ -81,7 +81,7 @@ export const loadKeys = {
   wasteSettings: 'waste-settings',
 } as const;
 
-export const GENERIC_ERROR_MESSAGE = 'Bir şey ters gitti. Tekrar deneyin.';
+export const GENERIC_ERROR_MESSAGE = 'İşlem tamamlanamadı. Tekrar deneyin.';
 
 /** Hatadan kullanıcıya gösterilecek metin: `ApiError` kendi Türkçe metnini taşır. */
 export function errorMessage(error: unknown, fallback = GENERIC_ERROR_MESSAGE): string {

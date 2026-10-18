@@ -37,7 +37,7 @@ export function CardTypesScreen() {
           <EmptyState
             icon="library"
             title={load.status === 'loading' ? 'Yükleniyor…' : 'Henüz özel tür yok'}
-            message="Tür, aynı bilgileri taşıyan kartlar için şablondur: hangi alanların istendiğini ve hangi kartların altına bağlanabileceğini belirler."
+            message="Özel tür, kartta hangi bilgilerin isteneceğini ve kartın hangi kartların altına eklenebileceğini belirler."
           />
         ) : (
           <ul className="m-row-list m-lib-types">
@@ -51,12 +51,12 @@ export function CardTypesScreen() {
                   <small>
                     {type.attributeKeys.length} bilgi alanı ·{' '}
                     {type.allowedParentCardIds.length
-                      ? `${type.allowedParentCardIds.length} üst kart kısıtı`
-                      : 'üst kart kısıtı yok'}{' '}
+                      ? `${type.allowedParentCardIds.length} üst kart sınırı`
+                      : 'üst kart sınırı yok'}{' '}
                     ·{' '}
                     {type.allowedChildCardIds.length
-                      ? `${type.allowedChildCardIds.length} alt kart kısıtı`
-                      : 'alt kart kısıtı yok'}
+                      ? `${type.allowedChildCardIds.length} alt kart sınırı`
+                      : 'alt kart sınırı yok'}
                   </small>
                   {type.description && <small>{type.description}</small>}
                 </div>
@@ -89,7 +89,7 @@ export function CardTypesScreen() {
         title="Kart türü kaldırılsın mı?"
         description={
           removing
-            ? `“${removing.name}” yeni kart seçimlerinden kaldırılacak. Mevcut kartlar ve projeler korunur.`
+            ? `“${removing.name}” artık yeni kartlarda seçilemeyecek. Mevcut kartlar ve projeler değişmez.`
             : undefined
         }
         confirmLabel="Türü kaldır"
@@ -142,7 +142,7 @@ export function TypeForm() {
 
   return (
     <div className="m-detail">
-      <ScreenHeader title="Yeni kart türü" subtitle="Global kütüphane" />
+      <ScreenHeader title="Yeni kart türü" subtitle="Kütüphane" />
       <div className="m-detail__scroll">
         <form
           className="m-form m-lib-form"
@@ -172,10 +172,10 @@ export function TypeForm() {
               onChange={(name) => set({ name })}
             />
             <div className="m-field">
-              <span className="m-field__label">Temel kart davranışı</span>
+              <span className="m-field__label">Temel tür</span>
               <ChipGrid
                 mode="single"
-                label="Temel kart davranışı"
+                label="Temel tür"
                 columns={3}
                 value={draft.baseCardType}
                 options={TYPE_OPTIONS}
@@ -191,7 +191,7 @@ export function TypeForm() {
             />
           </Section>
 
-          <Section title="Bağlanabileceği kartlar">
+          <Section title="Eklenebileceği yerler">
             <p className="m-muted">
               Üst/alt kart seçimleri ek ağaç kısıtı getirir. Boş bırakırsanız temel beşli kural çalışır.
             </p>
@@ -199,14 +199,14 @@ export function TypeForm() {
               <Icon name="chevronRight" />
               <span>
                 <strong>İzin verilen üst kartlar</strong>
-                <small>{draft.parentCardIds.length ? `${draft.parentCardIds.length} kart seçili` : 'Kısıt yok'}</small>
+                <small>{draft.parentCardIds.length ? `${draft.parentCardIds.length} kart seçili` : 'Sınır yok'}</small>
               </span>
             </button>
             <button type="button" className="m-action-row" onClick={() => setPicker('childCardIds')}>
               <Icon name="chevronRight" />
               <span>
                 <strong>İzin verilen alt kartlar</strong>
-                <small>{draft.childCardIds.length ? `${draft.childCardIds.length} kart seçili` : 'Kısıt yok'}</small>
+                <small>{draft.childCardIds.length ? `${draft.childCardIds.length} kart seçili` : 'Sınır yok'}</small>
               </span>
             </button>
           </Section>

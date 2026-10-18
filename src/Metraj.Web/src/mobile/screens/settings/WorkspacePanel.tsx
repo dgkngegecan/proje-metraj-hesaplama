@@ -33,7 +33,7 @@ export function WorkspacePanel() {
     setExporting(true);
     setExportNote(null);
     const result = await perform(() => api.download('/workspace/export', 'ProjeMetraj.metraj'), {
-      error: 'Çalışma alanı dışa aktarılamadı.',
+      error: 'Veriler dışa aktarılamadı.',
     });
     setExporting(false);
     if (!result.ok) return;
@@ -46,10 +46,10 @@ export function WorkspacePanel() {
   };
 
   const importWorkspace = async () => {
-    const result = await perform(() => api.importWorkspace(), { error: 'Çalışma alanı içe aktarılamadı.' });
+    const result = await perform(() => api.importWorkspace(), { error: 'Dosya içe aktarılamadı.' });
     if (!result.ok) return false;
     if (result.value === null) {
-      notify('İçe aktarma iptal edildi; hiçbir şey değişmedi.');
+      notify('İçe aktarma iptal edildi.');
       return;
     }
     await reloadAfterAddition();
@@ -76,7 +76,7 @@ export function WorkspacePanel() {
 
   return (
     <div className="m-detail">
-      <ScreenHeader title="Çalışma alanı" />
+      <ScreenHeader title="Veri aktarımı" />
       <div className="m-detail__scroll">
         <Section title="Dışa aktar">
           <p className="m-muted">
@@ -90,7 +90,7 @@ export function WorkspacePanel() {
             onClick={() => void exportWorkspace()}
           >
             {exporting ? <Spinner size={20} /> : <Icon name="upload" size={20} />}
-            {exporting ? 'Hazırlanıyor…' : 'Çalışma alanını dışa aktar'}
+            {exporting ? 'Hazırlanıyor…' : 'Verileri dışa aktar'}
           </button>
           <p className="m-set-status" role="status" aria-live="polite">
             {exporting ? 'Dosya hazırlanıyor; çok proje varsa birkaç saniye sürebilir.' : (exportNote ?? '')}
@@ -99,8 +99,8 @@ export function WorkspacePanel() {
 
         <Section title="İçe aktar">
           <p className="m-muted">
-            Başka bir <strong>.metraj</strong> dosyasındaki yeni projeler ve eksik kütüphane kayıtları mevcut çalışma
-            alanına eklenir. Mevcut veriler silinmez; aynı projeler atlanır.
+            Başka bir <strong>.metraj</strong> dosyasındaki yeni projeler ve eksik kütüphane kayıtları mevcut verilere
+            eklenir. Mevcut veriler silinmez; aynı projeler atlanır.
           </p>
           <button type="button" className="m-btn m-btn--secondary m-btn--large" onClick={() => setConfirm('import')}>
             <Icon name="download" size={20} />
@@ -110,12 +110,12 @@ export function WorkspacePanel() {
 
         <Section title="Örnek proje">
           <Notice tone="info">
-            “Sentetik Temiz Su” projesi <strong>gerçek veri değildir</strong>; uygulamayı denemek için hazırlanmış
-            uydurma bir referans projedir. Gerçek işlerinizde kullanmayın; istemediğinizde silebilirsiniz.
+            Örnek Temiz Su projesi <strong>gerçek veri değildir</strong>; uygulamayı denemek içindir. Gerçek işlerinizde
+            kullanmayın.
           </Notice>
           <button type="button" className="m-btn m-btn--secondary m-btn--large" onClick={() => setConfirm('sample')}>
             <Icon name="plus" size={20} />
-            Sentetik örneği yükle
+            Örnek projeyi yükle
           </button>
         </Section>
       </div>
@@ -123,7 +123,7 @@ export function WorkspacePanel() {
       <ConfirmSheet
         open={confirm === 'import'}
         onClose={() => setConfirm(null)}
-        title="Çalışma alanı eklensin mi?"
+        title="Dosya içe aktarılsın mı?"
         description="Onaylarsanız dosya seçici açılır; seçtiğiniz dosya hemen içe aktarılır."
         tone="primary"
         confirmLabel="Dosya seç ve içe aktar"
@@ -139,13 +139,13 @@ export function WorkspacePanel() {
         open={confirm === 'sample'}
         onClose={() => setConfirm(null)}
         title="Örnek proje yüklensin mi?"
-        description="Gerçek veri değil, deneme amaçlı sentetik bir projedir."
+        description="Gerçek veri değildir; denemek içindir."
         tone="primary"
         confirmLabel="Örneği yükle"
         onConfirm={loadSample}
       >
         <ul>
-          <li>“Sentetik Temiz Su Referans Projesi” ve kullandığı kartlar eklenir.</li>
+          <li>Örnek Temiz Su projesi ve kullandığı kartlar eklenir.</li>
           <li>Zaten yüklüyse tekrar eklenmez.</li>
           <li>Mevcut projelerinize dokunulmaz.</li>
         </ul>
@@ -166,9 +166,7 @@ export function WorkspacePanel() {
       >
         {imported && (
           <div className="m-confirm" role="status">
-            {importIsEmpty(imported) ? (
-              <p>Dosyadaki her şey zaten bu çalışma alanında var; yeni bir şey eklenmedi.</p>
-            ) : null}
+            {importIsEmpty(imported) ? <p>Dosyadaki her şey zaten mevcut; yeni bir şey eklenmedi.</p> : null}
             <ul>
               {importSummaryLines(imported).map((line) => (
                 <li key={line}>{line}</li>

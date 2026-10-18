@@ -59,14 +59,14 @@ export function DownloadPresenterHost() {
           <Icon name="share" />
           <span>
             <strong>Paylaş</strong>
-            <small>E-posta, mesajlaşma veya başka bir uygulamayla gönder</small>
+            <small>E-posta ya da başka bir uygulamayla gönderin</small>
           </span>
         </button>
         <button type="button" className="m-action-row" onClick={() => finish('saveAs')}>
           <Icon name="download" />
           <span>
             <strong>Cihaza kaydet</strong>
-            <small>Klasörü ve dosya adını seç</small>
+            <small>Klasörü ve dosya adını seçin</small>
           </span>
         </button>
       </div>

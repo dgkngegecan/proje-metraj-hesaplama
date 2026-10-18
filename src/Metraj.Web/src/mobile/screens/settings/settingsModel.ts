@@ -20,8 +20,8 @@ import type {
 
 export const REVISION_STATUS_TEXT: Record<RevisionStatus, string> = {
   Draft: 'Taslak · düzenlenebilir',
-  Approved: 'Onaylı · kilitli',
-  Archived: 'Arşiv · kilitli',
+  Approved: 'Onaylı · yalnız görüntüleme',
+  Archived: 'Arşiv · yalnız görüntüleme',
 };
 
 export const isRevisionLocked = (revision: Pick<Revision, 'status'> | null | undefined) =>
@@ -34,9 +34,9 @@ export const canApproveRevision = (revision: Pick<Revision, 'status'> | null | u
 /** Onay panelinde sıralanan, geri alınamaz sonuçlar. */
 export function approveConsequences(revisionCode: string): string[] {
   return [
-    `${revisionCode} onaylanır ve kilitlenir; bu işlem geri alınamaz.`,
-    'Kilitli revizyonda kart, ölçüm, hesap kuralı ve sorumluluk değiştirilemez; yalnız raporlar alınabilir.',
-    'Değişiklik gerekirse yeni bir taslak revizyon açılır; onaylı revizyon olduğu gibi korunur.',
+    `${revisionCode} onaylanır; bu işlem geri alınamaz.`,
+    'Onaylı revizyonda değişiklik yapılamaz; yalnızca rapor alınabilir.',
+    'Değişiklik gerekirse yeni revizyon açılır.',
   ];
 }
 
@@ -160,12 +160,12 @@ export function orderAssignments<T extends { state: AssignmentState }>(assignmen
 export const decidedAssignmentCount = (assignments: readonly { state: AssignmentState }[]) =>
   assignments.filter((assignment) => assignment.state !== 'Unassigned').length;
 
-export function validateNamed(draft: { code: string; name: string }, noun: 'Boyut' | 'Taraf'): string | null {
+export function validateNamed(draft: { code: string; name: string }, noun: 'Sorumluluk türü' | 'Taraf'): string | null {
   return !draft.code.trim() || !draft.name.trim() ? `${noun} için kod ve ad yazın.` : null;
 }
 
 export function validateAssignment(dimensionId: string, placementId: string): string | null {
-  return !dimensionId || !placementId ? 'Boyut ve kart seçin.' : null;
+  return !dimensionId || !placementId ? 'Sorumluluk türü ve kart seçin.' : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -230,8 +230,7 @@ export function formatDateTime(value: string | null | undefined): string {
  */
 export function dataLocationLabel(dataLocation: string | null | undefined, native: boolean): string {
   const path = dataLocation?.trim();
-  if (!path)
-    return native ? 'Bu telefon · uygulamaya özel dahili depolama' : 'Bu bilgisayar · yerel veritabanı dosyası';
+  if (!path) return native ? 'Bu telefon · uygulamaya özel alan' : 'Bu bilgisayar';
   if (native) return `Bu telefon · ${path}`;
   const folder =
     path
@@ -260,8 +259,8 @@ export function integrityState(result: { isHealthy: boolean } | null | undefined
 
 export const INTEGRITY_TEXT: Record<IntegrityState, string> = {
   unknown: 'Kontrol bekliyor',
-  healthy: 'Veritabanı sağlam',
-  warning: 'Veritabanında sorun bulundu',
+  healthy: 'Veriler sağlam',
+  warning: 'Verilerde sorun var',
 };
 
 // ---------------------------------------------------------------------------
@@ -293,6 +292,6 @@ export function sampleMessage(result: {
   importedMeasurementCount?: number;
 }) {
   return result.alreadyExisted
-    ? 'Örnek Temiz Su projesi zaten yüklüydü; yeniden eklenmedi.'
-    : `Örnek Temiz Su projesi eklendi (${result.importedPlacementCount ?? 0} kart, ${result.importedMeasurementCount ?? 0} ölçüm).`;
+    ? 'Örnek proje zaten yüklü.'
+    : `Örnek proje eklendi (${result.importedPlacementCount ?? 0} kart, ${result.importedMeasurementCount ?? 0} giriş).`;
 }

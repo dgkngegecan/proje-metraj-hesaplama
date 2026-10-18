@@ -40,14 +40,13 @@ export function validateCardDraft(draft: CardDraftState): CardDraftErrors {
   if (!draft.name.trim()) errors.name = 'Kart adı gerekli.';
   if (!draft.unit.trim()) errors.unit = 'Birim gerekli.';
   const waste = parseDecimal(draft.wasteRatePct);
-  if (!Number.isFinite(waste) || waste < 0)
-    errors.wasteRatePct = 'Fire payını sıfır veya daha büyük bir sayı olarak yazın.';
+  if (!Number.isFinite(waste) || waste < 0) errors.wasteRatePct = 'Fire payı sıfır ya da daha büyük olmalı.';
   if (draft.variantMode !== 'None') {
-    if (!draft.variants.length) errors.variants = 'Boru ve fitting kartlarında en az bir varyant tanımlanmalıdır.';
+    if (!draft.variants.length) errors.variants = 'En az bir çeşit ekleyin.';
     else if (draft.variants.some((variant) => !variant.code.trim() || !variant.label.trim()))
-      errors.variants = 'Varyant kodu ve etiketi doldurulmalıdır.';
+      errors.variants = 'Her çeşidin kodunu ve adını yazın.';
     else if (draft.variantMode === 'Pipe' && draft.variants.some((variant) => !(Number(variant.standardLength) > 0)))
-      errors.variants = 'Her boru çapının pozitif bir ticari boyu olmalıdır.';
+      errors.variants = 'Her çap için sıfırdan büyük bir boy yazın.';
   }
   return errors;
 }
@@ -165,11 +164,11 @@ const ENUM_OPTIONS: Record<string, ReadonlyArray<{ value: string; label: string 
   ],
   InputBehavior: [
     { value: 'Manual', label: 'Elle giriş' },
-    { value: 'Boolean', label: 'Onay kutusu' },
-    { value: 'Derived', label: 'Türetilmiş' },
+    { value: 'Boolean', label: 'Yapıldı / yapılmadı' },
+    { value: 'Derived', label: 'Hesapla bulunur' },
   ],
   SalesConversion: [
-    { value: 'None', label: 'Dönüşüm yok' },
+    { value: 'None', label: 'Girilen birimle' },
     { value: 'StandardLength', label: 'Standart boy' },
     { value: 'Package', label: 'Paket' },
   ],

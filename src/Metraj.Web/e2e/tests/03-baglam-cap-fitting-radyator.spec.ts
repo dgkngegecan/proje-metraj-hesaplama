@@ -13,7 +13,7 @@ test.describe('giriş sayfası yüzeyleri', () => {
     const picker = page.getByRole('dialog', { name: 'Kat' });
     await picker.getByLabel('Kat değeri').fill('3');
     await picker.getByRole('button', { name: 'Uygula' }).click();
-    await expect(page.getByRole('region', { name: 'Ölçüm konumu' })).toContainText('Kat 3');
+    await expect(page.getByRole('region', { name: 'Giriş konumu' })).toContainText('Kat 3');
 
     await page.getByRole('button', { name: /^Miktar gir/ }).click();
     await typeOnKeypad(page, '12');

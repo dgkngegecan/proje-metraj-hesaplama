@@ -4,6 +4,7 @@ import {
   applyTheme,
   HAPTICS_KEY,
   shellActions,
+  DEFAULT_THEME,
   THEME_KEY,
   useShell,
   type NestedRoute,
@@ -119,7 +120,7 @@ function MenuRow({
 }
 
 function SettingsHome() {
-  const [theme, setTheme] = useDraft<ThemePreference>(THEME_KEY, 'system');
+  const [theme, setTheme] = useDraft<ThemePreference>(THEME_KEY, DEFAULT_THEME);
   const [haptics, setHaptics] = useDraft<'on' | 'off'>(HAPTICS_KEY, 'on');
   const project = useSelectedProject();
   const revision = useSelectedRevision();
@@ -156,15 +157,15 @@ function SettingsHome() {
             />
             <MenuRow
               icon="check"
-              title="Hesap kuralları ve sonuçları"
+              title="Hesaplar"
               subtitle={
                 !revision
                   ? needsProject
                   : pending
                     ? `${pending} öneri onayınızı bekliyor`
                     : locked
-                      ? 'Kilitli revizyon · yalnız görüntülenir'
-                      : 'Kural, öneri, onay ve ezme'
+                      ? 'Onaylı revizyon · yalnız görüntüleme'
+                      : 'Kurallar, öneriler ve onaylar'
               }
               badge={pending ? 'Kontrol bekliyor' : null}
               tone="warning"
@@ -174,7 +175,7 @@ function SettingsHome() {
             <MenuRow
               icon="project"
               title="Sorumluluklar"
-              subtitle={revision ? 'Boyutlar, taraflar ve atamalar' : needsProject}
+              subtitle={revision ? 'Türler, taraflar ve atamalar' : needsProject}
               disabled={!revision}
               onClick={() => open('responsibilities')}
             />
@@ -187,22 +188,20 @@ function SettingsHome() {
             <MenuRow
               icon="library"
               title="Malzeme fire payları"
-              subtitle={
-                wasteTable.ids.length ? `${listOf(wasteTable).length} aile kuralı` : 'Aile bazlı ortak fire oranları'
-              }
+              subtitle={wasteTable.ids.length ? `${listOf(wasteTable).length} kural` : 'Malzeme ailelerine ortak fire'}
               onClick={() => open('waste')}
             />
             <MenuRow
               icon="download"
               title="Yedekler ve güvenlik"
-              subtitle={`${INTEGRITY_TEXT[state]} · yedek, geri yükleme, temizleme`}
+              subtitle={`${INTEGRITY_TEXT[state]} · yedek ve geri yükleme`}
               badge={state === 'warning' ? 'Uyarı' : null}
               tone="danger"
               onClick={() => open('backups')}
             />
             <MenuRow
               icon="share"
-              title="Çalışma alanı"
+              title="Veri aktarımı"
               subtitle="Dışa aktar, içe aktar, örnek proje"
               onClick={() => open('workspace')}
             />

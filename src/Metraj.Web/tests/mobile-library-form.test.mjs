@@ -61,21 +61,21 @@ test('fire payı: virgül kabul edilir, negatif ve sayı olmayan reddedilir, bo�
   const draft = { ...emptyCardDraft(), name: 'A' };
   assert.equal(validateCardDraft({ ...draft, wasteRatePct: '2,5' }).wasteRatePct, undefined);
   assert.equal(validateCardDraft({ ...draft, wasteRatePct: '' }).wasteRatePct, undefined);
-  assert.match(validateCardDraft({ ...draft, wasteRatePct: '-1' }).wasteRatePct, /sıfır veya daha büyük/);
-  assert.match(validateCardDraft({ ...draft, wasteRatePct: 'abc' }).wasteRatePct, /sıfır veya daha büyük/);
+  assert.match(validateCardDraft({ ...draft, wasteRatePct: '-1' }).wasteRatePct, /sıfır ya da daha büyük/);
+  assert.match(validateCardDraft({ ...draft, wasteRatePct: 'abc' }).wasteRatePct, /sıfır ya da daha büyük/);
 });
 
 test('boru/fitting kartlarında varyant kuralları sunucuyla aynı', () => {
   const pipe = setVariantMode({ ...emptyCardDraft(), name: 'Boru' }, 'Pipe');
   assert.equal(pipe.unit, 'm');
-  assert.match(validateCardDraft(pipe).variants, /en az bir varyant/);
+  assert.match(validateCardDraft(pipe).variants, /en az bir çeşit/i);
   const withRow = addVariant(pipe);
   assert.equal(validateCardDraft(withRow).variants, undefined);
   assert.match(
     validateCardDraft(updateVariant(withRow, 0, { standardLength: null })).variants,
-    /pozitif bir ticari boy/,
+    /sıfırdan büyük bir boy/,
   );
-  assert.match(validateCardDraft(updateVariant(withRow, 0, { code: ' ' })).variants, /kodu ve etiketi/);
+  assert.match(validateCardDraft(updateVariant(withRow, 0, { code: ' ' })).variants, /kodunu ve adını/);
   const fitting = setVariantMode({ ...emptyCardDraft(), name: 'F' }, 'Fitting');
   assert.equal(fitting.unit, 'adet');
   assert.equal(validateCardDraft(addVariant(fitting)).variants, undefined, 'fittingde boy gerekmez');

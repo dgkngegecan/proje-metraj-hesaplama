@@ -118,7 +118,7 @@ export default function AddCardSheet({
       notify(`“${created.displayName}” eklendi.`, {
         tone: 'success',
         action: isEnterable(created)
-          ? { label: 'Giriş aç', onAction: () => controller.openEntry(created.id) }
+          ? { label: 'Miktar gir', onAction: () => controller.openEntry(created.id) }
           : { label: 'Aç', onAction: () => controller.openLevel(created.id) },
       });
     } catch (error) {
@@ -159,7 +159,7 @@ export default function AddCardSheet({
           </button>
         )}
       </div>
-      <ChipStrip<TypeFilter> label="Kart tipi" value={type} onChange={setType} options={typeOptions} />
+      <ChipStrip<TypeFilter> label="Kart türü" value={type} onChange={setType} options={typeOptions} />
       {pipe && compatibleCards !== null && (
         <ChipStrip<'compatible' | 'all'>
           label="Gösterim"
@@ -187,7 +187,7 @@ export default function AddCardSheet({
       open={open}
       onClose={onClose}
       title="Kart ekle"
-      description={parent ? `“${parent.displayName}” altına` : 'Proje köküne'}
+      description={parent ? `“${parent.displayName}” altına` : 'En üst seviyeye'}
       size="full"
       className="m-proj-add"
       footer={
@@ -224,9 +224,7 @@ export default function AddCardSheet({
               icon="search"
               title={cards.length ? 'Eşleşen kart yok' : 'Kütüphanede kart yok'}
               message={
-                cards.length
-                  ? 'Aramayı veya tip süzgecini değiştirin.'
-                  : 'Kütüphane sekmesinden kart oluşturun ya da standart paketi tamamlayın.'
+                cards.length ? 'Aramayı ya da tür filtresini değiştirin.' : 'Kütüphane sekmesinden kart ekleyin.'
               }
             />
           }

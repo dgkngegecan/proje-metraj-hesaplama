@@ -28,7 +28,7 @@ export class ApiError extends Error {
 // aynıdır. Masaüstü davranışı bu dosyadaki köprü kodundan etkilenmez.
 // ---------------------------------------------------------------------------
 
-const DEFAULT_ERROR_MESSAGE = 'İşlem tamamlanamadı.';
+const DEFAULT_ERROR_MESSAGE = 'İşlem tamamlanamadı. Tekrar deneyin.';
 
 /** Ağır işler (rapor üretimi, yedek, içe/dışa aktarma, katalog tohumlama) telefonda saniyeler sürebilir. */
 export const BRIDGE_LONG_TIMEOUT_MS = 300_000;
@@ -46,9 +46,9 @@ function transportFailure(error: unknown): unknown {
   // Sunucu tarafı bir hata değil ama kullanıcının düzeltebileceği bir şey de
   // değil: isServerFault=true, arayüz "tekrar dene" yolunu gösterir.
   return error.code === 'timeout'
-    ? new ApiError('Uygulama zamanında yanıt vermedi. Tekrar deneyin.', 'transport.timeout', true)
+    ? new ApiError('İşlem zaman aşımına uğradı. Listeyi kontrol edip gerekirse tekrar deneyin.', 'transport.timeout', true)
     : new ApiError(
-        'Uygulamanın yerel servisine ulaşılamadı. Uygulamayı yeniden başlatın.',
+        'Uygulama yanıt vermiyor. Kapatıp yeniden açın.',
         'transport.unavailable',
         true,
       );
@@ -90,7 +90,7 @@ async function bridgeRequest<T>(bridge: BridgeTransport, path: string, init?: Re
   if (typeof FormData !== 'undefined' && init?.body instanceof FormData)
     // Sözleşme gereği ikili içerik köprüden JSON olarak geçmez; içe aktarma
     // yerel dosya seçiciyle yapılır (api.importWorkspace → pickAndImport).
-    throw new ApiError('Bu cihazda dosya içe aktarma yerel dosya seçiciyle yapılır.', 'transport.upload-unsupported');
+    throw new ApiError('Dosya bu yolla içe aktarılamıyor. Ayarlar > Veri aktarımı ekranını kullanın.', 'transport.upload-unsupported');
   const body = typeof init?.body === 'string' ? init.body : null;
   // GET yan etkisizdir; yeniden denemesi zararsız, anahtar gerekmez.
   const signature = method === 'GET' ? null : mutationSignature(method, path, body);

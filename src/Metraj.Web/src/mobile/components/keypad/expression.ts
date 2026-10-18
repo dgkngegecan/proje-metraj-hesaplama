@@ -44,9 +44,9 @@ const MAX_NUMBER_DIGITS = 29;
 
 const MESSAGES: Record<ExpressionErrorCode, string> = {
   empty: 'Bir sayı yazın.',
-  syntax: 'İfade anlaşılamadı.',
-  number: 'Bir sayıda en fazla bir ondalık ayırıcı olabilir.',
-  incomplete: 'İfade bir işlem işaretiyle bitiyor.',
+  syntax: 'İşlem okunamadı. Sayıları ve işaretleri kontrol edin.',
+  number: 'Bir sayıda yalnız bir virgül olabilir.',
+  incomplete: 'İşlem bir işaretle bitemez. Sayıyı tamamlayın.',
   'too-large': 'Sayı çok büyük.',
 };
 

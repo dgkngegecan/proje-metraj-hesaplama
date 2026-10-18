@@ -48,8 +48,8 @@ test('revizyon: yalnız taslak onaylanır, onaylı/arşiv kilitlidir', () => {
 
 test('onay paneli geri alınamazlığı ve yeni taslak yolunu söyler', () => {
   const lines = approveConsequences('R2');
-  assert.match(lines[0], /R2 onaylanır ve kilitlenir; bu işlem geri alınamaz/);
-  assert.ok(lines.some((line) => /yeni bir taslak revizyon/.test(line)));
+  assert.match(lines[0], /R2 onaylanır; bu işlem geri alınamaz/);
+  assert.ok(lines.some((line) => /yeni revizyon açılır/.test(line)));
 });
 
 test('"Kontrol bekliyor" durumu görünür ve bekleyenler listenin başındadır', () => {
@@ -117,11 +117,11 @@ test('hesap bağı: hedef, kaynak seçilmeli ve aynı olamaz', () => {
 });
 
 test('sorumluluk: boyut/taraf adı ve atama zorunlulukları', () => {
-  assert.equal(validateNamed({ code: '', name: 'x' }, 'Boyut'), 'Boyut için kod ve ad yazın.');
+  assert.equal(validateNamed({ code: '', name: 'x' }, 'Sorumluluk türü'), 'Sorumluluk türü için kod ve ad yazın.');
   assert.equal(validateNamed({ code: 'x', name: ' ' }, 'Taraf'), 'Taraf için kod ve ad yazın.');
   assert.equal(validateNamed({ code: 'x', name: 'y' }, 'Taraf'), null);
-  assert.equal(validateAssignment('', 'p'), 'Boyut ve kart seçin.');
-  assert.equal(validateAssignment('d', ''), 'Boyut ve kart seçin.');
+  assert.equal(validateAssignment('', 'p'), 'Sorumluluk türü ve kart seçin.');
+  assert.equal(validateAssignment('d', ''), 'Sorumluluk türü ve kart seçin.');
   assert.equal(validateAssignment('d', 'p'), null);
   assert.deepEqual(Object.keys(ASSIGNMENT_STATE_LABEL), ['Assigned', 'Excluded', 'Optional', 'Unassigned']);
 });
@@ -219,10 +219,10 @@ test('içe aktarma özeti: sıfırlar atlanır, tamamen boşsa belirtilir', () =
 });
 
 test('örnek proje mesajı tekrar eklenip eklenmediğini ve sayıları söyler', () => {
-  assert.match(sampleMessage({ alreadyExisted: true }), /zaten yüklüydü/);
+  assert.match(sampleMessage({ alreadyExisted: true }), /zaten yüklü/);
   assert.match(
     sampleMessage({ alreadyExisted: false, importedPlacementCount: 14, importedMeasurementCount: 36 }),
-    /14 kart, 36 ölçüm/,
+    /14 kart, 36 giriş/,
   );
 });
 
@@ -237,6 +237,6 @@ test('hakkında: veri konumu telefonda tam yol, masaüstünde yalnız klasör ad
   assert.ok(!desktop.includes('ayse'));
   assert.equal(dataLocationLabel('/home/ayse/.local/share/ProjeMetraj', false), 'Bu bilgisayar · ProjeMetraj klasörü');
   // Eski çekirdek alanı bildirmezse genel metin.
-  assert.equal(dataLocationLabel(undefined, true), 'Bu telefon · uygulamaya özel dahili depolama');
-  assert.equal(dataLocationLabel(null, false), 'Bu bilgisayar · yerel veritabanı dosyası');
+  assert.equal(dataLocationLabel(undefined, true), 'Bu telefon · uygulamaya özel alan');
+  assert.equal(dataLocationLabel(null, false), 'Bu bilgisayar');
 });

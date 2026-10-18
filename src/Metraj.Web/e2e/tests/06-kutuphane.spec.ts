@@ -36,11 +36,11 @@ test('kütüphane: arama, yeni kart, düzenleme → yeni sürüm', async ({ page
   await expect(history.getByRole('listitem').first()).toContainText('İlk sürüm');
 
   // Düzenle → yeni sürüm: ad ve not değişir, sürüm v2 olur; kod sabit kalır.
-  await page.getByRole('button', { name: 'Düzenle (yeni sürüm)' }).click();
+  await page.getByRole('button', { name: 'Düzenle' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Kartı düzenle' })).toBeVisible();
   await expect(page.getByText(/v1 → v2/)).toBeVisible();
   await page.getByLabel('Not', { exact: true }).fill('İkinci sürümde eklendi');
-  await page.getByRole('button', { name: 'Yeni sürüm olarak kaydet' }).click();
+  await page.getByRole('button', { name: 'Değişiklikleri kaydet' }).click();
 
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
   await expect(page.getByText('Güncel sürüm:')).toContainText('v2');
@@ -53,7 +53,7 @@ test('kütüphane: arama, yeni kart, düzenleme → yeni sürüm', async ({ page
   // Sürüm geçmişi: en yeni önce; not karta ait olduğu için alan farkı yok.
   await expect(history.getByRole('listitem')).toHaveCount(2);
   await expect(history.getByRole('listitem').nth(0)).toContainText('v2 (güncel)');
-  await expect(history.getByRole('listitem').nth(0)).toContainText('Alanlarda değişiklik yok');
+  await expect(history.getByRole('listitem').nth(0)).toContainText('Değişiklik yok');
   await expect(history.getByRole('listitem').nth(1)).toContainText('v1');
   await expect(history.getByRole('listitem').nth(1)).toContainText('Projelerde kullanılmıyor');
   const versions = await api.get<Array<{ versionNumber: number; isLatest: boolean; createdAtUtc: string }>>(

@@ -105,7 +105,7 @@ export function TreeLevel({ levelId }: { levelId: string | null }) {
     <EmptyState
       icon="project"
       title="Bu kartın altında henüz kart yok"
-      message={locked ? 'Revizyon onaylı olduğu için kart eklenemez.' : 'Aşağıdaki düğmeyle ilk alt kartı ekleyin.'}
+      message={locked ? 'Revizyon onaylı olduğu için kart eklenemez.' : '“Kart ekle” ile ilk alt kartı ekleyin.'}
     />
   ) : (
     <EmptyState
@@ -114,7 +114,7 @@ export function TreeLevel({ levelId }: { levelId: string | null }) {
       message={
         locked
           ? 'Revizyon onaylı olduğu için kart eklenemez.'
-          : 'Kartları ağaç olarak düzenlersiniz: önce bir sistem, altına malzeme.'
+          : 'Önce bir sistem kartı, altına malzeme kartları ekleyin.'
       }
       action={
         locked ? undefined : (

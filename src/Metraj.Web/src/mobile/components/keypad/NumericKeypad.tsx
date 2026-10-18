@@ -34,7 +34,7 @@ const KEYS: ReadonlyArray<{ key: KeypadKey; label: string; aria?: string; kind?:
   { key: '7', label: '7' },
   { key: '8', label: '8' },
   { key: '9', label: '9' },
-  { key: 'backspace', label: '', aria: 'Sil (uzun bas: temizle)', kind: 'fn' },
+  { key: 'backspace', label: '', aria: 'Son karakteri sil', kind: 'fn' },
   { key: '4', label: '4' },
   { key: '5', label: '5' },
   { key: '6', label: '6' },
@@ -64,7 +64,7 @@ export function NumericKeypad({
   unit,
   validate = positive,
   saveLabel = 'Kaydet',
-  saveNextLabel = 'Kaydet → sıradaki',
+  saveNextLabel = 'Kaydet ve devam et',
   busy = false,
   disabled = false,
 }: NumericKeypadProps) {

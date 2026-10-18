@@ -92,7 +92,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
         <ScreenHeader title="Düzenlenemez" />
         <EmptyState
           icon="library"
-          title="Pasif karta yeni sürüm eklenemez"
+          title="Pasif kart düzenlenemez"
           message="Kartı kullanmak için yeni bir kart oluşturun."
         />
       </div>
@@ -110,7 +110,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
     setShowErrors(true);
     if (hasErrors(errors)) {
       haptic('reject');
-      snackbar.show({ message: firstError(errors) ?? 'Formu kontrol edin.', tone: 'error' });
+      snackbar.show({ message: firstError(errors) ?? 'Eksik alanları doldurun.', tone: 'error' });
       window.setTimeout(() => scrollRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 0);
       return;
     }
@@ -122,7 +122,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
           ? api.post<CatalogCard>(`/catalog/cards/${card.id}/versions`, payload)
           : api.post<CatalogCard>('/catalog/cards', payload),
       {
-        success: card ? `“${payload.name}” yeni sürüm olarak kaydedildi.` : `“${payload.name}” kütüphaneye eklendi.`,
+        success: card ? `“${payload.name}” güncellendi.` : `“${payload.name}” kütüphaneye eklendi.`,
       },
     );
     setSaving(false);
@@ -139,7 +139,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
     setShowErrors(false);
   };
 
-  const variantLabel = draft.variantMode === 'Pipe' ? 'Çaplar ve ticari boylar' : 'Fitting çeşitleri';
+  const variantLabel = draft.variantMode === 'Pipe' ? 'Çaplar ve boylar' : 'Fitting çeşitleri';
 
   return (
     <div className="m-detail">
@@ -178,10 +178,10 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               onChange={(name) => patchDraft({ name })}
             />
             <TextField
-              label={card ? 'Katalog kodu (sabit)' : 'Katalog kodu'}
+              label={card ? 'Kart kodu (değiştirilemez)' : 'Kart kodu'}
               value={draft.code}
               disabled={Boolean(card)}
-              hint={card ? 'Kart kimliği sürümler arasında korunur.' : 'Boş bırakırsanız otomatik üretilir.'}
+              hint={card ? 'Kart kodu sonradan değiştirilemez.' : 'Boş bırakırsanız otomatik üretilir.'}
               autoCapitalize="characters"
               autoComplete="off"
               spellCheck={false}
@@ -205,7 +205,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
             <SelectField
               label="Özel tür"
               value={draft.customTypeId}
-              hint={selectedType ? `“${selectedType.name}” türünün ek alanları aşağıda açıldı.` : undefined}
+              hint={selectedType ? `“${selectedType.name}” türünün ek bilgileri aşağıda.` : undefined}
               options={[
                 { value: '', label: 'Standart tür' },
                 ...activeTypes.map((type) => ({
@@ -240,7 +240,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
               label="Malzeme ailesi"
               value={draft.materialType}
               placeholder="Örn. Galvaniz Çelik Boru"
-              hint="Aynı ailedeki kartlara ortak fire payı uygulanabilir (Ayarlar → Fire payları)."
+              hint="Aynı ailedeki kartlara Ayarlar > Fire payları ekranından ortak fire tanımlanabilir."
               autoComplete="off"
               onChange={(materialType) => patchDraft({ materialType })}
             />
@@ -261,10 +261,10 @@ export function CardForm({ cardId }: { cardId: string | null }) {
             />
           </Section>
 
-          <Section title="Varyant davranışı">
+          <Section title="Çeşit tipi">
             <ChipGrid
               mode="single"
-              label="Varyant davranışı"
+              label="Çeşit tipi"
               columns={3}
               value={draft.variantMode}
               options={MODE_OPTIONS}
@@ -333,7 +333,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
                 </ul>
                 <button type="button" className="m-btn m-btn--secondary" onClick={() => setDraft(addVariant(draft))}>
                   <Icon name="plus" size={20} />
-                  {draft.variantMode === 'Pipe' ? 'Özel çap ekle' : 'Özel fitting ekle'}
+                  {draft.variantMode === 'Pipe' ? 'Çap ekle' : 'Çeşit ekle'}
                 </button>
               </>
             )}
@@ -397,7 +397,7 @@ export function CardForm({ cardId }: { cardId: string | null }) {
         )}
         <button type="submit" form={formId} className="m-btn m-btn--primary m-btn--large" disabled={saving}>
           {saving ? <Spinner size={20} /> : <Icon name="check" size={20} />}
-          {saving ? 'Kaydediliyor…' : card ? 'Yeni sürüm olarak kaydet' : 'Kartı kaydet'}
+          {saving ? 'Kaydediliyor…' : card ? 'Değişiklikleri kaydet' : 'Kartı kaydet'}
         </button>
       </div>
     </div>
@@ -451,7 +451,7 @@ function VariantEditor({
       />
       {mode === 'Pipe' ? (
         <DecimalField
-          label="Ticari boy"
+          label="Standart boy (m)"
           suffix="m"
           value={variant.standardLength ?? null}
           onChange={(standardLength) => onChange({ standardLength })}
@@ -483,7 +483,7 @@ function DiameterListField({ value, onChange }: { value: string[]; onChange: (va
       autoComplete="off"
       autoCapitalize="characters"
       spellCheck={false}
-      hint="Virgülle ayırın. Boşsa seçili boru çapında gösterilir."
+      hint="Virgülle ayırın. Boş bırakılırsa bağlı borunun çapında gösterilir."
       onChange={(next) => {
         setText(next);
         const parsed = parseDiameterList(next);

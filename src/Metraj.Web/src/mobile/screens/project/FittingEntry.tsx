@@ -127,7 +127,7 @@ export function FittingEntry({
     return (
       <section className="m-section">
         <h2 className="m-section__title">Çap ve parça seçenekleri</h2>
-        <p className="m-muted">Bağlı borunun malzeme ve çaplarına uygun seçenek bulunamadı.</p>
+        <p className="m-muted">Bağlı boruya uygun parça bulunamadı.</p>
       </section>
     );
 
@@ -141,9 +141,9 @@ export function FittingEntry({
         <>
           <p className="m-proj-note">
             {choices.filtered
-              ? `Bağlı boruda ölçümü girilen çaplar gösteriliyor (${ordered.length} çap).`
+              ? `Bağlı boruda girilmiş çaplar (${ordered.length}).`
               : choices.parentPipe
-                ? 'Bağlı boruda henüz ölçüm yok; kartta tanımlı tüm çaplar gösteriliyor.'
+                ? 'Bağlı boruda henüz giriş yok; bütün çaplar gösteriliyor.'
                 : 'Çap seçin; her çapın adetleri ayrı tutulur.'}
           </p>
           <ChipGrid

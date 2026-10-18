@@ -18,7 +18,7 @@ export function formatVersionDate(value: string | null | undefined): string {
 /** "17 Eki 2026 14:45 · 2 yerleşimde kullanılıyor" */
 export function versionMeta(version: Pick<CatalogCardVersion, 'createdAtUtc' | 'placementCount'>): string {
   const usage =
-    version.placementCount > 0 ? `${version.placementCount} yerleşimde kullanılıyor` : 'Projelerde kullanılmıyor';
+    version.placementCount > 0 ? `${version.placementCount} yerde kullanılıyor` : 'Projelerde kullanılmıyor';
   return [formatVersionDate(version.createdAtUtc), usage].filter(Boolean).join(' · ');
 }
 

@@ -25,7 +25,7 @@ const exactPositive = (result: KeypadResult) =>
     ? 'Miktar sıfırdan büyük olmalı.'
     : result.exact
       ? null
-      : 'Bu kadar çok ondalık basamak kaydedilemez; sonucu kısaltın.';
+      : 'En fazla 6 ondalık basamak girilebilir.';
 
 /**
  * Giriş geçmişi: en yeni önce. Satıra dokunmak miktarı düzeltir (tuş takımı),

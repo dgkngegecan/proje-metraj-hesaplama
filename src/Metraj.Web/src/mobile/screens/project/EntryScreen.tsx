@@ -54,7 +54,7 @@ const exactPositive = (result: KeypadResult) =>
     ? 'Miktar sıfırdan büyük olmalı.'
     : result.exact
       ? null
-      : 'Bu kadar çok ondalık basamak kaydedilemez; sonucu kısaltın.';
+      : 'En fazla 6 ondalık basamak girilebilir.';
 
 /**
  * Ölçülebilir kartın giriş sayfası. Üstte toplamlar, altında kartın türüne göre
@@ -70,7 +70,7 @@ export default function EntryScreen({ placementId }: { placementId: string }) {
     return (
       <>
         <ScreenHeader title="Kart" />
-        <EmptyState title="Kart bulunamadı" message="Bu kart silinmiş ya da başka bir revizyona ait olabilir." />
+        <EmptyState title="Kart bulunamadı" message="Kart silinmiş olabilir. Proje ağacına dönün." />
       </>
     );
   return <Entry placement={placement} revisionId={revisionId} />;
@@ -212,8 +212,8 @@ function Entry({ placement, revisionId }: { placement: Placement; revisionId: st
         {derived && (
           <section className="m-section">
             <p className="m-proj-note">
-              Bu kalem başka bir kartın miktarından hesaplanır; buraya miktar girilmez.
-              {locked ? '' : ' Kaynağı seçmek için hesap bağı kurun.'}
+              Bu kartın miktarı başka bir karttan hesaplanır; buraya miktar girilmez.
+              {locked ? '' : ' Kaynak kartı aşağıdan seçin.'}
             </p>
             {!locked && (
               <button

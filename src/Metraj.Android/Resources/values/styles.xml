@@ -12,11 +12,11 @@
   </style>
 
   <!--
-    Uygulama teması. AppCompat gerekmez (arayüz web). WebView, targetSdk 33+
-    ile prefers-color-scheme'i temanın isLightTheme özniteliğinden alır;
-    values-night'taki koyu üst tema bu yüzden var.
+    Uygulama teması: her zaman koyu. AppCompat gerekmez (arayüz web). WebView,
+    targetSdk 33+ ile prefers-color-scheme'i temanın isLightTheme özniteliğinden
+    alır; koyu üst tema arayüzün ilk boyamasını da koyu yapar.
   -->
-  <style name="Theme.Metraj" parent="@android:style/Theme.Material.Light.NoActionBar">
+  <style name="Theme.Metraj" parent="@android:style/Theme.Material.NoActionBar">
     <item name="android:windowBackground">@color/metraj_bg</item>
     <item name="android:colorAccent">@color/metraj_primary</item>
     <item name="android:colorPrimary">@color/metraj_primary</item>

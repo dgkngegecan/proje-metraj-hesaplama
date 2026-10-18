@@ -273,7 +273,7 @@ function RuleSheet({ open, onClose, revisionId }: { open: boolean; onClose: () =
       open={open}
       onClose={onClose}
       title="Hesap kuralı ekle"
-      description="Serbest kod yoktur: kural, kaynak miktarını güvenli bir çarpanla öneriye dönüştürür."
+      description="Kaynak kartın miktarı bu çarpanla çarpılır; sonuç onayınıza sunulur."
       submitLabel="Kuralı ekle"
       onSubmit={async () => {
         const problem = validateRuleDraft(draft);
@@ -340,7 +340,7 @@ function CalculateSheet({
       onClose={onClose}
       title="Yeni öneri hesapla"
       description="Hesaplanacak ek parçayı ve kuralı seçin. Öneri “Kontrol bekliyor” olarak listeye eklenir."
-      submitLabel="Öner"
+      submitLabel="Hesapla"
       submitDisabled={!rules.length}
       onSubmit={async () => {
         if (!target) return void setError('Önce hesaplanacak kartı seçin.');
@@ -352,7 +352,7 @@ function CalculateSheet({
               targetPlacementId: target.id,
               ruleVersionId: effectiveRule,
             }),
-          { success: 'Hesap önerisi kontrol listesine eklendi.', error: 'Öneri hesaplanamadı.' },
+          { success: 'Öneri onayınıza sunuldu.', error: 'Öneri hesaplanamadı.' },
         );
         if (!result.ok) return false;
         refreshAfterCalculationChange();
@@ -405,16 +405,19 @@ function LinkSheet({
     <FormSheet
       open={open}
       onClose={onClose}
-      title="Hesap kaynağı bağla"
+      title="Hesap kaynağı seç"
       description="Örnek: boru kartını kaynak, dirsek ya da te kartını hesaplanacak ek parça seçin."
-      submitLabel="Kaynağı bağla"
+      submitLabel="Kaynağı kaydet"
       onSubmit={async () => {
         const problem = validateCalculationLink(target?.id ?? '', source?.id ?? '');
         setError(problem);
         if (problem || !target || !source) return false;
         const result = await perform(
           () => api.post(`/placements/${target.id}/calculated-from`, { sourcePlacementId: source.id, notes: null }),
-          { success: 'Hesap kaynağı bağlandı. Artık öneri üretebilirsiniz.', error: 'Kaynak bağlanamadı.' },
+          {
+            success: 'Hesap kaynağı kaydedildi. Şimdi öneri hesaplayabilirsiniz.',
+            error: 'Hesap kaynağı kaydedilemedi.',
+          },
         );
         if (!result.ok) return false;
         setSource(null);
@@ -463,9 +466,7 @@ function RejectSheet({ result, onClose }: { result: CalculationResult | null; on
       open={result !== null}
       onClose={onClose}
       title="Hesap önerisi uygulanmasın mı?"
-      description={
-        result ? `${result.targetPlacementName} · gerekçe kontrol listesinde ve raporda görünür.` : undefined
-      }
+      description={result ? `${result.targetPlacementName} · Gerekçe raporda görünür.` : undefined}
       submitLabel="Uygulama"
       tone="danger"
       onSubmit={async () => {
@@ -516,7 +517,7 @@ function OverrideSheet({ result, onClose }: { result: CalculationResult | null; 
         if (found.quantity || found.reason || !result) return false;
         const done = await perform(
           () => api.post(`/calculations/results/${result.id}/override`, buildOverridePayload(draft)),
-          { success: 'Hesap önerisi elle güncellendi.', error: 'Miktar uygulanamadı.' },
+          { success: 'Miktar elle düzeltildi.', error: 'Miktar uygulanamadı.' },
         );
         if (!done.ok) return false;
         setForId(null);
