@@ -2,6 +2,7 @@ import { useEffect, useRef, type KeyboardEvent, type MouseEvent, type PointerEve
 import { Icon } from './Icon';
 import { haptic } from './haptics.ts';
 import { LONG_PRESS_DELAY_MS, nextStepperValue, repeatDelay } from './stepperTiming.ts';
+import { initialGestureState, reduceGesture, type GestureEvent, type GestureState } from './stepperGesture.ts';
 
 export interface StepperProps {
   value: number;
@@ -18,8 +19,9 @@ export interface StepperProps {
 }
 
 /**
- * Büyük artırıcı: − [değer] +. Tek dokunuş bir adım; basılı tutunca önce
- * yavaş, sonra hızlanarak tekrarlar (15 tekrardan sonra beşer). Ekran okuyucu
+ * Büyük artırıcı: − [değer] +. Tek dokunuş (parmak kalkınca) bir adım; basılı
+ * tutunca önce yavaş, sonra hızlanarak tekrarlar (15 tekrardan sonra beşer).
+ * Düğmenin üstünden başlayan kaydırma değeri değiştirmez. Ekran okuyucu
  * için `spinbutton`; ok tuşları, Page Up/Down (±10), Home/End çalışır.
  */
 export function Stepper({
@@ -39,7 +41,7 @@ export function Stepper({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const timer = useRef<number | null>(null);
-  const pointerActive = useRef(false);
+  const gestures = useRef<Record<1 | -1, GestureState>>({ [1]: initialGestureState, [-1]: initialGestureState });
 
   const stop = () => {
     if (timer.current !== null) window.clearTimeout(timer.current);
@@ -68,28 +70,40 @@ export function Stepper({
       timer.current = window.setTimeout(tick, repeatDelay(repeat));
       repeat += 1;
     };
-    timer.current = window.setTimeout(tick, LONG_PRESS_DELAY_MS);
+    timer.current = window.setTimeout(tick, repeatDelay(0));
+  };
+
+  // Hareket kararı saf durum makinesinde (stepperGesture.ts): adım parmak
+  // kalkınca atılır, kaydırma (pointercancel) hiçbir şey uygulamaz.
+  const dispatch = (direction: 1 | -1, event: GestureEvent) => {
+    const result = reduceGesture(gestures.current[direction], event);
+    gestures.current[direction] = result.state;
+    let stepped = true;
+    for (const effect of result.effects) {
+      if (effect === 'stopTimers') stop();
+      else if (effect === 'armLongPress') {
+        timer.current = window.setTimeout(() => dispatch(direction, { type: 'longPress' }), LONG_PRESS_DELAY_MS);
+      } else if (effect === 'step') stepped = !disabled && apply(direction, -1);
+      else if (effect === 'startRepeat' && stepped) startRepeat(direction);
+    }
   };
 
   const pointerHandlers = (direction: 1 | -1) => ({
     onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
       if (disabled || (event.pointerType === 'mouse' && event.button !== 0)) return;
-      pointerActive.current = true;
       event.currentTarget.setPointerCapture(event.pointerId);
-      stop();
-      if (apply(direction, -1)) startRepeat(direction);
+      dispatch(direction, { type: 'down', x: event.clientX, y: event.clientY });
     },
-    onPointerUp: stop,
-    onPointerCancel: stop,
-    onLostPointerCapture: stop,
-    // İşaretçi zaten adımı attı; klavye (Enter/Boşluk) tıklaması ayrıca bir adım atar.
-    onClick: () => {
-      if (pointerActive.current) {
-        pointerActive.current = false;
-        return;
-      }
-      if (!disabled) apply(direction, -1);
+    onPointerMove: (event: PointerEvent<HTMLButtonElement>) =>
+      dispatch(direction, { type: 'move', x: event.clientX, y: event.clientY }),
+    onPointerUp: () => dispatch(direction, { type: 'up' }),
+    onPointerCancel: () => dispatch(direction, { type: 'cancel' }),
+    // Sıra pointerup → lostpointercapture → click: hareket zaten bittiyse iptal sayılmaz.
+    onLostPointerCapture: () => {
+      if (gestures.current[direction].phase !== 'idle') dispatch(direction, { type: 'cancel' });
     },
+    // İşaretçi hareketinin ardından gelen click yutulur; klavye/ekran okuyucu tıklaması tek adım atar.
+    onClick: () => dispatch(direction, { type: 'click' }),
     onContextMenu: (event: MouseEvent) => event.preventDefault(),
   });
 

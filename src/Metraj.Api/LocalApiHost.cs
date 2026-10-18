@@ -155,10 +155,25 @@ public sealed class LocalApiHost : IAsyncDisposable
 
         // Önceden kapı, yanıt (dosya akışı dâhil) yazılana kadar tutuluyordu;
         // router kapıyı dağıtım bitince bıraktığı için yazım süresince yeniden alınır.
-        await using IAsyncDisposable? operation = MetrajRequestRouter.IsMaintenanceRequest(pathAndQuery)
-            ? null
-            : await databaseGate.EnterOperationAsync(aborted);
-        await WriteResponseAsync(context, response, router, path);
+        IAsyncDisposable? operation;
+        try
+        {
+            operation = MetrajRequestRouter.IsMaintenanceRequest(pathAndQuery)
+                ? null
+                : await databaseGate.EnterOperationAsync(aborted);
+        }
+        catch
+        {
+            // İstemci bu aralıkta koparsa yanıt hiç yazılmaz; yazımın sileceği geçici
+            // rapor/.metraj dosyası %TEMP%'te kalıyordu.
+            if (response.File is { DeleteWhenDone: true } file) TryDeleteTemporaryFile(file.Path);
+            throw;
+        }
+
+        await using (operation)
+        {
+            await WriteResponseAsync(context, response, router, path);
+        }
     }
 
     /// <summary>

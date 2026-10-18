@@ -9,6 +9,7 @@ import {
   actions,
   appStore,
   draftKey,
+  drafts,
   patch,
   removeWithUndo,
   useAppStore,
@@ -137,6 +138,10 @@ function Entry({ placement, revisionId }: { placement: Placement; revisionId: st
     });
     setSaving(false);
     if (outcome.ok) {
+      // Taslak silme tamponda bekliyordu (en fazla 2 sn). Süreç bu arada ölürse
+      // kaydedilmiş ifade yeniden açılışta tuş takımına geri gelir ve ikinci kez
+      // kaydedilebilirdi; başarılı kayıttan sonra silme hemen gönderilir.
+      drafts.flush();
       haptic('confirm');
       afterChange();
     } else {

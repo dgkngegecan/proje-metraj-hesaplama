@@ -2,6 +2,11 @@
 tmp/
 output/
 
+# Android imza anahtarları ve parola dosyaları depoya asla girmez (scripts/build-android.ps1).
+*.keystore
+*.jks
+*.password
+
 # .NET build output (Faz 1+)
 bin/
 obj/
