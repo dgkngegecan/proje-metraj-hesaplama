@@ -158,6 +158,27 @@ Router her satırı karşılamalı; mobil arayüzde her satırın bir ekran kar�
 - Testler: xUnit `[Fact]` + `TestDatabase.CreateAsync`; ön yüzde `node:test` ile `.ts` doğrudan içe aktarılır.
 - Yorumlar Türkçe ve "neden / önceden ne oluyordu" anlatır.
 
+## Dalga 3 sonuçları: son kod incelemesi ve son durum (2026-10-18)
+
+**Son kod incelemesi (Ajan 8):** CRITICAL bulgu yok. Ondalık yol, satır gövdeleri, kilitli revizyon, router eşdeğerliği, tohumlama damgası, köprü güvenliği, manifest ve sırlar sorunsuz.
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| 1 | HIGH | Artırıcı `pointerdown`'da adım atıyordu; düğmeden başlayan kaydırma fitting/radyatör adedini değiştiriyordu | Düzeltildi (`stepperGesture.ts`, 9 test) |
+| 2 | MEDIUM | Eski tam yenileme yanıtı daha yeni ölçüm/özetleri eziyordu; silme commit'i ölçümleri tazelemiyordu | Düzeltildi (2 test) |
+| 3 | MEDIUM | Köprü 60 sn zaman aşımında yerel taraf yazmaya devam edebilir; yeniden denemede çift kayıt riski | **Açık:** idempotency anahtarı ya da zaman aşımı sonrası tazeleme |
+| 4 | MEDIUM | Android'de açılış hatasında yedeğe ulaşma yolu yok | **Açık:** hata ekranına "son yedeği geri yükle" / "dışa aktar" |
+| 5 | MEDIUM | Ölçüm satırı ve kart gövdesi üretimi mobilde ikinci kopya; eşdeğerlik testi masaüstü koduna bağlı değil | **Açık:** ortak `src/lib` modülüne çıkarılmalı, masaüstü de çağırmalı |
+| 6 | LOW | Masaüstünde kapı alınamazsa geçici rapor dosyası kalıyordu | Düzeltildi |
+| 7 | LOW | İptal edilen indirme dosyası önbellekte 1 saat kalıyor | **Açık:** iptalde `release` komutu |
+| 8 | LOW | Kayıttan sonra taslak silme tamponda; süreç ölürse çift kayıt | Düzeltildi |
+| 9 | LOW | Radyatör kaydı sürerken eklenen grup kayboluyordu | Düzeltildi |
+| 10 | LOW | `.gitignore`'da imza anahtarı kalıpları yoktu | Düzeltildi |
+
+**Son durum (orkestratör doğrulaması):** .NET 218/218, 0 uyarı; arayüz 263/263; Playwright telefon e2e 16/16; mobil paket denetimi geçti. Son APK'lar: arm64 35,2 MB, x64 37,6 MB. Emülatörde temiz kurulum: şablon veritabanı 209 ms'de kopyalandı, çekirdek t+2,2 s'de hazır (Dalga 2'de t+14,9 s). PDF 0,76 s'de üretildi, adı `SYN-CW-001_R0_2026-10-18_0110.pdf`; çökme yok.
+
+**Hâlâ açık (yukarıdakilere ek):** sunucu tarihleri `Z`'siz; kart sürüm geçmişi ve `/api/health` sürüm/veri konumu uçları yok; şaft/hat no ayrı alan değil; gerçek ARM telefon, 16 KB sayfalı cihaz ve eski WebView doğrulaması yapılmadı.
+
 ## Dalga 3 sonuçları: Ajan 7 (2026-10-18)
 
 - **Telefon uçtan uca testleri:** `src/Metraj.Web/e2e/` (Playwright 1.63.0, Pixel 7 emülasyonu), `npm run test:e2e`, 16 test (8 yolculuk + yavaş açılış). Ayrıntı: `docs/derleme.md`.
