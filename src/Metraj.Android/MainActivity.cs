@@ -87,6 +87,13 @@ internal sealed class MainActivity : ComponentActivity, IBridgeHost, IWebPageHos
         splashShownAt = SystemClock.ElapsedRealtime();
         splash.SetKeepOnScreenCondition(new KeepSplashCondition(this));
         EdgeToEdge.Enable(this);
+        // Uygulama her zaman koyu: sistem açık temada olsa da durum ve gezinme
+        // çubuğu simgeleri açık renkte kalmalı, yoksa koyu zeminde görünmüyor.
+        if (WindowCompat.GetInsetsController(Window!, Window!.DecorView) is { } systemBars)
+        {
+            systemBars.AppearanceLightStatusBars = false;
+            systemBars.AppearanceLightNavigationBars = false;
+        }
 
         // Etkinlik sonuçları STARTED'dan önce kaydedilmeli.
         openDocumentLauncher = RegisterForActivityResult(new ActivityResultContracts.StartActivityForResult(),
