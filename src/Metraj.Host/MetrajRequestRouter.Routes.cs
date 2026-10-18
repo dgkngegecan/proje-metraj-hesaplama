@@ -1,3 +1,4 @@
+using System.Reflection;
 using Metraj.Application;
 using Metraj.Domain;
 using Microsoft.Data.Sqlite;
@@ -38,11 +39,43 @@ public sealed partial class MetrajRequestRouter
         return api.ToArray();
     }
 
-    /// <summary>Canlılık yoklaması.</summary>
+    /// <summary>Canlılık yoklaması, uygulama sürümü ve verinin bulunduğu klasör.</summary>
+    /// <remarks>
+    /// <c>dataLocation</c> veritabanının bulunduğu klasörün tam yoludur (Android'de uygulamaya
+    /// özel alan, masaüstünde kullanıcı profili altı). Arayüz masaüstünde yalnız klasör adını gösterir.
+    /// </remarks>
     private static void MapHealthRoutes(List<Route> api)
     {
-        Map(api, "GET", "/health", _ => Task.FromResult(Ok(new { status = "ok" })));
+        Map(api, "GET", "/health", call => Task.FromResult(Ok(new
+        {
+            status = "ok",
+            version = ApplicationVersion,
+            dataLocation = DataLocationOf(call.Services.DatabasePath)
+        })));
     }
+
+    /// <summary>Çekirdeğin sürümü: "1.0.0" ya da derleme kaydı biliniyorsa "1.0.0+3f02030".</summary>
+    /// <remarks>
+    /// Masaüstü ve Android aynı Metraj.Host derlemesini taşıdığı için iki platformda da aynı kaynaktan
+    /// okunur. SDK'nın eklediği tam kayıt kimliği yedi karaktere kısaltılır.
+    /// </remarks>
+    private static string ApplicationVersion { get; } = ReadApplicationVersion();
+
+    private static string ReadApplicationVersion()
+    {
+        Assembly assembly = typeof(MetrajRequestRouter).Assembly;
+        string? informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (string.IsNullOrWhiteSpace(informational))
+        {
+            return assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+        }
+
+        int plus = informational.IndexOf('+', StringComparison.Ordinal);
+        return plus >= 0 && informational.Length - plus - 1 > 7 ? informational[..(plus + 8)] : informational;
+    }
+
+    private static string? DataLocationOf(string databasePath) =>
+        string.IsNullOrWhiteSpace(databasePath) ? null : Path.GetDirectoryName(Path.GetFullPath(databasePath));
 
     /// <summary>Projeler ve revizyonlar.</summary>
     private static void MapProjectRoutes(List<Route> api)

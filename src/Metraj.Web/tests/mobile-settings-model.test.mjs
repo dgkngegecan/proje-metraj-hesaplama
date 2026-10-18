@@ -14,6 +14,7 @@ import {
   canApproveRevision,
   emptyRuleDraft,
   formatBackupSize,
+  dataLocationLabel,
   formatDateTime,
   importIsEmpty,
   importSummaryLines,
@@ -223,4 +224,19 @@ test('örnek proje mesajı tekrar eklenip eklenmediğini ve sayıları söyler',
     sampleMessage({ alreadyExisted: false, importedPlacementCount: 14, importedMeasurementCount: 36 }),
     /14 kart, 36 ölçüm/,
   );
+});
+
+test('hakkında: veri konumu telefonda tam yol, masaüstünde yalnız klasör adı', () => {
+  assert.equal(
+    dataLocationLabel('/data/user/0/com.projemetraj.mobile/files', true),
+    'Bu telefon · /data/user/0/com.projemetraj.mobile/files',
+  );
+  // Masaüstünde kullanıcı adı (C:\Users\<ad>) görünmez.
+  const desktop = dataLocationLabel('C:\\Users\\ayse\\AppData\\Local\\ProjeMetraj\\', false);
+  assert.equal(desktop, 'Bu bilgisayar · ProjeMetraj klasörü');
+  assert.ok(!desktop.includes('ayse'));
+  assert.equal(dataLocationLabel('/home/ayse/.local/share/ProjeMetraj', false), 'Bu bilgisayar · ProjeMetraj klasörü');
+  // Eski çekirdek alanı bildirmezse genel metin.
+  assert.equal(dataLocationLabel(undefined, true), 'Bu telefon · uygulamaya özel dahili depolama');
+  assert.equal(dataLocationLabel(null, false), 'Bu bilgisayar · yerel veritabanı dosyası');
 });

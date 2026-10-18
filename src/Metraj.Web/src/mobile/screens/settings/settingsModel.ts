@@ -223,6 +223,24 @@ export function formatDateTime(value: string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? '' : dateTime.format(date);
 }
 
+/**
+ * "Hakkında"daki veri konumu satırı (`/api/health` → `dataLocation`). Telefonda tam yol
+ * gösterilir (uygulamaya özel alan, kişisel bilgi taşımaz); masaüstünde yol kullanıcı
+ * profilinin altındadır, kullanıcı adı görünmesin diye yalnız klasör adı gösterilir.
+ */
+export function dataLocationLabel(dataLocation: string | null | undefined, native: boolean): string {
+  const path = dataLocation?.trim();
+  if (!path)
+    return native ? 'Bu telefon · uygulamaya özel dahili depolama' : 'Bu bilgisayar · yerel veritabanı dosyası';
+  if (native) return `Bu telefon · ${path}`;
+  const folder =
+    path
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop() || path;
+  return `Bu bilgisayar · ${folder} klasörü`;
+}
+
 export function backupMeta(backup: Pick<DatabaseBackup, 'createdAtUtc' | 'sizeBytes' | 'reason'>): string {
   return [
     formatDateTime(backup.createdAtUtc),

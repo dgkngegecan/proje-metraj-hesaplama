@@ -49,6 +49,17 @@ test.describe('geri tuşu zinciri', () => {
     await page.getByRole('button', { name: /^Uygulama hakkında/ }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Uygulama hakkında' })).toBeVisible();
 
+    // Sürüm ve veri klasörü /api/health'ten; köprüsüz (masaüstü/tarayıcı) yalnız klasör adı görünür.
+    const health = await api.get<{ status: string; version: string; dataLocation: string }>('/health');
+    const folder = health.dataLocation
+      .replace(/[\\/]+$/, '')
+      .split(/[\\/]/)
+      .pop()!;
+    const facts = (label: string) =>
+      page.locator('.m-facts__row').filter({ has: page.getByText(label, { exact: true }) });
+    await expect(facts('Uygulama sürümü').locator('dd')).toHaveText(health.version);
+    await expect(facts('Veri konumu').locator('dd')).toHaveText(`Bu bilgisayar · ${folder} klasörü`);
+
     // İç ekran → Ayarlar kökü → Proje sekmesi.
     await page.goBack();
     await expect(page.getByRole('heading', { level: 1, name: 'Uygulama hakkında' })).toBeHidden();
