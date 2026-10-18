@@ -32,10 +32,39 @@ internal static class AppStartup
     private static Task<MetrajRuntime>? startup;
     private static Task<DatabaseIntegrityCheckResult>? integrity;
     private static Func<Stream>? templateOpener;
+    private static string? startedFilesDirectory;
 
     /// <summary>Hazırlık görevi. <see cref="Start"/> çağrılmadan okunamaz.</summary>
     public static Task<MetrajRuntime> Ready =>
         startup ?? throw new InvalidOperationException("Açılış hazırlığı başlatılmadı.");
+
+    /// <summary>
+    /// Açılış hatası ekranının kurtarma işleri (son yedeği geri yükle, ham veriyi
+    /// dışa aktar). Router'a ve <see cref="MetrajServices"/>'e dokunmaz: hazırlık
+    /// başarısız olduğunda ikisi de yoktur.
+    /// </summary>
+    public static DatabaseRecovery CreateRecovery()
+    {
+        string filesDirectory = startedFilesDirectory ?? throw new InvalidOperationException("Açılış hazırlığı başlatılmadı.");
+        return new DatabaseRecovery(Path.Combine(filesDirectory, "metraj.db"), Path.Combine(filesDirectory, "backups"));
+    }
+
+    /// <summary>Kurtarmadan sonra hazırlığı baştan başlatır; yalnız önceki hazırlık başarısız bittiyse.</summary>
+    public static void Restart()
+    {
+        lock (Sync)
+        {
+            if (startup is not { IsFaulted: true } || startedFilesDirectory is null)
+            {
+                throw new InvalidOperationException("Yalnız başarısız bir açılış yeniden başlatılabilir.");
+            }
+
+            startup = null;
+            integrity = null;
+            MetrajLog.Mark("hazırlık kurtarmadan sonra yeniden başlatılıyor");
+            Start(startedFilesDirectory, templateOpener);
+        }
+    }
 
     /// <summary>Hazırlığı arka planda başlatır; ikinci çağrı aynı görevi kullanır.</summary>
     /// <param name="filesDirectory">Uygulamanın özel klasörü (<c>Context.FilesDir</c>).</param>
@@ -50,6 +79,7 @@ internal static class AppStartup
             if (startup is not null) return;
             string databasePath = Path.Combine(filesDirectory, "metraj.db");
             templateOpener = openTemplate;
+            startedFilesDirectory = filesDirectory;
             // İki iş parçacığı: veritabanına dokunmayan altyapı ısındırması, şema
             // denetimi ve tohumlamayla üst üste biner.
             Task infrastructure = RunOnPriorityThread("metraj-isindirma", () => WarmInfrastructure(databasePath));
