@@ -26,6 +26,14 @@ public sealed class MetrajDbContext(DbContextOptions<MetrajDbContext> options) :
     public DbSet<MaterialTypeWasteSetting> MaterialTypeWasteSettings => Set<MaterialTypeWasteSetting>();
     public DbSet<UiState> UiStates => Set<UiState>();
 
+    /// <summary>Bütün zaman alanları UTC olarak okunur (bkz. <see cref="UtcDateTimeConverter"/>).</summary>
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        ArgumentNullException.ThrowIfNull(configurationBuilder);
+        // Null kabul eden DateTime? alanlar da aynı dönüştürücüyü alır.
+        configurationBuilder.Properties<DateTime>().HaveConversion<UtcDateTimeConverter>();
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ValueConverter<decimal, long> quantityConverter = new ScaledDecimalConverter();

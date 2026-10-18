@@ -45,7 +45,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime),
                 propertyInfo: typeof(CatalogCardDefinition).GetProperty("CreatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(CatalogCardDefinition).GetField("<CreatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                valueConverter: new UtcDateTimeConverter());
+            createdAtUtc.SetSentinelFromProviderValue(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             var description = runtimeEntityType.AddProperty(
                 "Description",

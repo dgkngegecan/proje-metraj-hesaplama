@@ -217,8 +217,9 @@ const dateTime = new Intl.DateTimeFormat('tr-TR', { dateStyle: 'medium', timeSty
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '';
-  // Sunucu UTC zamanı bazen "Z"siz verir; yerel saat sanılmasın.
-  const date = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`);
+  // Sunucu UTC'yi "Z" ile yazar; eski bir yedekten ya da önbellekten gelen eksiz
+  // değer yerel saat sanılmasın diye yine UTC sayılır.
+  const date = new Date(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`);
   return Number.isNaN(date.getTime()) ? '' : dateTime.format(date);
 }
 

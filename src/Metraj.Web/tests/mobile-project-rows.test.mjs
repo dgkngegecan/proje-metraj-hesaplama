@@ -645,6 +645,9 @@ test('sunucunun saat dilimi eksiz zaman damgası UTC sayılır; karışık biçi
   const { parseUtc } = await import('../src/mobile/screens/project/measurementRows.ts');
   assert.equal(parseUtc('2026-10-17T14:45:38.4138484'), Date.parse('2026-10-17T14:45:38.4138484Z'));
   assert.equal(parseUtc('2026-10-17T14:45:38Z'), Date.parse('2026-10-17T14:45:38Z'));
+  // Sunucunun bugünkü biçimi: 7 haneli kesir + "Z"; ikinci bir "Z" eklenmez.
+  assert.equal(parseUtc('2026-10-17T14:45:38.4138484Z'), Date.UTC(2026, 9, 17, 14, 45, 38, 413));
+  assert.equal(parseUtc('2026-10-17T14:45:38.4138484Z'), parseUtc('2026-10-17T14:45:38.4138484'));
   assert.equal(parseUtc('2026-10-17T17:45:38+03:00'), Date.parse('2026-10-17T14:45:38Z'));
   assert.ok(Number.isNaN(parseUtc('')));
   const sorted = newestFirst([

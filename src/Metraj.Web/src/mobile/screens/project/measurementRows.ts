@@ -147,9 +147,9 @@ export function quantityToExpression(value: number): string {
 }
 
 /**
- * Sunucu `DateTime`'ı saat dilimi eki OLMADAN yazıyor ("2026-10-17T14:45:38.41");
- * tarayıcı bunu yerel saat sayar ve ekranda UTC farkı kadar kayık saat görünür.
- * Eksiz zaman damgaları UTC kabul edilir (sunucu hep UTC yazar).
+ * Sunucu `DateTime`'ı UTC ve "Z" ekiyle yazar ("2026-10-17T14:45:38.41Z"). Önceki
+ * sürümler eksiz yazıyordu; tarayıcı eksiz değeri yerel saat sayacağı için eski bir
+ * önbellekten ya da içe aktarılmış veriden gelen eksiz zaman damgası da UTC kabul edilir.
  */
 export function parseUtc(value: string | null | undefined): number {
   if (!value) return Number.NaN;

@@ -45,7 +45,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime),
                 propertyInfo: typeof(MaterialTypeWasteSetting).GetProperty("UpdatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(MaterialTypeWasteSetting).GetField("<UpdatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                valueConverter: new UtcDateTimeConverter());
+            updatedAtUtc.SetSentinelFromProviderValue(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             var wasteRatePct = runtimeEntityType.AddProperty(
                 "WasteRatePct",

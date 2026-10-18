@@ -48,7 +48,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime),
                 propertyInfo: typeof(PlacementContextNote).GetProperty("CreatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(PlacementContextNote).GetField("<CreatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                sentinel: new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
+                valueConverter: new UtcDateTimeConverter());
+            createdAtUtc.SetSentinelFromProviderValue(new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified));
 
             var floor = runtimeEntityType.AddProperty(
                 "Floor",
@@ -85,7 +86,8 @@ namespace Metraj.Infrastructure.CompiledModel
                 typeof(DateTime?),
                 propertyInfo: typeof(PlacementContextNote).GetProperty("UpdatedAtUtc", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly),
                 fieldInfo: typeof(PlacementContextNote).GetField("<UpdatedAtUtc>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly),
-                nullable: true);
+                nullable: true,
+                valueConverter: new UtcDateTimeConverter());
 
             var key = runtimeEntityType.AddKey(
                 new[] { id });
