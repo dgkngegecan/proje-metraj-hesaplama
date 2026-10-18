@@ -31,6 +31,7 @@ internal static class AppStartup
     private static readonly object Sync = new();
     private static Task<MetrajRuntime>? startup;
     private static Task<DatabaseIntegrityCheckResult>? integrity;
+    private static Func<Stream>? templateOpener;
 
     /// <summary>Hazırlık görevi. <see cref="Start"/> çağrılmadan okunamaz.</summary>
     public static Task<MetrajRuntime> Ready =>
@@ -38,12 +39,17 @@ internal static class AppStartup
 
     /// <summary>Hazırlığı arka planda başlatır; ikinci çağrı aynı görevi kullanır.</summary>
     /// <param name="filesDirectory">Uygulamanın özel klasörü (<c>Context.FilesDir</c>).</param>
-    public static void Start(string filesDirectory)
+    /// <param name="openTemplate">
+    /// APK'daki şablon veritabanını (göç edilmiş + tohumlanmış) açar; yoksa <see langword="null"/>.
+    /// Yalnız veritabanı dosyası YOKSA (ilk kurulum) kullanılır.
+    /// </param>
+    public static void Start(string filesDirectory, Func<Stream>? openTemplate = null)
     {
         lock (Sync)
         {
             if (startup is not null) return;
             string databasePath = Path.Combine(filesDirectory, "metraj.db");
+            templateOpener = openTemplate;
             // İki iş parçacığı: veritabanına dokunmayan altyapı ısındırması, şema
             // denetimi ve tohumlamayla üst üste biner.
             Task infrastructure = RunOnPriorityThread("metraj-isindirma", () => WarmInfrastructure(databasePath));
@@ -153,6 +159,11 @@ internal static class AppStartup
             Directory.CreateDirectory(backupDirectory);
             MetrajLog.Mark("hazırlık başladı");
 
+            // İlk kurulum: göç + 733 kartlık tohumlama yerine derlemede hazırlanmış şablon kopyalanır
+            // (emülatörde 15-30 s'lik boş kabuk). Şablon yoksa ya da kopya başarısızsa eski yol
+            // (göç + tohumlama) aynen çalışır; şablon da aynı kontrollerden geçer (şema güncel mi, damga).
+            if (!File.Exists(databasePath)) CopyTemplateDatabase(databasePath);
+
             bool databaseExists = File.Exists(databasePath);
             bool upToDate = await ApplicationSchemaMigrator.IsUpToDateAsync(databasePath);
             MetrajLog.Mark(upToDate ? "şema güncel" : databaseExists ? "şema eski: göç gerekli" : "veritabanı yok: ilk kurulum");
@@ -209,6 +220,41 @@ internal static class AppStartup
         {
             MetrajLog.Error("Açılış hazırlığı başarısız oldu.", exception);
             throw;
+        }
+    }
+
+    /// <summary>Şablonu geçici dosyaya kopyalayıp yeniden adlandırır; yarım kalan kopya asıl dosya olmaz.</summary>
+    private static void CopyTemplateDatabase(string databasePath)
+    {
+        Func<Stream>? open = templateOpener;
+        if (open is null) return;
+        string partial = databasePath + ".kopya";
+        try
+        {
+            long startedAt = MetrajLog.Elapsed;
+            if (File.Exists(partial)) File.Delete(partial);
+            using (Stream source = open())
+            using (var target = new FileStream(partial, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            {
+                source.CopyTo(target);
+                target.Flush(flushToDisk: true);
+            }
+
+            File.Move(partial, databasePath);
+            MetrajLog.Mark($"ilk kurulum: şablon veritabanı kopyalandı ({MetrajLog.Elapsed - startedAt} ms)");
+        }
+        catch (Exception exception)
+        {
+            // Kopya yalnız bir hız işi: başarısızsa boş veritabanına göç + tohumlama devralır.
+            MetrajLog.Warn($"Şablon veritabanı kopyalanamadı, standart kurulum yapılacak: {exception.Message}");
+            try
+            {
+                if (File.Exists(partial)) File.Delete(partial);
+            }
+            catch (IOException)
+            {
+                // Artık dosya bir sonraki kopyada silinir.
+            }
         }
     }
 

@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
 import { Icon, type IconName } from '../components/Icon';
 
 /** Boş durum: ne olduğunu ve SONRAKİ ADIMI söyler (yalnız "veri yok" demez). */
@@ -70,6 +70,33 @@ export function SkeletonList({ rows = 8, label = 'Yükleniyor' }: { rows?: numbe
           </span>
         </div>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Açılış beklemesi: önce iskelet; çekirdek `delayMs`'den uzun sürerse ne olduğunu söyler.
+ * İlk kurulumda veritabanı göç edilip standart kütüphane (733 kart) tohumlanırken arayüz
+ * önceden bu sürede (emülatörde 15-30 s) hiçbir açıklama olmadan boş bir kabuk gösteriyordu.
+ * Android APK'sı artık önceden hazırlanmış bir şablon kopyalar ve bu bekleme nadirdir; yedek
+ * yol (şablon yok, şema yükseltmesi) ve yavaş cihazlar için açıklama korunur.
+ */
+export function PreparingState({ delayMs = 1500 }: { delayMs?: number }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [delayMs]);
+  if (!slow) return <SkeletonList label="Çalışma alanı hazırlanıyor" />;
+  return (
+    <div className="m-state" role="status" aria-live="polite" aria-busy="true">
+      <span className="m-state__icon" aria-hidden="true">
+        <Spinner size={32} />
+      </span>
+      <h2 className="m-state__title">Standart kütüphane hazırlanıyor…</h2>
+      <p className="m-state__message">
+        İlk açılışta kart kütüphanesi kurulur; bu birkaç saniye sürebilir. Sonraki açılışlar çok daha hızlıdır.
+      </p>
     </div>
   );
 }

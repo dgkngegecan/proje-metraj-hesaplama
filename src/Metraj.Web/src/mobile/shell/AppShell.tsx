@@ -4,7 +4,7 @@ import { useBackHandler } from './back.ts';
 import { BottomNav, TABS, tabButtonId, tabPanelId } from './BottomNav';
 import { LockBanner, TopBar } from './TopBar';
 import { shellActions, START_TAB, type TabId } from './shellStore.ts';
-import { EmptyState, ErrorState, ScreenErrorBoundary, SkeletonList } from './StatusViews';
+import { EmptyState, ErrorState, PreparingState, ScreenErrorBoundary, SkeletonList } from './StatusViews';
 import { useActiveTab } from './useShell.ts';
 import { notifyError, notifySuccess } from './feedback.ts';
 
@@ -76,7 +76,7 @@ function ProjectGate({ tab, children }: { tab: TabId; children: ReactNode }) {
   const load = useLoad(loadKeys.projects);
   const [working, setWorking] = useState(false);
   if (!NEEDS_PROJECT.has(tab) || projects.length) return <>{children}</>;
-  if (load.status === 'idle' || load.status === 'loading') return <SkeletonList label="Çalışma alanı hazırlanıyor" />;
+  if (load.status === 'idle' || load.status === 'loading') return <PreparingState />;
   if (load.status === 'error')
     return <ErrorState title="Projeler okunamadı" message={load.error} onRetry={() => void actions.bootstrap()} />;
 

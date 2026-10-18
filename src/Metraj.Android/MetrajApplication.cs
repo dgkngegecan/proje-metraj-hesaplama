@@ -14,6 +14,9 @@ namespace Metraj.Mobile;
 [global::Android.App.Application(Name = "dev.projemetraj.app.MetrajApplication")]
 internal sealed class MetrajApplication : global::Android.App.Application
 {
+    /// <summary>Derlemede üretilen şablon veritabanının varlık adı (Metraj.Android.csproj → GenerateStarterDatabaseTemplate).</summary>
+    private const string StarterTemplateAsset = "metraj-template.db";
+
     public MetrajApplication(IntPtr handle, JniHandleOwnership ownership)
         : base(handle, ownership)
     {
@@ -25,7 +28,7 @@ internal sealed class MetrajApplication : global::Android.App.Application
         string filesDirectory = FilesDir!.AbsolutePath;
         MetrajLog.Initialize(filesDirectory);
         MetrajLog.Mark("süreç: Application.OnCreate");
-        AppStartup.Start(filesDirectory);
+        AppStartup.Start(filesDirectory, () => Assets!.Open(StarterTemplateAsset));
         ExportStore.Initialize(Path.Combine(CacheDir!.AbsolutePath, "exports"));
     }
 }

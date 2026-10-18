@@ -174,6 +174,49 @@
     </ItemGroup>
   </Target>
 
+  <!--
+    ŞABLON VERİTABANI.
+
+    İlk kurulumda telefon boş bir veritabanına göç + 733 kartlık tohumlama yapıyordu
+    (emülatörde 15-30 s boyunca boş kabuk). Aynı iki adım artık DERLEMEDE bir kez
+    çalışır (tools/Metraj.DbTemplate → StarterDatabaseTemplate) ve çıktı APK'ya
+    "metraj-template.db" varlığı olarak girer; uygulama yalnız veritabanı dosyası
+    yokken kopyalar (AppStartup.CopyTemplateDatabase). Elle üretilmiş ikili depoya
+    girmez. Aracın doğruladığı ve StarterDatabaseTemplateTests'in kanıtladığı gibi
+    şablon, aynı sürümün boş veritabanında göç + tohumlama ile ürettiğiyle aynıdır.
+    Artımlı: şema/tohumlama kodundan (Domain, Application, Infrastructure) ya da
+    araçtan biri değişmedikçe yeniden üretilmez.
+  -->
+  <PropertyGroup>
+    <StarterTemplateFile>$(MSBuildProjectDirectory)\obj\template\metraj-template.db</StarterTemplateFile>
+    <StarterTemplateTool>$(MSBuildThisFileDirectory)..\..\tools\Metraj.DbTemplate\Metraj.DbTemplate.csproj</StarterTemplateTool>
+    <DotNetHostForTemplate Condition="'$(DOTNET_HOST_PATH)' != ''">$(DOTNET_HOST_PATH)</DotNetHostForTemplate>
+    <DotNetHostForTemplate Condition="'$(DotNetHostForTemplate)' == ''">dotnet</DotNetHostForTemplate>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <StarterTemplateSource Include="$(MSBuildThisFileDirectory)..\Metraj.Domain\**\*.cs;$(MSBuildThisFileDirectory)..\Metraj.Application\**\*.cs;$(MSBuildThisFileDirectory)..\Metraj.Infrastructure\**\*.cs;$(MSBuildThisFileDirectory)..\..\tools\Metraj.DbTemplate\**\*.cs"
+                           Exclude="$(MSBuildThisFileDirectory)..\**\bin\**;$(MSBuildThisFileDirectory)..\**\obj\**" />
+  </ItemGroup>
+
+  <Target Name="GenerateStarterDatabaseTemplate"
+          Inputs="@(StarterTemplateSource);$(StarterTemplateTool)"
+          Outputs="$(StarterTemplateFile)">
+    <Message Importance="high" Text="Şablon veritabanı üretiliyor (göç + standart katalog)..." />
+    <Exec Command="&quot;$(DotNetHostForTemplate)&quot; run --project &quot;$(StarterTemplateTool)&quot; -c Release --no-launch-profile -- --out &quot;$(StarterTemplateFile)&quot;" />
+  </Target>
+
+  <!-- Varlık, şablon üretildikten SONRA eklenir (joker ifade aynı derlemede üretileni göremez). -->
+  <Target Name="IncludeStarterDatabaseTemplate"
+          DependsOnTargets="GenerateStarterDatabaseTemplate"
+          BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(StarterTemplateFile)')"
+           Text="Şablon veritabanı üretilemedi: $(StarterTemplateFile). Araç: $(StarterTemplateTool)" />
+    <ItemGroup>
+      <AndroidAsset Include="$(StarterTemplateFile)" Link="Assets\metraj-template.db" />
+    </ItemGroup>
+  </Target>
+
   <!-- Varsayılan C: debug anahtarına düşmemek için: anahtar verilmediyse imzalamadan ÖNCE dur. -->
   <Target Name="RequireMetrajSigningKey" BeforeTargets="_ResolveAndroidSigningKey;BeforeBuild">
     <Error Condition="'$(MetrajAndroidKeystore)' == ''"

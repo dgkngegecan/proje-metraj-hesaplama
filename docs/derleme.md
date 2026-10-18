@@ -54,6 +54,23 @@ demek değildir.
 dotnet test Metraj.sln
 ```
 
+## Telefon uçtan uca testleri (Playwright)
+
+```bash
+cd src/Metraj.Web
+npx playwright install chromium     # bir kez (PLAYWRIGHT_BROWSERS_PATH ile D: gibi bir yere)
+npm run test:e2e                    # önce derler (dist), sonra 16 testi çalıştırır
+npm run check:e2e                   # yalnız tip denetimi
+```
+
+`e2e/global-setup.ts` DevServer'ı (`dotnet run --project tools/Metraj.DevServer ... --fresh`)
+başlatır, adresini url dosyasından okur ve o adrese `/api` vekili kuran `vite preview` ile
+en güncel `dist`'i sunar; `global-teardown.ts` süreçleri kapatır. Veritabanı, günlükler
+ve durum dosyası `METRAJ_E2E_DIR` altında (varsayılan `%TEMP%\metraj-e2e`). Ortam:
+`METRAJ_DOTNET` (dotnet yolu), `METRAJ_E2E_PORT` (önizleme portu, varsayılan 4310).
+Testler tek işçiyle çalışır ve her test çalışma alanını sıfırlayıp kendi verisini kurar.
+Aygıt: Pixel 7 emülasyonu (412×915, dokunma açık), Chromium.
+
 ## EF Core derlenmiş modeli
 
 Uygulama EF Core modelini çalışma zamanında `OnModelCreating`'den kurmaz;
@@ -177,6 +194,15 @@ Derleme ayrıntıları (`Metraj.Android.csproj`):
   `SQLitePCLRaw.lib.e_sqlite3` için `ExcludeAssets="native"`. İkincisi olmadan
   linux-x64 (glibc) ikilisi APK'ya girip Android ikilisini eziyor
   (`DllNotFoundException: e_sqlite3`) ve XA0141 uyarısı çıkıyordu.
+- **Şablon veritabanı:** göç edilmiş ve 733 kartlık standart katalogla tohumlanmış boş
+  bir `metraj.db`, derlemede `tools/Metraj.DbTemplate` ile üretilir
+  (`GenerateStarterDatabaseTemplate`, çıktı `src/Metraj.Android/obj/template/`) ve APK'ya
+  `assets/metraj-template.db` olarak girer. Uygulama yalnız veritabanı dosyası YOKSA
+  (ilk kurulum) kopyalar; kopya başarısızsa ya da şablon yoksa eski yol (göç + tohumlama)
+  çalışır. İkili depoya girmez; şema/tohumlama kodu (Domain, Application,
+  Infrastructure) ya da araç değişince yeniden üretilir. Şablonun, boş veritabanında
+  göç + tohumlamayla üretilenle aynı olduğunu `StarterDatabaseTemplateTests` kanıtlar
+  (şema, satırlar, tohumlama damgası, bütünlük).
 - **WebView hata ayıklaması** Debug'da açık, Release'te kapalı;
   `-p:MetrajWebViewDebugging=true` yalnız ölçüm derlemeleri içindir.
 - **İzinler:** manifestte `INTERNET` yok; Release derlemesine .NET de eklemez
