@@ -31,6 +31,13 @@
 .PARAMETER SkipFrontend
     Arayüzü yeniden derleme (-p:BuildFrontend=false). dist/ yoksa derleme yine durur.
 
+.PARAMETER VersionCode
+    Android sürüm kodu (ApplicationVersion). Telefon ancak daha büyük kodlu APK'yı
+    güncelleme olarak kurar; CI iş akışı numarasını verir. Verilmezse csproj'daki değer.
+
+.PARAMETER VersionName
+    Kullanıcının gördüğü sürüm (ApplicationDisplayVersion), ör. 2026.10.22.
+
 .EXAMPLE
     ./scripts/build-android.ps1 -KeyStore D:\toolchain\android-keys\metraj-debug.keystore `
         -KeyStorePassword file:D:\toolchain\android-keys\metraj-debug.password
@@ -48,7 +55,9 @@ param(
     [string] $KeyStorePassword = $env:METRAJ_ANDROID_KEYSTORE_PASSWORD,
     [string] $KeyAlias = $(if ($env:METRAJ_ANDROID_KEY_ALIAS) { $env:METRAJ_ANDROID_KEY_ALIAS } else { 'metraj' }),
     [switch] $WebViewDebugging,
-    [switch] $SkipFrontend
+    [switch] $SkipFrontend,
+    [int] $VersionCode = 0,
+    [string] $VersionName
 )
 
 $ErrorActionPreference = 'Stop'
@@ -95,6 +104,8 @@ $arguments = @(
 )
 if ($WebViewDebugging) { $arguments += '-p:MetrajWebViewDebugging=true' }
 if ($SkipFrontend) { $arguments += '-p:BuildFrontend=false' }
+if ($VersionCode -gt 0) { $arguments += "-p:ApplicationVersion=$VersionCode" }
+if ($VersionName) { $arguments += "-p:ApplicationDisplayVersion=$VersionName" }
 
 Write-Host "Derleniyor: $Configuration $rid (günlük: $log)"
 $watch = [Diagnostics.Stopwatch]::StartNew()

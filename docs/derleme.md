@@ -130,6 +130,20 @@ dotnet publish src/Metraj.Desktop/Metraj.Desktop.csproj -c Release -r win-x64 -o
 
 `artifacts/` sürüm kontrolünde değildir.
 
+Paylaşılan sürümler GitHub Releases'tan dağıtılır. `v` ile başlayan bir etiket
+(küçük harf, ör. `v2026.10.22`) itildiğinde `.github/workflows/build.yml`
+Windows `.exe`'sini ve imzalı Android APK'sını derler, ikisi de hazır olunca tek
+bir Release olarak yayınlar:
+
+```bash
+git tag v2026.10.22 && git push origin v2026.10.22
+```
+
+APK imzası için iki depo gizi gerekir: `METRAJ_ANDROID_KEYSTORE_BASE64` (anahtar
+deposunun base64 hâli) ve `METRAJ_ANDROID_KEYSTORE_PASSWORD`. Aynı anahtarla
+imzalanan sürümler telefonda birbirinin üzerine güncelleme olarak kurulur;
+anahtar değişirse kullanıcı eski uygulamayı kaldırmak zorunda kalır.
+
 ## Android
 
 Android kabuğu (`src/Metraj.Android`, saf .NET for Android `net10.0-android`)
