@@ -198,6 +198,10 @@ public sealed class DatabaseMaintenanceWorkspaceService : IDatabaseMaintenanceWo
                 "DELETE FROM \"ResponsibilityDimensions\";",
                 "DELETE FROM \"ResponsibilityParties\";",
                 "DELETE FROM \"CalculationRuleVersions\";",
+                // Yerleşimler kendi üst kayıtlarını RESTRICT ile işaret eder; tek
+                // DELETE iç içe ağaçta "FOREIGN KEY constraint failed" ile düşüyordu
+                // (yerleşimli her projede 500). Önce ağaç bağları koparılır.
+                "UPDATE \"ProjectPlacements\" SET \"ParentPlacementId\" = NULL;",
                 "DELETE FROM \"ProjectPlacements\";",
                 "DELETE FROM \"AuditEntries\" WHERE \"ProjectRevisionId\" IS NOT NULL;",
                 "DELETE FROM \"ProjectRevisions\";",

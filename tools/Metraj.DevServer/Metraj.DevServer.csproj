@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Geliştirme ve test sunucusu: yerel API'yi WPF penceresi olmadan başlatır.
+    Mobil ekranlar (`vite dev` + METRAJ_API_URL) ve Playwright testleri gerçek
+    çekirdeğe karşı çalışsın diye var; teslim paketine girmez.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Metraj.Api\Metraj.Api.csproj" />
+    <ProjectReference Include="..\..\src\Metraj.Infrastructure\Metraj.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

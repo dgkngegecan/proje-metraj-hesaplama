@@ -135,9 +135,40 @@ public sealed record CatalogCardDraft(
     CatalogVariantMode VariantMode = CatalogVariantMode.None,
     IReadOnlyList<CatalogCardVariantDraft>? Variants = null);
 
+/// <summary>Bir kartın değişmez sürümlerinden biri; sürüm geçmişinde en yeni önce listelenir.</summary>
+/// <remarks>
+/// Kart notu (<see cref="CatalogCardListItem.Notes"/>) sürüme değil karta aittir; geçmişte
+/// yer almaz. <see cref="PlacementCount"/> bu sürümü kullanan proje yerleşimlerinin sayısıdır
+/// (onaylı revizyonlar dahil): eski bir sürüm silinmez, çünkü projeler ona bağlı kalır.
+/// </remarks>
+public sealed record CatalogCardVersionItem(
+    Guid Id,
+    Guid CardId,
+    int VersionNumber,
+    bool IsLatest,
+    string Name,
+    CardType CardType,
+    string Unit,
+    InputBehavior InputBehavior,
+    SalesConversion SalesConversion,
+    ReportBehavior ReportBehavior,
+    decimal WasteRatePct,
+    decimal? ContainerParameter,
+    string? PositionNumber,
+    string? MaterialType,
+    IReadOnlyList<string> CompatibleDiameters,
+    string? CustomTypeName,
+    CatalogVariantMode VariantMode,
+    IReadOnlyList<CatalogCardVariant> Variants,
+    IReadOnlyDictionary<string, string> AttributeValues,
+    int PlacementCount,
+    DateTime CreatedAtUtc);
+
 public interface ICatalogWorkspace
 {
     public Task<IReadOnlyList<CatalogCardListItem>> ListCardsAsync(CancellationToken cancellationToken = default);
+    /// <summary>Kartın bütün sürümleri, en yeni önce. Kart yoksa <c>catalog.definition</c>.</summary>
+    public Task<IReadOnlyList<CatalogCardVersionItem>> ListVersionsAsync(Guid definitionId, CancellationToken cancellationToken = default);
     public Task<CatalogCardListItem> CreateCardAsync(CatalogCardDraft draft, CancellationToken cancellationToken = default);
     public Task<CatalogCardListItem> CreateVersionAsync(Guid definitionId, CatalogCardDraft draft, CancellationToken cancellationToken = default);
     public Task DeactivateCardAsync(Guid definitionId, CancellationToken cancellationToken = default);

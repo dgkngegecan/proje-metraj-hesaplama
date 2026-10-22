@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Masaüstü simgesinin (src/Metraj.Desktop/Assets/metraj.ico: cetvel çerçeve +
+  turuncu gönye) sadeleştirilmiş vektör karşılığı. Uyarlanabilir simgenin
+  güvenli alanı (108 içinde ortadaki 66) içinde çizilir; açılış ekranında da
+  aynı çizim kullanılır.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Cetvel çerçeve: üst kol ve sağ kol. -->
+  <path android:fillColor="#8A5A2B" android:strokeColor="#3B2412" android:strokeWidth="1.5"
+      android:pathData="M28,28h52v10h-52z" />
+  <path android:fillColor="#FFFFFF" android:pathData="M45,31h18v4h-18z" />
+  <path android:fillColor="#8A5A2B" android:strokeColor="#3B2412" android:strokeWidth="1.5"
+      android:pathData="M70,38h10v42h-10z" />
+  <!-- Gönye. -->
+  <path android:fillColor="#F39C12" android:strokeColor="#3B2412" android:strokeWidth="1.5"
+      android:pathData="M28,38L28,82L74,82Z" />
+  <path android:fillColor="#FFFFFF" android:strokeColor="#3B2412" android:strokeWidth="1.2"
+      android:pathData="M36,58L36,75L53,75Z" />
+  <!-- Ölçü çizgileri. -->
+  <path android:strokeColor="#3B2412" android:strokeWidth="1.4" android:strokeLineCap="round"
+      android:pathData="M28,46h4 M28,52h6 M28,58h4 M28,64h6 M28,70h4 M28,76h6 M36,82v-4 M42,82v-6 M48,82v-4 M54,82v-6 M60,82v-4 M66,82v-6 M80,46h-4 M80,54h-6 M80,62h-4 M80,70h-6" />
+</vector>

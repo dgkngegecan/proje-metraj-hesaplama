@@ -169,6 +169,47 @@ public sealed class DatabaseMaintenanceWorkspaceTests
     }
 
     [Fact]
+    public async Task ProjectResetRemovesNestedPlacementTreesAndTheirMeasurements()
+    {
+        // Önceki test yalnız yerleşimsiz bir projeyi siliyordu. Gerçek projelerde
+        // yerleşimler iç içedir; ProjectPlacements kendi üst kaydını RESTRICT ile
+        // işaret ettiği için toplu DELETE "FOREIGN KEY constraint failed" ile
+        // düşüyor ve kullanıcı 500 hatası görüyordu.
+        await using TestDatabase database = await TestDatabase.CreateAsync("metraj-project-reset-tree");
+        string backupDirectory = Path.Combine(Path.GetTempPath(), $"metraj-reset-tree-backups-{Guid.NewGuid():N}");
+        try
+        {
+            await using (MetrajDbContext context = MetrajDbContextFactory.Create(database.Path))
+            {
+                await ApplicationSchemaMigrator.MigrateAsync(context);
+            }
+
+            string csvPath = Path.Combine(AppContext.BaseDirectory, "TestData", "Phase0", "CleanWater", "fixtures", "measurements.csv");
+            SyntheticCleanWaterImportResult sample = await new SyntheticCleanWaterWorkspaceService(
+                () => MetrajDbContextFactory.Create(database.Path), csvPath).ImportAsync();
+            Assert.True(sample.ImportedPlacementCount > 1);
+            await using (MetrajDbContext before = MetrajDbContextFactory.Create(database.Path))
+            {
+                Assert.True(await before.ProjectPlacements.AnyAsync(placement => placement.ParentPlacementId != null));
+            }
+
+            var maintenance = new DatabaseMaintenanceWorkspaceService(() => database.Path, backupDirectory);
+            ProjectDataResetResult result = await maintenance.ResetProjectDataAsync();
+
+            Assert.Equal(1, result.DeletedProjectCount);
+            await using MetrajDbContext verification = MetrajDbContextFactory.Create(database.Path);
+            Assert.Empty(await verification.Projects.ToListAsync());
+            Assert.Empty(await verification.ProjectPlacements.ToListAsync());
+            Assert.Empty(await verification.Measurements.ToListAsync());
+            Assert.True((await maintenance.CheckIntegrityAsync()).IsHealthy);
+        }
+        finally
+        {
+            TestDatabase.DeleteDirectoryWithDatabases(backupDirectory);
+        }
+    }
+
+    [Fact]
     public void SingleWriterGuardRejectsSecondApplicationInstanceUntilReleased()
     {
         string identity = $"Metraj.Tests.{Guid.NewGuid():N}";

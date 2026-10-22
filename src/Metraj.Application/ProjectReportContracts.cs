@@ -100,7 +100,26 @@ public sealed record ProjectReportExportResult(
     string OutputPath,
     int SourceMeasurementCount,
     int SummaryCount,
-    DateTime GeneratedAtUtc);
+    DateTime GeneratedAtUtc)
+{
+    // Aşağıdaki dört alan yalnız indirme dosyasına okunur bir ad vermek içindir.
+    // Önceden indirme adı geçici dosyanın GUID'li adıydı (metraj-<guid>-<guid>.pdf)
+    // ve kullanıcı bunu masaüstünde, tarayıcıda ve Android paylaşım ekranında
+    // görüyordu. Bilgi zaten rapor verisinin içinde olduğundan ek sorgu gerekmez.
+    // Konumsal sözleşmenin dışında, isteğe bağlı ek: mevcut çağıranlar etkilenmez.
+
+    /// <summary>Raporun proje kodu.</summary>
+    public string ProjectCode { get; init; } = string.Empty;
+
+    /// <summary>Raporun revizyon kodu (ör. "R0").</summary>
+    public string RevisionCode { get; init; } = string.Empty;
+
+    /// <summary>Alt ağaç raporunda kök yerleşimin kodu; tam raporda <see langword="null"/>.</summary>
+    public string? ScopeCode { get; init; }
+
+    /// <summary>Alt ağaç raporunda kök yerleşimin görünen adı; tam raporda <see langword="null"/>.</summary>
+    public string? ScopeName { get; init; }
+}
 
 /// <summary>Creates consistent PDF and Excel reports from one project revision.</summary>
 public interface IProjectReportWorkspace

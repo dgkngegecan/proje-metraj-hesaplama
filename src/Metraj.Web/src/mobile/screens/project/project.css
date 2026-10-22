@@ -1,0 +1,659 @@
+/*
+ * Proje sekmesi (ağaç + giriş sayfası) stilleri. Sınıflar `m-proj-` önekli;
+ * renk/boşluk DEĞERİ değil `styles/tokens.css` değişkenleri kullanılır.
+ */
+
+/* ---------- Kart tipi simgesi ---------- */
+.m-proj-glyph {
+    flex: none;
+    color: var(--color-border-strong);
+}
+.m-proj-glyph--category {
+    color: var(--type-category);
+}
+.m-proj-glyph--scope {
+    color: var(--type-scope);
+}
+.m-proj-glyph--system {
+    color: var(--type-system);
+}
+.m-proj-glyph--material {
+    color: var(--type-material);
+}
+.m-proj-glyph--accessory {
+    color: var(--type-accessory);
+}
+
+/* ---------- Üst araç çubuğu: yol göstergesi + görünüm ---------- */
+.m-proj-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-top: var(--space-1);
+}
+
+.m-proj-toolbar:empty {
+    display: none;
+}
+
+.m-proj-crumbs {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding: 0 var(--space-2);
+    white-space: nowrap;
+}
+
+.m-proj-crumbs::-webkit-scrollbar {
+    display: none;
+}
+
+.m-proj-crumbs__item {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+}
+
+.m-proj-crumbs__sep {
+    color: var(--color-text-muted);
+}
+
+.m-proj-crumbs__button {
+    min-height: var(--touch-min);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-sm);
+    color: var(--color-primary-strong);
+    font-weight: 600;
+    max-width: 45vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.m-proj-crumbs__button:disabled,
+.m-proj-crumbs__button[aria-current='page'] {
+    color: var(--color-text);
+    font-weight: 800;
+}
+
+/* ---------- Yatay çip şeridi ---------- */
+.m-proj-strip {
+    display: flex;
+    gap: var(--space-2);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding: var(--space-1) var(--space-4);
+}
+
+.m-proj-strip::-webkit-scrollbar {
+    display: none;
+}
+
+.m-proj-strip__chip {
+    position: relative;
+    flex: none;
+    min-height: var(--touch-min);
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-surface);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.m-proj-strip__chip.is-selected {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-on-primary);
+}
+
+.m-proj-strip__chip:disabled {
+    opacity: 0.45;
+}
+
+.m-proj-strip__muted {
+    font-weight: 500;
+    opacity: 0.85;
+}
+
+.m-proj-strip__badge {
+    margin-left: var(--space-2);
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--color-danger);
+    color: var(--color-on-danger);
+    font-size: var(--text-xs);
+}
+
+/* ---------- Ağaç satırı ---------- */
+.m-proj-row {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    min-height: 72px;
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-proj-row__stripe {
+    flex: none;
+    width: 5px;
+    background: var(--color-border-strong);
+}
+.m-proj-row--category .m-proj-row__stripe {
+    background: var(--type-category);
+}
+.m-proj-row--scope .m-proj-row__stripe {
+    background: var(--type-scope);
+}
+.m-proj-row--system .m-proj-row__stripe {
+    background: var(--type-system);
+}
+.m-proj-row--material .m-proj-row__stripe {
+    background: var(--type-material);
+}
+.m-proj-row--accessory .m-proj-row__stripe {
+    background: var(--type-accessory);
+}
+
+.m-proj-row__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-2) var(--space-3) calc(var(--space-3) + var(--m-depth, 0) * 14px);
+    text-align: left;
+}
+
+.m-proj-row__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.m-proj-row__text strong {
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    overflow-wrap: anywhere;
+}
+
+.m-proj-row__text small {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.m-proj-row__path {
+    font-size: var(--text-xs);
+}
+
+.m-proj-row__chevron {
+    align-self: center;
+    margin-right: var(--space-3);
+    color: var(--color-text-muted);
+}
+
+.m-proj-row__sub {
+    flex: none;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: var(--touch-large);
+    padding: 0 var(--space-3);
+    border-left: 1px solid var(--color-border);
+    color: var(--color-primary-strong);
+    font-weight: 800;
+}
+
+.m-proj-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+}
+
+.m-proj-pill {
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-2);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.m-proj-pill--buy {
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+}
+
+/* ---------- Seçim satırları (kart ekle, taşı, hesap kaynağı) ---------- */
+.m-proj-pick {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: 64px;
+    padding: var(--space-2) var(--space-4) var(--space-2) calc(var(--space-4) + var(--m-depth, 0) * 14px);
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-surface);
+    text-align: left;
+}
+
+.m-proj-pick:active:not(:disabled) {
+    background: var(--color-primary-soft);
+}
+
+.m-proj-pick:disabled {
+    opacity: 0.55;
+}
+
+.m-proj-pick[aria-current='true'] {
+    background: var(--color-primary-soft);
+}
+
+.m-proj-pick__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.m-proj-pick__text strong {
+    font-weight: 700;
+    line-height: var(--leading-tight);
+    overflow-wrap: anywhere;
+}
+
+.m-proj-pick__text small {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.m-proj-pick__add {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: var(--touch-min);
+    height: var(--touch-min);
+    border-radius: var(--radius-pill);
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+}
+
+/* Listeyi kendi kaydıran paneller: gövde sütun olur, liste kalan yüksekliği alır. */
+.m-proj-add .m-sheet__body,
+.m-proj-listsheet .m-sheet__body {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+
+.m-proj-add__header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-proj-add__header .m-proj-strip {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.m-proj-add__heading {
+    padding: var(--space-3) var(--space-4) var(--space-1);
+    font-size: var(--text-sm);
+    font-weight: 800;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* ---------- Genel küçük parçalar ---------- */
+.m-proj-note {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}
+
+.m-proj-error {
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
+    font-weight: 700;
+}
+
+.m-proj-empty-line {
+    padding: var(--space-2) 0;
+}
+
+.m-proj-sectionhead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.m-proj-subtitle {
+    margin-top: var(--space-2);
+    font-size: var(--text-md);
+    font-weight: 800;
+}
+
+.m-proj-textarea {
+    min-height: 96px;
+    padding-top: var(--space-3);
+    padding-bottom: var(--space-3);
+    resize: vertical;
+}
+
+.m-proj-grid2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3);
+}
+
+.m-proj-cardnote {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    margin: var(--space-3) var(--space-4) 0;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    font-size: var(--text-sm);
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Toplamlar ---------- */
+.m-proj-totals {
+    margin: var(--space-3) var(--space-4) 0;
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+}
+
+.m-proj-totals--empty {
+    background: transparent;
+    border-style: dashed;
+}
+
+.m-proj-totals__main {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.m-proj-totals__main span {
+    color: var(--color-text-muted);
+    font-weight: 700;
+}
+
+.m-proj-totals__main strong {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+}
+
+.m-proj-totals__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    margin: var(--space-2) 0 0;
+}
+
+.m-proj-totals__grid dt {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.m-proj-totals__grid dd {
+    margin: 0;
+    font-weight: 800;
+}
+
+.m-proj-totals__variants {
+    list-style: none;
+    margin: var(--space-3) 0 0;
+    padding: var(--space-2) 0 0;
+    border-top: 1px solid var(--color-border);
+    font-size: var(--text-sm);
+}
+
+.m-proj-totals__variants li {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: 2px 0;
+}
+
+/* ---------- Bağlam çipleri ---------- */
+.m-proj-context {
+    margin-top: var(--space-3);
+}
+
+.m-proj-context__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-3);
+    padding: 0 var(--space-4);
+}
+
+.m-proj-context__title {
+    font-size: var(--text-sm);
+    font-weight: 800;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.m-proj-context__summary {
+    min-width: 0;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.m-proj-fieldlist {
+    list-style: none;
+    margin: 0 0 var(--space-3);
+    padding: 0;
+}
+
+.m-proj-fieldlist__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-comfort);
+    padding: 0 var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+}
+
+.m-proj-fieldlist__row span {
+    flex: 1;
+    color: var(--color-text-muted);
+}
+
+.m-proj-picker__recent {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+}
+
+/* ---------- Sayaç satırları (fitting, radyatör) ---------- */
+.m-proj-counters {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.m-proj-counter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: 64px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-proj-counter__label {
+    flex: 1;
+    min-width: 0;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.m-proj-counter .m-stepper {
+    flex: none;
+    width: 190px;
+}
+
+/* Kaydet çubuğu: uzun sayaç listelerinde de parmağın altında kalsın. */
+.m-proj-savebar {
+    position: sticky;
+    bottom: calc(-1 * var(--space-6));
+    z-index: var(--z-raised);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin: var(--space-2) calc(-1 * var(--space-4)) 0;
+    padding: var(--space-3) var(--space-4);
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+}
+
+.m-proj-addlength {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-2);
+}
+
+.m-proj-addlength .m-field {
+    flex: 1;
+}
+
+.m-proj-others {
+    padding: var(--space-2) 0;
+}
+
+.m-proj-others summary {
+    min-height: var(--touch-min);
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+}
+
+.m-proj-others__row {
+    display: block;
+    width: 100%;
+    min-height: var(--touch-min);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+    font-size: var(--text-sm);
+}
+
+/* ---------- Geçmiş, notlar, alt kartlar ---------- */
+.m-proj-history {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--touch-comfort);
+    padding: var(--space-2) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-proj-history__qty {
+    flex: none;
+    min-width: 84px;
+    font-size: var(--text-lg);
+    font-weight: 800;
+}
+
+.m-proj-history__qty small {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-text-muted);
+}
+
+.m-proj-history__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.m-proj-history__text strong {
+    font-size: var(--text-sm);
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.m-proj-history__text small,
+.m-proj-history__time {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.m-proj-history__time {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.m-proj-note-row {
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.m-proj-note-row p {
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+
+.m-proj-child {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    min-height: var(--touch-comfort);
+    padding: var(--space-2) var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+    text-align: left;
+}
+
+.m-proj-child__text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.m-proj-child__text small {
+    font-size: var(--text-sm);
+    color: var(--color-text-muted);
+}

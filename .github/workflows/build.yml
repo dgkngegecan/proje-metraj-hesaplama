@@ -5,6 +5,9 @@
 # Buradaki koşu, "benim makinemde çalışıyor" ile teslim edilen sürüm arasındaki
 # farkı yakalar -- kullanıcının eski arayüzlü bir .exe almasının önündeki tek
 # otomatik engel budur.
+#
+# "v" ile başlayan bir etiket (ör. v2026.10.22) itilince Windows .exe'si ve
+# Android APK'sı aynı GitHub Release'e eklenir.
 name: build
 
 on:
@@ -72,16 +75,118 @@ jobs:
           retention-days: 90
           compression-level: 0
 
-      - name: Etiketli sürümü GitHub Release olarak yayınla
-        if: startsWith(github.ref, 'refs/tags/v')
+  android:
+    # Android kabuğu ayrı çözümde (Metraj.Mobile.sln); bkz. docs/derleme.md → Android.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: .NET SDK (global.json'a göre)
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Node (.nvmrc'ye göre)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: src/Metraj.Web/package-lock.json
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android iş yükü
+        run: dotnet workload install android
+
+      - name: Arayüz bağımlılıkları
+        working-directory: src/Metraj.Web
+        run: npm ci
+
+      # MSBuild ortam değişkenlerini özellik olarak okur; SDK ve JDK yolları buradan gelir.
+      - name: Android SDK ve JDK yolları
+        shell: pwsh
+        run: |
+          "AndroidSdkDirectory=$env:ANDROID_HOME" >> $env:GITHUB_ENV
+          "JavaSdkDirectory=$env:JAVA_HOME" >> $env:GITHUB_ENV
+
+      - name: Eksik Android platformunu kur
+        run: >-
+          dotnet build src/Metraj.Android/Metraj.Android.csproj
+          -t:InstallAndroidDependencies
+          -p:AcceptAndroidSDKLicenses=True
+
+      # Anahtar deposu ve parolası depo gizlerinden gelir; dosya yalnız bu koşunun
+      # geçici klasörüne yazılır. Sürüm kodu her koşuda artar, telefon güncelleme
+      # olarak kurabilsin.
+      - name: APK derle ve imzala
         shell: pwsh
         env:
-          GH_TOKEN: ${{ github.token }}
+          METRAJ_ANDROID_KEYSTORE_BASE64: ${{ secrets.METRAJ_ANDROID_KEYSTORE_BASE64 }}
+          METRAJ_ANDROID_SIGNING_SECRET: ${{ secrets.METRAJ_ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          $asset = 'artifacts/ProjeMetraj-win-x64/ProjeMetraj-win-x64.exe'
-          gh release view $env:GITHUB_REF_NAME 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:GITHUB_REF_NAME $asset --clobber
-          } else {
-            gh release create $env:GITHUB_REF_NAME $asset --title "Proje Metraj $env:GITHUB_REF_NAME" --generate-notes
-          }
+          if (-not $env:METRAJ_ANDROID_KEYSTORE_BASE64) { throw 'METRAJ_ANDROID_KEYSTORE_BASE64 gizi tanımlı değil.' }
+          $keyStore = Join-Path $env:RUNNER_TEMP 'metraj.keystore'
+          [IO.File]::WriteAllBytes($keyStore, [Convert]::FromBase64String($env:METRAJ_ANDROID_KEYSTORE_BASE64))
+          $versionName = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.Substring(1) } else { "0.0.$env:GITHUB_RUN_NUMBER" }
+          ./scripts/build-android.ps1 -Abi arm64 -KeyStore $keyStore `
+            -KeyStorePassword env:METRAJ_ANDROID_SIGNING_SECRET `
+            -VersionCode $env:GITHUB_RUN_NUMBER -VersionName $versionName
+          Move-Item artifacts/ProjeMetraj-android/ProjeMetraj-arm64-release.apk artifacts/ProjeMetraj-android/ProjeMetraj-android-arm64.apk
+
+      - name: Derleme günlüğü
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-log
+          path: artifacts/ProjeMetraj-android/build-arm64.log
+          if-no-files-found: ignore
+
+      - name: Actions indirmesine ekle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProjeMetraj-android-arm64
+          path: artifacts/ProjeMetraj-android/ProjeMetraj-android-arm64.apk
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+  release:
+    # İki dosya da hazır olunca tek seferde yayınlanır; yarım sürüm çıkmaz.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ProjeMetraj-*
+          path: dist
+          merge-multiple: true
+
+      - name: GitHub Release olarak yayınla
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cat > notes.md <<'EOF'
+          ## İndirme
+
+          | Cihaz | Dosya |
+          |---|---|
+          | Windows 10/11 (64 bit) | `ProjeMetraj-win-x64.exe`: kurulum gerekmez, indirip çalıştırın. |
+          | Android 8.0 ve üstü | `ProjeMetraj-android-arm64.apk`: telefonda açıp yükleyin. |
+
+          Dosyalar imzalı bir yayıncıdan gelmediği için Windows "Bilgisayarınız korundu"
+          uyarısı verebilir: **Ek bilgi → Yine de çalıştır**. Android'de dosyayı açtığınız
+          uygulamaya "bilinmeyen uygulamaları yükleme" izni vermeniz gerekir.
+
+          Uygulama internet kullanmaz; veriler yalnızca kendi cihazınızda durur.
+          EOF
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --title "Proje Metraj $GITHUB_REF_NAME" --notes-file notes.md --generate-notes --latest
+          fi

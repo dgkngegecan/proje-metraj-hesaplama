@@ -54,6 +54,74 @@ demek değildir.
 dotnet test Metraj.sln
 ```
 
+## Telefon uçtan uca testleri (Playwright)
+
+```bash
+cd src/Metraj.Web
+npx playwright install chromium     # bir kez (PLAYWRIGHT_BROWSERS_PATH ile D: gibi bir yere)
+npm run test:e2e                    # önce derler (dist), sonra 16 testi çalıştırır
+npm run check:e2e                   # yalnız tip denetimi
+```
+
+`e2e/global-setup.ts` DevServer'ı (`dotnet run --project tools/Metraj.DevServer ... --fresh`)
+başlatır, adresini url dosyasından okur ve o adrese `/api` vekili kuran `vite preview` ile
+en güncel `dist`'i sunar; `global-teardown.ts` süreçleri kapatır. Veritabanı, günlükler
+ve durum dosyası `METRAJ_E2E_DIR` altında (varsayılan `%TEMP%\metraj-e2e`). Ortam:
+`METRAJ_DOTNET` (dotnet yolu), `METRAJ_E2E_PORT` (önizleme portu, varsayılan 4310).
+Testler tek işçiyle çalışır ve her test çalışma alanını sıfırlayıp kendi verisini kurar.
+Aygıt: Pixel 7 emülasyonu (412×915, dokunma açık), Chromium.
+
+## EF Core derlenmiş modeli
+
+Uygulama EF Core modelini çalışma zamanında `OnModelCreating`'den kurmaz;
+`src/Metraj.Infrastructure/CompiledModel/` altındaki, derleme anında üretilmiş
+modeli kullanır (`MetrajDbContextFactory` → `UseModel(MetrajDbContextModel.Instance)`).
+Önceden süreçteki ilk bağlam 17 varlığın modelini kurallarla baştan kuruyordu;
+bu, Android'deki açılış süresinin büyük kalemlerinden biriydi.
+
+**`MetrajDbContext` (`OnModelCreating`), bir varlık sınıfı, bir değer
+dönüştürücüsü (ör. `ScaledDecimalConverter`) ya da `QuantityRules` ölçeği
+değişirse derlenmiş model yenilenmelidir.** Derlenmiş model dönüştürücü
+ifadelerini koda kopyalar (ölçek çarpanı `1000000M` sabit olarak yazılır);
+yenilenmezse uygulama eski modelle ve eski ölçekle çalışır.
+`CompiledModelConsistencyTests` bu durumda kırılır ve farkı listeler.
+
+Araç bir kez kurulur (EF Core ile aynı sürüm; `Directory.Packages.props`):
+
+```bash
+dotnet tool install dotnet-ef --version 10.0.11 --tool-path <araç-klasörü>
+```
+
+Yenileme (depo kökünde):
+
+```bash
+dotnet build src/Metraj.Infrastructure/Metraj.Infrastructure.csproj -c Release
+dotnet-ef dbcontext optimize \
+  --project src/Metraj.Infrastructure/Metraj.Infrastructure.csproj \
+  --startup-project src/Metraj.Infrastructure/Metraj.Infrastructure.csproj \
+  --context MetrajDbContext --output-dir CompiledModel \
+  --namespace Metraj.Infrastructure.CompiledModel \
+  --configuration Release --no-build
+```
+
+Araç bağlamı `MetrajDesignTimeDbContextFactory` ile kurar (veritabanına
+bağlanmaz). `Microsoft.EntityFrameworkCore.Design` yalnız Infrastructure'da ve
+`PrivateAssets="all"` ile durur; uygulamaya ve tüketici projelere akmaz. EF Core
+sürümü yükseltildiğinde de model yeniden üretilmelidir (üretilen kod EF'in iç
+API'lerini kullanır).
+
+## Standart kart paketi damgası
+
+Açılıştaki "standart kart kütüphanesi denetimi" (`StarterCatalogWorkspaceService.SeedAsync`)
+eklenecek bir şey yoksa kataloğu okumadan döner. Tam tohumlama bittiğinde
+manifestin özeti (`ManifestDigest`, `StarterCatalogFamilyManifest.cs` metninden
+ve `FamilyRevision`/`SeedRevision`'dan hesaplanır) `__StarterCatalogSeedStamp`
+tablosuna yazılır; kart silmek, pasife almak, kodunu ya da aile kartının
+1. sürüm niteliklerini değiştirmek SQLite tetikleyicileriyle damgayı siler.
+Manifestte kart eklemek/çıkarmak özeti kendiliğinden değiştirir; elle bir şey
+yapmak gerekmez. `SeedAsync`'in **ekleme kuralı** değişirse `SeedRevision`
+artırılmalıdır.
+
 ## Yayın çıktısı
 
 ```bash
@@ -61,3 +129,108 @@ dotnet publish src/Metraj.Desktop/Metraj.Desktop.csproj -c Release -r win-x64 -o
 ```
 
 `artifacts/` sürüm kontrolünde değildir.
+
+Paylaşılan sürümler GitHub Releases'tan dağıtılır. `v` ile başlayan bir etiket
+(küçük harf, ör. `v2026.10.22`) itildiğinde `.github/workflows/build.yml`
+Windows `.exe`'sini ve imzalı Android APK'sını derler, ikisi de hazır olunca tek
+bir Release olarak yayınlar:
+
+```bash
+git tag v2026.10.22 && git push origin v2026.10.22
+```
+
+APK imzası için iki depo gizi gerekir: `METRAJ_ANDROID_KEYSTORE_BASE64` (anahtar
+deposunun base64 hâli) ve `METRAJ_ANDROID_KEYSTORE_PASSWORD`. Aynı anahtarla
+imzalanan sürümler telefonda birbirinin üzerine güncelleme olarak kurulur;
+anahtar değişirse kullanıcı eski uygulamayı kaldırmak zorunda kalır.
+
+## Android
+
+Android kabuğu (`src/Metraj.Android`, saf .NET for Android `net10.0-android`)
+ayrı bir çözümdedir: `Metraj.Mobile.sln` (Domain, Application, Infrastructure,
+Host, Android). `Metraj.sln` ve masaüstü CI'ı Android iş yükü gerektirmez.
+
+### Gereksinimler
+
+| Araç | Sürüm |
+|---|---|
+| .NET SDK + `android` iş yükü | 10.0.400, iş yükü 36.1.x (`dotnet workload install android`) |
+| Android SDK | platform `android-36`, build-tools 36.0.0 |
+| JDK | 17 |
+| minSdk / targetSdk | 26 / 36 |
+
+Bu makinede araç zinciri tamamen `D:\toolchain` altındadır; her komuttan önce
+`. D:\toolchain\env.ps1` çalıştırılır ve `dotnet` olarak
+`D:\toolchain\dotnet\dotnet.exe` kullanılır (C: dolu).
+
+### İmzalama anahtarı
+
+Android'in varsayılan debug anahtarı `%LOCALAPPDATA%` (C:) altına üretilir; bu
+proje onu **kullanmaz** ve anahtar depoya girmez. Anahtar her yapılandırmada
+dışarıdan verilir, verilmezse derleme imzalamadan önce açık bir hatayla durur:
+
+| Ortam değişkeni / MSBuild özelliği | Anlamı |
+|---|---|
+| `METRAJ_ANDROID_KEYSTORE` / `-p:MetrajAndroidKeystore` | anahtar deposunun yolu |
+| `METRAJ_ANDROID_KEYSTORE_PASSWORD` / `-p:MetrajAndroidKeystorePassword` | parola; MSBuild'e `env:AD` biçiminde verin. `file:YOL` yalnız betikte geçerlidir: apksigner aynı dosyayı iki parola için okuyamıyor, betik dosyayı kendi ortamına alıp `env:` verir |
+| `METRAJ_ANDROID_KEY_ALIAS` / `-p:MetrajAndroidKeyAlias` | takma ad (varsayılan `metraj`) |
+
+Test anahtarı (JDK `keytool`, PKCS12'de anahtar parolası = depo parolası):
+
+```powershell
+keytool -genkeypair -keystore D:\toolchain\android-keys\metraj-debug.keystore -storetype PKCS12 `
+        -alias metraj -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Proje Metraj Test, C=TR"
+```
+
+### Komut
+
+```powershell
+./scripts/build-android.ps1 -KeyStore D:\toolchain\android-keys\metraj-debug.keystore `
+    -KeyStorePassword file:D:\toolchain\android-keys\metraj-debug.password       # arm64 (yayın)
+./scripts/build-android.ps1 -Abi x64                                               # emülatör; anahtar ortamdan
+./scripts/build-android.ps1 -Abi x64 -WebViewDebugging                             # ölçüm: chrome://inspect açık
+```
+
+Çıktı: `artifacts/ProjeMetraj-android/ProjeMetraj-<abi>-release.apk`. Betik
+derleme günlüğünde XA0141 (16 KB sayfa hizalaması) görürse başarısız olur.
+
+Derleme ayrıntıları (`Metraj.Android.csproj`):
+
+- **Tam AOT** (`AndroidEnableProfiledAot=false`) ve **kısmi kırpma**
+  (`TrimMode=partial`; EF Core, System.Text.Json, ClosedXML ve PDFsharp
+  ayrıntılı kırpmaya dayanıklı değil). Tek mimarili APK; yayın `android-arm64`.
+- **Arayüz varlıkları:** `src/Metraj.Web/dist/**` APK'nın `assets/web/` klasörüne
+  girer ve `https://appassets.androidplatform.net/web/mobile.html` olarak sunulur.
+  `Metraj.Api` ile aynı artımlı npm deseni: dist yoksa ya da kaynaktan eskiyse
+  `npm run build` çalışır; `-p:BuildFrontend=false` ile atlanır. Her durumda
+  `dist/mobile.html` ya da `dist/assets/*.js` yoksa build **durur**.
+- **SQLite:** `SQLitePCLRaw.lib.e_sqlite3.android` (bionic ikilisi) ve
+  `SQLitePCLRaw.lib.e_sqlite3` için `ExcludeAssets="native"`. İkincisi olmadan
+  linux-x64 (glibc) ikilisi APK'ya girip Android ikilisini eziyor
+  (`DllNotFoundException: e_sqlite3`) ve XA0141 uyarısı çıkıyordu.
+- **Şablon veritabanı:** göç edilmiş ve 733 kartlık standart katalogla tohumlanmış boş
+  bir `metraj.db`, derlemede `tools/Metraj.DbTemplate` ile üretilir
+  (`GenerateStarterDatabaseTemplate`, çıktı `src/Metraj.Android/obj/template/`) ve APK'ya
+  `assets/metraj-template.db` olarak girer. Uygulama yalnız veritabanı dosyası YOKSA
+  (ilk kurulum) kopyalar; kopya başarısızsa ya da şablon yoksa eski yol (göç + tohumlama)
+  çalışır. İkili depoya girmez; şema/tohumlama kodu (Domain, Application,
+  Infrastructure) ya da araç değişince yeniden üretilir. Şablonun, boş veritabanında
+  göç + tohumlamayla üretilenle aynı olduğunu `StarterDatabaseTemplateTests` kanıtlar
+  (şema, satırlar, tohumlama damgası, bütünlük).
+- **WebView hata ayıklaması** Debug'da açık, Release'te kapalı;
+  `-p:MetrajWebViewDebugging=true` yalnız ölçüm derlemeleri içindir.
+- **İzinler:** manifestte `INTERNET` yok; Release derlemesine .NET de eklemez
+  (Debug derlemesi hata ayıklayıcı için kendiliğinden ekler, bu yüzden izin
+  denetimi Release APK'sında yapılır).
+
+### Emülatörde çalıştırma
+
+```powershell
+D:\toolchain\android-sdk\emulator\emulator.exe -avd metraj35 -no-snapshot -no-audio -no-boot-anim
+adb install -r artifacts\ProjeMetraj-android\ProjeMetraj-x64-release.apk
+adb shell am start -W -n dev.projemetraj.app/dev.projemetraj.app.MainActivity
+adb logcat -s METRAJ        # açılış adımları süreç başlangıcına göre "t+… ms" damgalı
+```
+
+Veri `FilesDir` altındadır (`metraj.db`, `backups/`); kalıcı hata günlüğü
+`FilesDir/logs/metraj.log`.

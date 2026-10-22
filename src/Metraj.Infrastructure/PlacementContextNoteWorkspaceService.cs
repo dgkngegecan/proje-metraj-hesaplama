@@ -85,8 +85,6 @@ public sealed class PlacementContextNoteWorkspaceService(Func<MetrajDbContext> c
     }
 
     private static PlacementContextNoteListItem ToListItem(PlacementContextNote note) => new(
-        note.Id, note.PlacementId, note.Block, note.Floor, note.Room, note.Text,
-        // SQLite stores DateTime values without their Kind; the wire contract always represents UTC.
-        DateTime.SpecifyKind(note.CreatedAtUtc, DateTimeKind.Utc),
-        note.UpdatedAtUtc is DateTime updated ? DateTime.SpecifyKind(updated, DateTimeKind.Utc) : null);
+        // Zamanlar UTC olarak okunur (UtcDateTimeConverter); tel sözleşmesi "Z" ile yazar.
+        note.Id, note.PlacementId, note.Block, note.Floor, note.Room, note.Text, note.CreatedAtUtc, note.UpdatedAtUtc);
 }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Uygulama koyu temayla açılır. Arayüzün koyu zemin rengiyle (src/mobile/styles/tokens.css) aynı:
+  açılış ekranı ile WebView'ın ilk boyaması arasında renk sıçraması olmasın.
+-->
+<resources>
+  <color name="metraj_bg">#0B0F17</color>
+  <color name="metraj_text">#F2F5F9</color>
+  <color name="metraj_text_muted">#B9C4D3</color>
+  <color name="metraj_primary">#8AB4FF</color>
+  <color name="metraj_icon_bg">#FFF7EA</color>
+</resources>

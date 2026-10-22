@@ -2,6 +2,11 @@
 tmp/
 output/
 
+# Android imza anahtarları ve parola dosyaları depoya asla girmez (scripts/build-android.ps1).
+*.keystore
+*.jks
+*.password
+
 # .NET build output (Faz 1+)
 bin/
 obj/
@@ -15,6 +20,9 @@ obj/
 
 # React development dependencies and cache
 src/Metraj.Web/node_modules/
+# Playwright çıktıları (iz, ekran görüntüsü, HTML/JUnit raporu)
+src/Metraj.Web/e2e/.results/
+src/Metraj.Web/playwright-report/
 src/Metraj.Web/.npm-cache/
 
 # Local SQLite project data (not fixtures)

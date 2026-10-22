@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Android APK'sına giren şablon veritabanını üretir: göç edilmiş ve standart
+    katalogla tohumlanmış boş bir metraj.db. src/Metraj.Android derlemesi bu aracı
+    çalıştırır (Metraj.Android.csproj → GenerateStarterDatabaseTemplate); elle
+    üretilmiş ikili depoya girmez. Teslim paketine girmez.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Metraj.Infrastructure\Metraj.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

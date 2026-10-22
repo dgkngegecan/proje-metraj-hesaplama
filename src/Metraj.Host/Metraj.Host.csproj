@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    YEREL API'NİN TAŞIMADAN BAĞIMSIZ ÇEKİRDEĞİ.
+
+    Uç nokta mantığı önceden Metraj.Api içinde ASP.NET Core minimal API'leri
+    olarak duruyordu. Android'de ASP.NET Core / Kestrel bulunmadığı için aynı
+    67 ucun ikinci bir kopyasını yazmak gerekecekti; iki kopya zamanla ayrışır.
+    Rota tablosu, bağlama, JSON sözleşmesi ve hata eşlemesi bu yüzden burada
+    tek kopya olarak durur: masaüstünde LocalApiHost (Kestrel adaptörü),
+    Android'de WebView köprüsü aynı MetrajRequestRouter'ı çağırır.
+
+    Bilinçli olarak ASP.NET Core'a BAĞIMLILIK YOK (FrameworkReference yok,
+    Microsoft.NET.Sdk.Web değil). TargetFramework: Directory.Build.props.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Metraj.Application\Metraj.Application.csproj" />
+    <ProjectReference Include="..\Metraj.Infrastructure\Metraj.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Sentetik Temiz Su örnek verisi. Önceden Metraj.Api'ye gömülüydü; Android de aynı kaynağı kullansın diye buraya taşındı. -->
+    <EmbeddedResource Include="..\..\tests\Metraj.Tests\TestData\Phase0\CleanWater\fixtures\measurements.csv" LogicalName="Metraj.Host.SampleData.CleanWaterSynthetic.csv" />
+  </ItemGroup>
+</Project>

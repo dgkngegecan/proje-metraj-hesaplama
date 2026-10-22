@@ -1,0 +1,4 @@
+# Kök .gitignore derleme çıktıları için her "output/" klasörünü yok sayıyor.
+# Özet/Çıktı sekmesinin kaynak klasörü (screens/output) bundan hariç tutulur;
+# yoksa Dalga 2'de buraya eklenen dosyalar sessizce commit dışında kalırdı.
+!output/
